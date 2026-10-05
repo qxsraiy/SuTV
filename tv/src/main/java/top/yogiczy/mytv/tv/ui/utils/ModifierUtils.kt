@@ -182,6 +182,7 @@ fun Modifier.handleKeyEvents(
     onSelect: (() -> Unit)? = null,
     onLongSelect: (() -> Unit)? = null,
     onSettings: (() -> Unit)? = null,
+    onDoubleClick: (() -> Unit)? = null,
     onNumber: ((Int) -> Unit)? = null,
 ) = handleKeyEvents(
     onKeyTap = mapOf(
@@ -241,7 +242,7 @@ fun Modifier.handleKeyEvents(
     .clickableNoIndication(
         onClick = onSelect,
         onLongClick = onLongSelect,
-        onDoubleClick = onSettings,
+        onDoubleClick = onDoubleClick,
     )
 
 fun Modifier.handleKeyEvents(
@@ -258,6 +259,7 @@ fun Modifier.handleKeyEvents(
     onSelect: (() -> Unit)? = null,
     onLongSelect: (() -> Unit)? = null,
     onSettings: (() -> Unit)? = null,
+    onDoubleClick: (() -> Unit)? = null,
     onNumber: ((Int) -> Unit)? = null,
 ) = handleKeyEvents(
     onLeft = onLeft?.let { { if (isFocused()) it() else focusRequester.saveRequestFocus() } },
@@ -271,6 +273,7 @@ fun Modifier.handleKeyEvents(
     onSelect = onSelect?.let { { if (isFocused()) it() else focusRequester.saveRequestFocus() } },
     onLongSelect = onLongSelect?.let { { if (isFocused()) it() else focusRequester.saveRequestFocus() } },
     onSettings = onSettings?.let { { if (isFocused()) it() else focusRequester.saveRequestFocus() } },
+    onDoubleClick = onDoubleClick,
     onNumber = onNumber?.let { { num -> if (isFocused()) it(num) else focusRequester.saveRequestFocus() } },
 )
 
