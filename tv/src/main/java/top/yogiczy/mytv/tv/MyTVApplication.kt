@@ -87,6 +87,14 @@ class MyTVApplication : Application(), ImageLoaderFactory {
                 return@setDefaultUncaughtExceptionHandler
             }
 
+            // 忽略 NavHost 返回栈空导致的 IndexOutOfBoundsException
+            if (throwable is IndexOutOfBoundsException &&
+                throwable.stackTrace.any { it.className.contains("NavHost") }
+            ) {
+                android.util.Log.w("CrashHandler", "忽略 NavHost 返回栈异常", throwable)
+                return@setDefaultUncaughtExceptionHandler
+            }
+
             throwable.printStackTrace()
             Sentry.captureException(throwable)
 
