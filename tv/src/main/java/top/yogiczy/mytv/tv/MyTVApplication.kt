@@ -78,6 +78,15 @@ class MyTVApplication : Application(), ImageLoaderFactory {
 
     private fun crashHandle() {
         Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
+            // 忽略 Compose LazyLayout 重复 release 异常（Compose 已知 bug，不影响播放）
+            if (throwable is IllegalStateException &&
+                throwable.message?.contains("Release should only be called once") == true &&
+                throwable.stackTrace.any { it.className.contains("LazyLayoutPinnableItem") }
+            ) {
+                android.util.Log.w("CrashHandler", "忽略 Compose LazyLayout 重复 release 异常", throwable)
+                return@setDefaultUncaughtExceptionHandler
+            }
+
             throwable.printStackTrace()
             Sentry.captureException(throwable)
 
