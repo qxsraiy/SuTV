@@ -311,95 +311,17 @@ class SettingsViewModel : ViewModel() {
             afterSetWhenCloudSyncAutoPull()
         }
 
-    private var _uiShowEpgProgrammeProgress by mutableStateOf(false)
-    var uiShowEpgProgrammeProgress: Boolean
-        get() = _uiShowEpgProgrammeProgress
-        set(value) {
-            _uiShowEpgProgrammeProgress = value
-            Configs.uiShowEpgProgrammeProgress = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _uiShowEpgProgrammePermanentProgress by mutableStateOf(false)
-    var uiShowEpgProgrammePermanentProgress: Boolean
-        get() = _uiShowEpgProgrammePermanentProgress
-        set(value) {
-            _uiShowEpgProgrammePermanentProgress = value
-            Configs.uiShowEpgProgrammePermanentProgress = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _uiShowChannelLogo by mutableStateOf(true)
-    var uiShowChannelLogo: Boolean
-        get() = _uiShowChannelLogo
-        set(value) {
-            _uiShowChannelLogo = value
-            Configs.uiShowChannelLogo = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _uiShowChannelPreview by mutableStateOf(false)
-    var uiShowChannelPreview: Boolean
-        get() = _uiShowChannelPreview
-        set(value) {
-            _uiShowChannelPreview = value
-            Configs.uiShowChannelPreview = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _uiUseClassicPanelScreen by mutableStateOf(false)
-    var uiUseClassicPanelScreen: Boolean
-        get() = _uiUseClassicPanelScreen
-        set(value) {
-            _uiUseClassicPanelScreen = value
-            Configs.uiUseClassicPanelScreen = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _uiDensityScaleRatio by mutableFloatStateOf(0f)
-    var uiDensityScaleRatio: Float
-        get() = _uiDensityScaleRatio
-        set(value) {
-            _uiDensityScaleRatio = value
-            Configs.uiDensityScaleRatio = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _uiFontScaleRatio by mutableFloatStateOf(1f)
-    var uiFontScaleRatio: Float
-        get() = _uiFontScaleRatio
-        set(value) {
-            _uiFontScaleRatio = value
-            Configs.uiFontScaleRatio = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _uiTimeShowMode by mutableStateOf(Configs.UiTimeShowMode.HIDDEN)
-    var uiTimeShowMode: Configs.UiTimeShowMode
-        get() = _uiTimeShowMode
-        set(value) {
-            _uiTimeShowMode = value
-            Configs.uiTimeShowMode = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _uiFocusOptimize by mutableStateOf(false)
-    var uiFocusOptimize: Boolean
-        get() = _uiFocusOptimize
-        set(value) {
-            _uiFocusOptimize = value
-            Configs.uiFocusOptimize = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _uiScreenAutoCloseDelay by mutableLongStateOf(0)
-    var uiScreenAutoCloseDelay: Long
-        get() = _uiScreenAutoCloseDelay
-        set(value) {
-            _uiScreenAutoCloseDelay = value
-            Configs.uiScreenAutoCloseDelay = value
-            afterSetWhenCloudSyncAutoPull()
-        }
+    // ========== 以下设置全部写死，不允许手动修改 ==========
+    val uiShowEpgProgrammeProgress: Boolean get() = Configs.uiShowEpgProgrammeProgress
+    val uiShowEpgProgrammePermanentProgress: Boolean get() = Configs.uiShowEpgProgrammePermanentProgress
+    val uiShowChannelLogo: Boolean get() = Configs.uiShowChannelLogo
+    val uiShowChannelPreview: Boolean get() = Configs.uiShowChannelPreview
+    val uiUseClassicPanelScreen: Boolean get() = Configs.uiUseClassicPanelScreen
+    val uiDensityScaleRatio: Float get() = Configs.uiDensityScaleRatio
+    val uiFontScaleRatio: Float get() = Configs.uiFontScaleRatio
+    val uiTimeShowMode: Configs.UiTimeShowMode get() = Configs.uiTimeShowMode
+    val uiFocusOptimize: Boolean get() = Configs.uiFocusOptimize
+    val uiScreenAutoCloseDelay: Long get() = Configs.uiScreenAutoCloseDelay
 
     private var _updateForceRemind by mutableStateOf(false)
     var updateForceRemind: Boolean
@@ -654,16 +576,6 @@ class SettingsViewModel : ViewModel() {
         _epgRefreshTimeThreshold = Configs.epgRefreshTimeThreshold
         _epgSourceFollowIptv = Configs.epgSourceFollowIptv
         _epgChannelReserveList = Configs.epgChannelReserveList
-        _uiShowEpgProgrammeProgress = Configs.uiShowEpgProgrammeProgress
-        _uiShowEpgProgrammePermanentProgress = Configs.uiShowEpgProgrammePermanentProgress
-        _uiShowChannelLogo = Configs.uiShowChannelLogo
-        _uiShowChannelPreview = Configs.uiShowChannelPreview
-        _uiUseClassicPanelScreen = Configs.uiUseClassicPanelScreen
-        _uiDensityScaleRatio = Configs.uiDensityScaleRatio
-        _uiFontScaleRatio = Configs.uiFontScaleRatio
-        _uiTimeShowMode = Configs.uiTimeShowMode
-        _uiFocusOptimize = Configs.uiFocusOptimize
-        _uiScreenAutoCloseDelay = Configs.uiScreenAutoCloseDelay
         _updateForceRemind = Configs.updateForceRemind
         _updateChannel = Configs.updateChannel
         _videoPlayerCore = Configs.videoPlayerCore

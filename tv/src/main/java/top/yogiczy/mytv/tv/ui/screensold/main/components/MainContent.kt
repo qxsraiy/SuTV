@@ -25,7 +25,6 @@ import top.yogiczy.mytv.tv.ui.screensold.channel.ChannelNumberSelectScreen
 import top.yogiczy.mytv.tv.ui.screensold.channel.ChannelTempScreen
 import top.yogiczy.mytv.tv.ui.screensold.channel.rememberChannelNumberSelectState
 import top.yogiczy.mytv.tv.ui.screensold.classicchannel.ClassicChannelScreen
-import top.yogiczy.mytv.tv.ui.screensold.datetime.DatetimeScreen
 import top.yogiczy.mytv.tv.ui.screensold.videoplayer.VideoPlayerScreen
 import top.yogiczy.mytv.tv.ui.screensold.videoplayer.rememberVideoPlayerState
 import top.yogiczy.mytv.tv.ui.utils.backHandler
@@ -129,14 +128,6 @@ fun MainContent(
             state = videoPlayerState,
             showMetadataProvider = { settingsViewModel.debugShowVideoPlayerMetadata },
         )
-    }
-
-    Visibility({
-        !mainContentState.isTempChannelScreenVisible
-                && !mainContentState.isChannelScreenVisible
-                && channelNumberSelectState.channelNumber.isEmpty()
-    }) {
-        DatetimeScreen(showModeProvider = { settingsViewModel.uiTimeShowMode })
     }
 
     ChannelNumberSelectScreen(channelNumberProvider = { channelNumberSelectState.channelNumber })

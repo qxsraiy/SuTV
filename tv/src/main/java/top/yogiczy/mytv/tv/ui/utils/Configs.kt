@@ -427,59 +427,36 @@ object Configs {
             Globals.json.encodeToString(value)
         )
 
-    /** ==================== 界面 ==================== */
-    /** 显示节目进度 */
-    var uiShowEpgProgrammeProgress: Boolean
-        get() = SP.getBoolean(KEY.UI_SHOW_EPG_PROGRAMME_PROGRESS.name, true)
-        set(value) = SP.putBoolean(KEY.UI_SHOW_EPG_PROGRAMME_PROGRESS.name, value)
+    /** ==================== 界面（全部写死） ==================== */
+    /** 显示节目进度 - 写死关闭 */
+    val uiShowEpgProgrammeProgress: Boolean get() = false
 
-    /** 显示常驻节目进度 */
-    var uiShowEpgProgrammePermanentProgress: Boolean
-        get() = SP.getBoolean(KEY.UI_SHOW_EPG_PROGRAMME_PERMANENT_PROGRESS.name, false)
-        set(value) = SP.putBoolean(KEY.UI_SHOW_EPG_PROGRAMME_PERMANENT_PROGRESS.name, value)
+    /** 显示常驻节目进度 - 写死关闭 */
+    val uiShowEpgProgrammePermanentProgress: Boolean get() = false
 
-    /** 显示台标 */
-    var uiShowChannelLogo: Boolean
-        get() = SP.getBoolean(KEY.UI_SHOW_CHANNEL_LOGO.name, true)
-        set(value) = SP.putBoolean(KEY.UI_SHOW_CHANNEL_LOGO.name, value)
+    /** 显示台标 - 写死开启 */
+    val uiShowChannelLogo: Boolean get() = true
 
-    /** 显示频道预览 */
-    var uiShowChannelPreview: Boolean
-        get() = SP.getBoolean(KEY.UI_SHOW_CHANNEL_PREVIEW.name, false)
-        set(value) = SP.putBoolean(KEY.UI_SHOW_CHANNEL_PREVIEW.name, value)
+    /** 显示频道预览 - 写死关闭 */
+    val uiShowChannelPreview: Boolean get() = false
 
-    /** 使用经典选台界面 */
-    var uiUseClassicPanelScreen: Boolean
-        get() = SP.getBoolean(KEY.UI_USE_CLASSIC_PANEL_SCREEN.name, true)
-        set(value) = SP.putBoolean(KEY.UI_USE_CLASSIC_PANEL_SCREEN.name, value)
+    /** 使用经典选台界面 - 写死开启 */
+    val uiUseClassicPanelScreen: Boolean get() = true
 
-    /** 界面密度缩放比例 */
-    var uiDensityScaleRatio: Float
-        get() = SP.getFloat(KEY.UI_DENSITY_SCALE_RATIO.name, 0f)
-        set(value) = SP.putFloat(KEY.UI_DENSITY_SCALE_RATIO.name, value)
+    /** 界面密度缩放比例 - 写死自适应(0) */
+    val uiDensityScaleRatio: Float get() = 0f
 
-    /** 界面字体缩放比例 */
-    var uiFontScaleRatio: Float
-        get() = SP.getFloat(KEY.UI_FONT_SCALE_RATIO.name, 1f)
-        set(value) = SP.putFloat(KEY.UI_FONT_SCALE_RATIO.name, value)
+    /** 界面字体缩放比例 - 写死1 */
+    val uiFontScaleRatio: Float get() = 1f
 
-    /** 时间显示模式 */
-    var uiTimeShowMode: UiTimeShowMode
-        get() = UiTimeShowMode.fromValue(
-            SP.getInt(KEY.UI_TIME_SHOW_MODE.name, UiTimeShowMode.HIDDEN.value)
-        )
-        set(value) = SP.putInt(KEY.UI_TIME_SHOW_MODE.name, value.value)
+    /** 时间显示模式 - 写死隐藏 */
+    val uiTimeShowMode: UiTimeShowMode get() = UiTimeShowMode.HIDDEN
 
-    /** 焦点优化 */
-    var uiFocusOptimize: Boolean
-        get() = SP.getBoolean(KEY.UI_FOCUS_OPTIMIZE.name, true)
-        set(value) = SP.putBoolean(KEY.UI_FOCUS_OPTIMIZE.name, value)
+    /** 焦点优化 - 写死开启 */
+    val uiFocusOptimize: Boolean get() = true
 
-    /** 自动关闭界面延时 */
-    var uiScreenAutoCloseDelay: Long
-        get() =
-            SP.getLong(KEY.UI_SCREEN_AUTO_CLOSE_DELAY.name, Constants.UI_SCREEN_AUTO_CLOSE_DELAY)
-        set(value) = SP.putLong(KEY.UI_SCREEN_AUTO_CLOSE_DELAY.name, value)
+    /** 自动关闭界面延时 - 写死15秒 */
+    val uiScreenAutoCloseDelay: Long get() = 15000L
 
     /** ==================== 更新 ==================== */
     /** 更新强提醒 */
@@ -789,18 +766,6 @@ object Configs {
         configs.epgRefreshTimeThreshold?.let { epgRefreshTimeThreshold = it }
         configs.epgSourceFollowIptv?.let { epgSourceFollowIptv = it }
         configs.epgChannelReserveList?.let { epgChannelReserveList = it }
-        configs.uiShowEpgProgrammeProgress?.let { uiShowEpgProgrammeProgress = it }
-        configs.uiShowEpgProgrammePermanentProgress?.let {
-            uiShowEpgProgrammePermanentProgress = it
-        }
-        configs.uiShowChannelLogo?.let { uiShowChannelLogo = it }
-        configs.uiShowChannelPreview?.let { uiShowChannelPreview = it }
-        configs.uiUseClassicPanelScreen?.let { uiUseClassicPanelScreen = it }
-        configs.uiDensityScaleRatio?.let { uiDensityScaleRatio = it }
-        configs.uiFontScaleRatio?.let { uiFontScaleRatio = it }
-        configs.uiTimeShowMode?.let { uiTimeShowMode = it }
-        configs.uiFocusOptimize?.let { uiFocusOptimize = it }
-        configs.uiScreenAutoCloseDelay?.let { uiScreenAutoCloseDelay = it }
         configs.updateForceRemind?.let { updateForceRemind = it }
         configs.updateChannel?.let { updateChannel = it }
         configs.videoPlayerCore?.let { videoPlayerCore = it }

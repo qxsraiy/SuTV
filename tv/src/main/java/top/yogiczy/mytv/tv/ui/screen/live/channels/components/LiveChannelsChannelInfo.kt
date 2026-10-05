@@ -471,7 +471,6 @@ private fun LiveChannelsChannelInfoPlaybackPreview() {
 @Composable
 private fun LiveChannelsChannelInfoNoLogoPreview() {
     MyTvTheme {
-        settingsVM.uiShowChannelLogo = false
         LiveChannelsChannelInfo(
             modifier = Modifier.width(5.gridColumns()),
             channelProvider = { Channel.EXAMPLE.copy(name = "中文".repeat(10)) },

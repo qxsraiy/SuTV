@@ -99,19 +99,11 @@ fun ClassicChannelScreen(
         )
     }
     var focusedChannel by remember { mutableStateOf(currentChannelProvider()) }
-    var epgListVisible by remember { mutableStateOf(false) }
 
     var groupWidth by remember { mutableIntStateOf(0) }
-    var channelListWidth by remember { mutableIntStateOf(0) }
-    var epgListIsFocused by remember { mutableStateOf(false) }
-    val offsetXPx by animateIntAsState(
-        targetValue = if (epgListVisible) if (epgListIsFocused) -groupWidth - channelListWidth else -groupWidth else 0,
-        animationSpec = tween(),
-        label = "",
-    )
 
     ClassicChannelScreenWrapper(
-        modifier = modifier.offset { IntOffset(x = offsetXPx, y = 0) },
+        modifier = modifier,
         onClose = onClose,
     ) {
         Row {
@@ -140,21 +132,7 @@ fun ClassicChannelScreen(
             )
 
             ClassicChannelItemList(
-                modifier = Modifier
-                    .onSizeChanged { channelListWidth = it.width }
-                    .focusProperties {
-                        exit = {
-                            if (epgListVisible && it == FocusDirection.Left) {
-                                epgListVisible = false
-                                FocusRequester.Cancel
-                            } else if (!epgListVisible && it == FocusDirection.Right) {
-                                epgListVisible = true
-                                FocusRequester.Cancel
-                            } else {
-                                FocusRequester.Default
-                            }
-                        }
-                    },
+                modifier = Modifier,
                 channelGroupProvider = { focusedChannelGroup },
                 channelListProvider = {
                     if (focusedChannelGroup == ClassicPanelScreenFavoriteChannelGroup)
@@ -171,63 +149,6 @@ fun ClassicChannelScreen(
                 onUserAction = { screenAutoCloseState.active() },
                 inFavoriteModeProvider = { focusedChannelGroup == ClassicPanelScreenFavoriteChannelGroup },
                 showChannelLogoProvider = showChannelLogoProvider,
-            )
-
-            Visibility({ epgListVisible }) {
-                ClassicEpgItemList(
-                    modifier = Modifier
-                        .onFocusChanged { epgListIsFocused = it.hasFocus || it.hasFocus },
-                    programmeListModifier = Modifier
-                        .width(if (epgListIsFocused) 5.gridColumns() else 4.gridColumns()),
-                    epgProvider = { epgListProvider().match(focusedChannel) },
-                    epgProgrammeReserveListProvider = {
-                        EpgProgrammeReserveList(
-                            epgProgrammeReserveListProvider().filter { it.channel == focusedChannel.name }
-                        )
-                    },
-                    supportPlaybackProvider = { supportPlaybackProvider(focusedChannel) },
-                    currentPlaybackEpgProgrammeProvider = currentPlaybackEpgProgrammeProvider,
-                    onEpgProgrammePlayback = { onEpgProgrammePlayback(focusedChannel, it) },
-                    onEpgProgrammeReserve = { onEpgProgrammeReserve(focusedChannel, it) },
-                    onUserAction = { screenAutoCloseState.active() },
-                )
-            }
-            Visibility({ !epgListVisible }) {
-                ClassicPanelScreenShowEpgTip(
-                    modifier = Modifier
-                        .background(MaterialTheme.colorScheme.surface.copy(0.7f))
-                        .padding(horizontal = 4.dp)
-                        .focusable(),
-                    onTap = { epgListVisible = true },
-                )
-            }
-        }
-    }
-
-    ChannelScreenTopRight(channelNumberProvider = { currentChannelProvider().no })
-
-    Visibility({ !epgListVisible }) {
-        Box(Modifier.fillMaxSize()) {
-            LiveChannelsChannelInfo(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .fillMaxWidth(0.5f)
-                    .padding(SAFE_AREA_VERTICAL_PADDING.dp)
-                    .background(
-                        MaterialTheme.colorScheme.surface.copy(0.8f),
-                        MaterialTheme.shapes.medium,
-                    )
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                channelProvider = currentChannelProvider,
-                channelLineIdxProvider = currentChannelLineIdxProvider,
-                recentEpgProgrammeProvider = {
-                    epgListProvider().recentProgramme(currentChannelProvider())
-                },
-                isInTimeShiftProvider = isInTimeShiftProvider,
-                currentPlaybackEpgProgrammeProvider = currentPlaybackEpgProgrammeProvider,
-                playerMetadataProvider = videoPlayerMetadataProvider,
-                dense = true,
-                showChannelLogo = false,
             )
         }
     }

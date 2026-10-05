@@ -196,8 +196,6 @@ enum class SettingsCategories(
 ) {
     APP(Icons.Outlined.Devices, "应用"),
     IPTV(Icons.Outlined.LiveTv, "直播源"),
-    EPG(Icons.AutoMirrored.Outlined.LibraryBooks, "节目单"),
-    UI(Icons.Outlined.DisplaySettings, "界面"),
     CONTROL(Icons.Outlined.ControlCamera, "控制"),
     VIDEO_PLAYER(Icons.Outlined.SmartDisplay, "播放器"),
     UPDATE(Icons.Outlined.Update, "更新"),

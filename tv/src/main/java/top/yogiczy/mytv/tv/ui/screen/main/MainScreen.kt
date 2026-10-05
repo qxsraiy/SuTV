@@ -148,7 +148,7 @@ fun MainScreen(
                         navController.navigateSingleTop(Screens.Loading())
                     },
                     onDisagree = onBackPressed,
-                    onTouchTested = { settingsViewModel.uiFocusOptimize = false },
+                    onTouchTested = { },
                 )
             }
 
