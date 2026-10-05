@@ -432,7 +432,7 @@ object Configs {
     val uiTimeShowMode: UiTimeShowMode get() = UiTimeShowMode.HIDDEN
 
     /** 焦点优化 - 写死开启 */
-    val uiFocusOptimize: Boolean get() = true
+    val uiFocusOptimize: Boolean get() = false
 
     /** 自动关闭界面延时 - 写死15秒 */
     val uiScreenAutoCloseDelay: Long get() = 15000L

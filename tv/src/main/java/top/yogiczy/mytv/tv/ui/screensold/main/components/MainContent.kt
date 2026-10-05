@@ -1,8 +1,6 @@
 package top.yogiczy.mytv.tv.ui.screensold.main.components
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -16,9 +14,9 @@ import top.yogiczy.mytv.core.data.entities.epg.EpgList.Companion.recentProgramme
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgrammeReserveList
 import top.yogiczy.mytv.core.data.repositories.iptv.IptvRepository
 import top.yogiczy.mytv.core.data.repositories.epg.EpgRepository
+import top.yogiczy.mytv.tv.ui.material.PopupContent
 import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.material.Visibility
-import androidx.tv.material3.MaterialTheme
 import top.yogiczy.mytv.tv.ui.material.popupable
 import top.yogiczy.mytv.tv.ui.screen.settings.SettingsSubCategories
 import top.yogiczy.mytv.tv.ui.screen.settings.SettingsViewModel
@@ -30,7 +28,6 @@ import top.yogiczy.mytv.tv.ui.screensold.classicchannel.ClassicChannelScreen
 import top.yogiczy.mytv.tv.ui.screensold.videoplayer.VideoPlayerScreen
 import top.yogiczy.mytv.tv.ui.screensold.videoplayer.rememberVideoPlayerState
 import top.yogiczy.mytv.tv.ui.utils.backHandler
-import top.yogiczy.mytv.tv.ui.utils.clickableNoIndication
 import top.yogiczy.mytv.tv.ui.utils.handleDragGestures
 import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
 
@@ -151,53 +148,43 @@ fun MainContent(
         )
     }
 
-    // 经典频道列表（唯一的弹窗）— 用 AnimatedVisibility 确保完全退出
-    androidx.compose.animation.AnimatedVisibility(
-        visible = mainContentState.isChannelScreenVisible,
-        enter = androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(0)),
-        exit = androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(0)),
+    // 经典频道列表（唯一的弹窗）
+    PopupContent(
+        visibleProvider = { mainContentState.isChannelScreenVisible },
+        onDismissRequest = { mainContentState.isChannelScreenVisible = false },
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .popupable()
-                .clickableNoIndication { mainContentState.isChannelScreenVisible = false }
-                .backHandler { mainContentState.isChannelScreenVisible = false }
-                .background(MaterialTheme.colorScheme.background.copy(0.5f)),
-        ) {
-            ClassicChannelScreen(
-                channelGroupListProvider = filteredChannelGroupListProvider,
-                favoriteChannelListProvider = favoriteChannelListProvider,
-                currentChannelProvider = { mainContentState.currentChannel },
-                currentChannelLineIdxProvider = { mainContentState.currentChannelLineIdx },
-                showChannelLogoProvider = { settingsViewModel.uiShowChannelLogo },
-                onChannelSelected = {
-                    mainContentState.isChannelScreenVisible = false
-                    mainContentState.changeCurrentChannel(it)
-                },
-                onChannelFavoriteToggle = onChannelFavoriteToggle,
-                epgListProvider = epgListProvider,
-                epgProgrammeReserveListProvider = {
-                    EpgProgrammeReserveList(settingsViewModel.epgChannelReserveList)
-                },
-                showEpgProgrammeProgressProvider = { settingsViewModel.uiShowEpgProgrammeProgress },
-                supportPlaybackProvider = { mainContentState.supportPlayback(it, null) },
-                currentPlaybackEpgProgrammeProvider = { mainContentState.currentPlaybackEpgProgramme },
-                onEpgProgrammePlayback = { channel, programme ->
-                    mainContentState.isChannelScreenVisible = false
-                    mainContentState.changeCurrentChannel(channel, null, programme)
-                },
-                onEpgProgrammeReserve = { channel, programme ->
-                    mainContentState.reverseEpgProgrammeOrNot(channel, programme)
-                },
-                videoPlayerMetadataProvider = { videoPlayerState.metadata },
-                channelFavoriteEnabledProvider = { settingsViewModel.iptvChannelFavoriteEnable },
-                channelFavoriteListVisibleProvider = { settingsViewModel.iptvChannelFavoriteListVisible },
-                onChannelFavoriteListVisibleChange = {
-                    settingsViewModel.iptvChannelFavoriteListVisible = it
-                },
-                onClose = { mainContentState.isChannelScreenVisible = false },
-            )
-        }
+        ClassicChannelScreen(
+            channelGroupListProvider = filteredChannelGroupListProvider,
+            favoriteChannelListProvider = favoriteChannelListProvider,
+            currentChannelProvider = { mainContentState.currentChannel },
+            currentChannelLineIdxProvider = { mainContentState.currentChannelLineIdx },
+            showChannelLogoProvider = { settingsViewModel.uiShowChannelLogo },
+            onChannelSelected = {
+                mainContentState.isChannelScreenVisible = false
+                mainContentState.changeCurrentChannel(it)
+            },
+            onChannelFavoriteToggle = onChannelFavoriteToggle,
+            epgListProvider = epgListProvider,
+            epgProgrammeReserveListProvider = {
+                EpgProgrammeReserveList(settingsViewModel.epgChannelReserveList)
+            },
+            showEpgProgrammeProgressProvider = { settingsViewModel.uiShowEpgProgrammeProgress },
+            supportPlaybackProvider = { mainContentState.supportPlayback(it, null) },
+            currentPlaybackEpgProgrammeProvider = { mainContentState.currentPlaybackEpgProgramme },
+            onEpgProgrammePlayback = { channel, programme ->
+                mainContentState.isChannelScreenVisible = false
+                mainContentState.changeCurrentChannel(channel, null, programme)
+            },
+            onEpgProgrammeReserve = { channel, programme ->
+                mainContentState.reverseEpgProgrammeOrNot(channel, programme)
+            },
+            videoPlayerMetadataProvider = { videoPlayerState.metadata },
+            channelFavoriteEnabledProvider = { settingsViewModel.iptvChannelFavoriteEnable },
+            channelFavoriteListVisibleProvider = { settingsViewModel.iptvChannelFavoriteListVisible },
+            onChannelFavoriteListVisibleChange = {
+                settingsViewModel.iptvChannelFavoriteListVisible = it
+            },
+            onClose = { mainContentState.isChannelScreenVisible = false },
+        )
     }
 }

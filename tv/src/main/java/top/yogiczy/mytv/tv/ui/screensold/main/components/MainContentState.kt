@@ -158,7 +158,8 @@ class MainContentState(
             if (_currentChannelLineIdx < _currentChannel.lineList.size - 1) {
                 changeCurrentChannel(_currentChannel, _currentChannelLineIdx + 1)
             } else {
-                // 所有线路都播放失败，启动 WebView 兜底播放
+                // 所有线路都播放失败，隐藏临时频道信息，启动 WebView 兜底播放
+                _isTempChannelScreenVisible = false
                 val baseUrl = currentChannelLine.url
                 val fallbackUrl = baseUrl.replace("/migu/", "/migufb/")
                 val channelName = _currentChannel.name
