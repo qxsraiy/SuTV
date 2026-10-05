@@ -22,18 +22,13 @@ import top.yogiczy.mytv.core.data.repositories.iptv.IptvRepository
 import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsAppScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsCloudSyncScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsControlScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsDebugScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsIptvScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsLogScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsNetworkScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsPermissionsScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsThemeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsUpdateScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsVideoPlayerScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsChannelGroupVisibilityScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsCloudSyncProviderScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvHybridModeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourceCacheTimeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourceScreen
@@ -138,36 +133,8 @@ fun SettingsScreen(
                     )
                 }
 
-                composable(SettingsCategories.NETWORK.name) {
-                    SettingsNetworkScreen(
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
                 composable(SettingsCategories.THEME.name) {
                     SettingsThemeScreen(
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
-                composable(SettingsCategories.CLOUD_SYNC.name) {
-                    SettingsCloudSyncScreen(
-                        toCloudSyncProviderScreen = {
-                            navController.navigateSingleTop(SettingsSubCategories.CLOUD_SYNC_PROVIDER.name)
-                        },
-                        onReload = onReload,
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
-                composable(SettingsCategories.DEBUG.name) {
-                    SettingsDebugScreen(
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
-                composable(SettingsCategories.LOG.name) {
-                    SettingsLogScreen(
                         onBackPressed = { navController.navigateUp() },
                     )
                 }
@@ -293,17 +260,6 @@ fun SettingsScreen(
                             settingsViewModel.updateChannel = it
                             navController.navigateUp()
                             onCheckUpdate()
-                        },
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
-                composable(SettingsSubCategories.CLOUD_SYNC_PROVIDER.name) {
-                    SettingsCloudSyncProviderScreen(
-                        providerProvider = { settingsViewModel.cloudSyncProvider },
-                        onProviderChanged = {
-                            settingsViewModel.cloudSyncProvider = it
-                            navController.navigateUp()
                         },
                         onBackPressed = { navController.navigateUp() },
                     )

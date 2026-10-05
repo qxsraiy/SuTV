@@ -256,26 +256,11 @@ object Configs {
         get() = SP.getString(KEY.APP_STARTUP_SCREEN.name, Screens.Dashboard.name)
         set(value) = SP.putString(KEY.APP_STARTUP_SCREEN.name, value)
 
-    /** ==================== 调式 ==================== */
-    /** 开发者模式 */
-    var debugDeveloperMode: Boolean
-        get() = SP.getBoolean(KEY.DEBUG_DEVELOPER_MODE.name, false)
-        set(value) = SP.putBoolean(KEY.DEBUG_DEVELOPER_MODE.name, value)
-
-    /** 显示fps */
-    var debugShowFps: Boolean
-        get() = SP.getBoolean(KEY.DEBUG_SHOW_FPS.name, false)
-        set(value) = SP.putBoolean(KEY.DEBUG_SHOW_FPS.name, value)
-
-    /** 播放器详细信息 */
-    var debugShowVideoPlayerMetadata: Boolean
-        get() = SP.getBoolean(KEY.DEBUG_SHOW_VIDEO_PLAYER_METADATA.name, false)
-        set(value) = SP.putBoolean(KEY.DEBUG_SHOW_VIDEO_PLAYER_METADATA.name, value)
-
-    /** 显示布局网格 */
-    var debugShowLayoutGrids: Boolean
-        get() = SP.getBoolean(KEY.DEBUG_SHOW_LAYOUT_GRIDS.name, false)
-        set(value) = SP.putBoolean(KEY.DEBUG_SHOW_LAYOUT_GRIDS.name, value)
+    /** ==================== 调试（自动按构建类型切换） ==================== */
+    val debugDeveloperMode: Boolean get() = top.yogiczy.mytv.tv.BuildConfig.DEBUG
+    val debugShowFps: Boolean get() = top.yogiczy.mytv.tv.BuildConfig.DEBUG
+    val debugShowVideoPlayerMetadata: Boolean get() = top.yogiczy.mytv.tv.BuildConfig.DEBUG
+    val debugShowLayoutGrids: Boolean get() = top.yogiczy.mytv.tv.BuildConfig.DEBUG
 
     /** ==================== 直播源 ==================== */
     /** 当前直播源 */
@@ -533,64 +518,18 @@ object Configs {
             KEY.THEME_APP_CURRENT.name,
             value?.let { Globals.json.encodeToString(value) } ?: "")
 
-    /** ==================== 云同步 ==================== */
-    /** 云同步 自动拉取 */
-    var cloudSyncAutoPull: Boolean
-        get() = SP.getBoolean(KEY.CLOUD_SYNC_AUTO_PULL.name, false)
-        set(value) = SP.putBoolean(KEY.CLOUD_SYNC_AUTO_PULL.name, value)
-
-    /** 云同步 提供商 */
-    var cloudSyncProvider: CloudSyncProvider
-        get() = CloudSyncProvider.fromValue(
-            SP.getInt(KEY.CLOUD_SYNC_PROVIDER.name, CloudSyncProvider.GITHUB_GIST.value)
-        )
-        set(value) = SP.putInt(KEY.CLOUD_SYNC_PROVIDER.name, value.value)
-
-    /** 云同步 github gist id */
-    var cloudSyncGithubGistId: String
-        get() = SP.getString(KEY.CLOUD_SYNC_GITHUB_GIST_ID.name, "")
-        set(value) = SP.putString(KEY.CLOUD_SYNC_GITHUB_GIST_ID.name, value)
-
-    /** 云同步 github gist token */
-    var cloudSyncGithubGistToken: String
-        get() = SP.getString(KEY.CLOUD_SYNC_GITHUB_GIST_TOKEN.name, "")
-        set(value) = SP.putString(KEY.CLOUD_SYNC_GITHUB_GIST_TOKEN.name, value)
-
-    /** 云同步 gitee gist id */
-    var cloudSyncGiteeGistId: String
-        get() = SP.getString(KEY.CLOUD_SYNC_GITEE_GIST_ID.name, "")
-        set(value) = SP.putString(KEY.CLOUD_SYNC_GITEE_GIST_ID.name, value)
-
-    /** 云同步 gitee gist token */
-    var cloudSyncGiteeGistToken: String
-        get() = SP.getString(KEY.CLOUD_SYNC_GITEE_GIST_TOKEN.name, "")
-        set(value) = SP.putString(KEY.CLOUD_SYNC_GITEE_GIST_TOKEN.name, value)
-
-    /** 云同步 网络链接 */
-    var cloudSyncNetworkUrl: String
-        get() = SP.getString(KEY.CLOUD_SYNC_NETWORK_URL.name, "")
-        set(value) = SP.putString(KEY.CLOUD_SYNC_NETWORK_URL.name, value)
-
-    /** 云同步 本地文件 */
-    var cloudSyncLocalFilePath: String
-        get() = SP.getString(KEY.CLOUD_SYNC_LOCAL_FILE.name, "")
-        set(value) = SP.putString(KEY.CLOUD_SYNC_LOCAL_FILE.name, value)
-
-    /** 云同步 webdav url */
-    var cloudSyncWebDavUrl: String
-        get() = SP.getString(KEY.CLOUD_SYNC_WEBDAV_URL.name, "")
-        set(value) = SP.putString(KEY.CLOUD_SYNC_WEBDAV_URL.name, value)
-
-    /** 云同步 webdav 用户名 */
-    // CLOUD_SYNC_WEBDAV_USERNAME,
-    var cloudSyncWebDavUsername: String
-        get() = SP.getString(KEY.CLOUD_SYNC_WEBDAV_USERNAME.name, "")
-        set(value) = SP.putString(KEY.CLOUD_SYNC_WEBDAV_USERNAME.name, value)
-
-    /** 云同步 webdav 密码 */
-    var cloudSyncWebDavPassword: String
-        get() = SP.getString(KEY.CLOUD_SYNC_WEBDAV_PASSWORD.name, "")
-        set(value) = SP.putString(KEY.CLOUD_SYNC_WEBDAV_PASSWORD.name, value)
+    /** ==================== 云同步（已移除，保留空壳防编译错误） ==================== */
+    val cloudSyncAutoPull: Boolean get() = false
+    val cloudSyncProvider: CloudSyncProvider get() = CloudSyncProvider.GITHUB_GIST
+    val cloudSyncGithubGistId: String get() = ""
+    val cloudSyncGithubGistToken: String get() = ""
+    val cloudSyncGiteeGistId: String get() = ""
+    val cloudSyncGiteeGistToken: String get() = ""
+    val cloudSyncNetworkUrl: String get() = ""
+    val cloudSyncLocalFilePath: String get() = ""
+    val cloudSyncWebDavUrl: String get() = ""
+    val cloudSyncWebDavUsername: String get() = ""
+    val cloudSyncWebDavPassword: String get() = ""
 
     /** 肥羊 AllInOne 文件路径 */
     var feiyangAllInOneFilePath: String
@@ -739,10 +678,6 @@ object Configs {
         configs.appLastLatestVersion?.let { appLastLatestVersion = it }
         configs.appAgreementAgreed?.let { appAgreementAgreed = it }
         configs.appStartupScreen?.let { appStartupScreen = it }
-        configs.debugDeveloperMode?.let { debugDeveloperMode = it }
-        configs.debugShowFps?.let { debugShowFps = it }
-        configs.debugShowVideoPlayerMetadata?.let { debugShowVideoPlayerMetadata = it }
-        configs.debugShowLayoutGrids?.let { debugShowLayoutGrids = it }
         configs.iptvSourceCacheTime?.let { iptvSourceCacheTime = it }
         configs.iptvSourceCurrent?.let { iptvSourceCurrent = it }
         configs.iptvSourceList?.let { iptvSourceList = it }
@@ -777,17 +712,7 @@ object Configs {
         configs.videoPlayerForceAudioSoftDecode?.let { videoPlayerForceAudioSoftDecode = it }
         configs.videoPlayerStopPreviousMediaItem?.let { videoPlayerStopPreviousMediaItem = it }
         configs.themeAppCurrent?.let { themeAppCurrent = it }
-        configs.cloudSyncAutoPull?.let { cloudSyncAutoPull = it }
-        configs.cloudSyncProvider?.let { cloudSyncProvider = it }
-        configs.cloudSyncGithubGistId?.let { cloudSyncGithubGistId = it }
-        configs.cloudSyncGithubGistToken?.let { cloudSyncGithubGistToken = it }
-        configs.cloudSyncGiteeGistId?.let { cloudSyncGiteeGistId = it }
-        configs.cloudSyncGiteeGistToken?.let { cloudSyncGiteeGistToken = it }
-        configs.cloudSyncNetworkUrl?.let { cloudSyncNetworkUrl = it }
-        configs.cloudSyncLocalFilePath?.let { cloudSyncLocalFilePath = it }
-        configs.cloudSyncWebDavUrl?.let { cloudSyncWebDavUrl = it }
-        configs.cloudSyncWebDavUsername?.let { cloudSyncWebDavUsername = it }
-        configs.cloudSyncWebDavPassword?.let { cloudSyncWebDavPassword = it }
+        configs.updateForceRemind?.let { updateForceRemind = it }
         configs.feiyangAllInOneFilePath?.let { feiyangAllInOneFilePath = it }
     }
 

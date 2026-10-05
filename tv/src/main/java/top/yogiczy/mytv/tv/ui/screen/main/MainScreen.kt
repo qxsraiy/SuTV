@@ -210,7 +210,7 @@ fun MainScreen(
                         },
                         onBackPressed = {
                             if (settingsViewModel.appStartupScreen == Screens.Live.name) {
-                                onBackPressed()
+                                navController.navigateSingleTop(Screens.Dashboard())
                             } else {
                                 if (doubleBackPressedExitState.allowExit) {
                                     navController.navigateUp()

@@ -68,41 +68,11 @@ class SettingsViewModel : ViewModel() {
             afterSetWhenCloudSyncAutoPull()
         }
 
-    private var _debugDeveloperMode by mutableStateOf(false)
-    var debugDeveloperMode: Boolean
-        get() = _debugDeveloperMode
-        set(value) {
-            _debugDeveloperMode = value
-            Configs.debugDeveloperMode = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _debugShowFps by mutableStateOf(false)
-    var debugShowFps: Boolean
-        get() = _debugShowFps
-        set(value) {
-            _debugShowFps = value
-            Configs.debugShowFps = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _debugShowVideoPlayerMetadata by mutableStateOf(false)
-    var debugShowVideoPlayerMetadata: Boolean
-        get() = _debugShowVideoPlayerMetadata
-        set(value) {
-            _debugShowVideoPlayerMetadata = value
-            Configs.debugShowVideoPlayerMetadata = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _debugShowLayoutGrids by mutableStateOf(false)
-    var debugShowLayoutGrids: Boolean
-        get() = _debugShowLayoutGrids
-        set(value) {
-            _debugShowLayoutGrids = value
-            Configs.debugShowLayoutGrids = value
-            afterSetWhenCloudSyncAutoPull()
-        }
+    // ========== 调试：自动按构建类型切换 ==========
+    val debugDeveloperMode: Boolean get() = Configs.debugDeveloperMode
+    val debugShowFps: Boolean get() = Configs.debugShowFps
+    val debugShowVideoPlayerMetadata: Boolean get() = Configs.debugShowVideoPlayerMetadata
+    val debugShowLayoutGrids: Boolean get() = Configs.debugShowLayoutGrids
 
     private var _iptvSourceCacheTime by mutableLongStateOf(0)
     var iptvSourceCacheTime: Long
@@ -431,93 +401,18 @@ class SettingsViewModel : ViewModel() {
             afterSetWhenCloudSyncAutoPull()
         }
 
-    private var _cloudSyncAutoPull by mutableStateOf(false)
-    var cloudSyncAutoPull: Boolean
-        get() = _cloudSyncAutoPull
-        set(value) {
-            _cloudSyncAutoPull = value
-            Configs.cloudSyncAutoPull = value
-        }
-
-    private var _cloudSyncProvider by mutableStateOf(CloudSyncProvider.GITHUB_GIST)
-    var cloudSyncProvider: CloudSyncProvider
-        get() = _cloudSyncProvider
-        set(value) {
-            _cloudSyncProvider = value
-            Configs.cloudSyncProvider = value
-        }
-
-    private var _cloudSyncGithubGistId by mutableStateOf("")
-    var cloudSyncGithubGistId: String
-        get() = _cloudSyncGithubGistId
-        set(value) {
-            _cloudSyncGithubGistId = value
-            Configs.cloudSyncGithubGistId = value
-        }
-
-    private var _cloudSyncGithubGistToken by mutableStateOf("")
-    var cloudSyncGithubGistToken: String
-        get() = _cloudSyncGithubGistToken
-        set(value) {
-            _cloudSyncGithubGistToken = value
-            Configs.cloudSyncGithubGistToken = value
-        }
-
-    private var _cloudSyncGiteeGistId by mutableStateOf("")
-    var cloudSyncGiteeGistId: String
-        get() = _cloudSyncGiteeGistId
-        set(value) {
-            _cloudSyncGiteeGistId = value
-            Configs.cloudSyncGiteeGistId = value
-        }
-
-    private var _cloudSyncGiteeGistToken by mutableStateOf("")
-    var cloudSyncGiteeGistToken: String
-        get() = _cloudSyncGiteeGistToken
-        set(value) {
-            _cloudSyncGiteeGistToken = value
-            Configs.cloudSyncGiteeGistToken = value
-        }
-
-    private var _cloudSyncNetworkUrl by mutableStateOf("")
-    var cloudSyncNetworkUrl: String
-        get() = _cloudSyncNetworkUrl
-        set(value) {
-            _cloudSyncNetworkUrl = value
-            Configs.cloudSyncNetworkUrl = value
-        }
-
-    private var _cloudSyncLocalFilePath by mutableStateOf("")
-    var cloudSyncLocalFilePath: String
-        get() = _cloudSyncLocalFilePath
-        set(value) {
-            _cloudSyncLocalFilePath = value
-            Configs.cloudSyncLocalFilePath = value
-        }
-
-    private var _cloudSyncWebDavUrl by mutableStateOf("")
-    var cloudSyncWebDavUrl: String
-        get() = _cloudSyncWebDavUrl
-        set(value) {
-            _cloudSyncWebDavUrl = value
-            Configs.cloudSyncWebDavUrl = value
-        }
-
-    private var _cloudSyncWebDavUsername by mutableStateOf("")
-    var cloudSyncWebDavUsername: String
-        get() = _cloudSyncWebDavUsername
-        set(value) {
-            _cloudSyncWebDavUsername = value
-            Configs.cloudSyncWebDavUsername = value
-        }
-
-    private var _cloudSyncWebDavPassword by mutableStateOf("")
-    var cloudSyncWebDavPassword: String
-        get() = _cloudSyncWebDavPassword
-        set(value) {
-            _cloudSyncWebDavPassword = value
-            Configs.cloudSyncWebDavPassword = value
-        }
+    // ========== 云同步：已移除，保留只读空壳 ==========
+    val cloudSyncAutoPull: Boolean get() = false
+    val cloudSyncProvider: CloudSyncProvider get() = Configs.cloudSyncProvider
+    val cloudSyncGithubGistId: String get() = ""
+    val cloudSyncGithubGistToken: String get() = ""
+    val cloudSyncGiteeGistId: String get() = ""
+    val cloudSyncGiteeGistToken: String get() = ""
+    val cloudSyncNetworkUrl: String get() = ""
+    val cloudSyncLocalFilePath: String get() = ""
+    val cloudSyncWebDavUrl: String get() = ""
+    val cloudSyncWebDavUsername: String get() = ""
+    val cloudSyncWebDavPassword: String get() = ""
 
     private var _feiyangAllInOneFilePath by mutableStateOf("")
     var feiyangAllInOneFilePath: String
@@ -549,10 +444,6 @@ class SettingsViewModel : ViewModel() {
         _appLastLatestVersion = Configs.appLastLatestVersion
         _appAgreementAgreed = Configs.appAgreementAgreed
         _appStartupScreen = Configs.appStartupScreen
-        _debugDeveloperMode = Configs.debugDeveloperMode
-        _debugShowFps = Configs.debugShowFps
-        _debugShowVideoPlayerMetadata = Configs.debugShowVideoPlayerMetadata
-        _debugShowLayoutGrids = Configs.debugShowLayoutGrids
         _iptvSourceCacheTime = Configs.iptvSourceCacheTime
         _iptvSourceCurrent = Configs.iptvSourceCurrent
         _iptvSourceList = Configs.iptvSourceList
@@ -588,17 +479,6 @@ class SettingsViewModel : ViewModel() {
         _videoPlayerStopPreviousMediaItem = Configs.videoPlayerStopPreviousMediaItem
         _videoPlayerSkipMultipleFramesOnSameVSync = Configs.videoPlayerSkipMultipleFramesOnSameVSync
         _themeAppCurrent = Configs.themeAppCurrent
-        _cloudSyncAutoPull = Configs.cloudSyncAutoPull
-        _cloudSyncProvider = Configs.cloudSyncProvider
-        _cloudSyncGithubGistId = Configs.cloudSyncGithubGistId
-        _cloudSyncGithubGistToken = Configs.cloudSyncGithubGistToken
-        _cloudSyncGiteeGistId = Configs.cloudSyncGiteeGistId
-        _cloudSyncGiteeGistToken = Configs.cloudSyncGiteeGistToken
-        _cloudSyncNetworkUrl = Configs.cloudSyncNetworkUrl
-        _cloudSyncLocalFilePath = Configs.cloudSyncLocalFilePath
-        _cloudSyncWebDavUrl = Configs.cloudSyncWebDavUrl
-        _cloudSyncWebDavUsername = Configs.cloudSyncWebDavUsername
-        _cloudSyncWebDavPassword = Configs.cloudSyncWebDavPassword
         _feiyangAllInOneFilePath = Configs.feiyangAllInOneFilePath
     }
 

@@ -199,14 +199,7 @@ enum class SettingsCategories(
     CONTROL(Icons.Outlined.ControlCamera, "控制"),
     VIDEO_PLAYER(Icons.Outlined.SmartDisplay, "播放器"),
     UPDATE(Icons.Outlined.Update, "更新"),
-
-    // FAVORITE(Icons.Outlined.FavoriteBorder, "收藏"),
-    // EPG_RESERVE(Icons.Default.BookmarkBorder, "预约"),
-    NETWORK(Icons.Outlined.Wifi, "网络"),
     THEME(Icons.Outlined.ColorLens, "主题"),
-    CLOUD_SYNC(Icons.Outlined.CloudSync, "云同步"),
-    DEBUG(Icons.Outlined.BugReport, "调试"),
-    LOG(Icons.AutoMirrored.Outlined.FormatListBulleted, "日志"),
     PERMISSIONS(Icons.Outlined.Shield, "权限"),
 }
 
