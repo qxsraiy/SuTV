@@ -457,10 +457,10 @@ object Configs {
         )
         set(value) = SP.putInt(KEY.VIDEO_PLAYER_CORE.name, value.value)
 
-    /** 播放器 渲染方式 */
+    /** 播放器 渲染方式 — TextureView 支持透明度过渡，切换界面不割裂 */
     var videoPlayerRenderMode: VideoPlayerRenderMode
         get() = VideoPlayerRenderMode.fromValue(
-            SP.getInt(KEY.VIDEO_PLAYER_RENDER_MODE.name, VideoPlayerRenderMode.SURFACE_VIEW.value)
+            SP.getInt(KEY.VIDEO_PLAYER_RENDER_MODE.name, VideoPlayerRenderMode.TEXTURE_VIEW.value)
         )
         set(value) = SP.putInt(KEY.VIDEO_PLAYER_RENDER_MODE.name, value.value)
 

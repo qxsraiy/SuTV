@@ -1,5 +1,10 @@
 package top.yogiczy.mytv.tv.ui.screen.main
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -165,7 +170,11 @@ fun MainScreen(
                 )
             }
 
-            composable(Screens.Dashboard()) {
+            composable(
+                route = Screens.Dashboard(),
+                exitTransition = { fadeOut(tween(300)) },
+                enterTransition = { fadeIn(tween(300)) },
+            ) {
                 DashboardScreen(
                     currentIptvSourceProvider = { settingsViewModel.iptvSourceCurrent },
                     channelFavoriteListProvider = { settingsViewModel.iptvChannelFavoriteList },
@@ -189,7 +198,11 @@ fun MainScreen(
                 )
             }
 
-            composable(Screens.Live()) {
+            composable(
+                route = Screens.Live(),
+                exitTransition = { fadeOut(tween(300)) },
+                enterTransition = { fadeIn(tween(300)) },
+            ) {
                 val doubleBackPressedExitState = rememberDoubleBackPressedExitState()
 
                 key(settingsViewModel.videoPlayerCore) {
