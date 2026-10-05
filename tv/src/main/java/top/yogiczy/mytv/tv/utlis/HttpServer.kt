@@ -628,12 +628,18 @@ object HttpServer : Loggable("HttpServer") {
                 }
                 
                 if (!isFallback) {
-                    // 测试模式：禁用主播放器，测试兜底触摸
-                    log.i("测试禁用主播放器: $pid")
-                    response.send("disabled")
+                    // 正常模式（ExoPlayer）：302 重定向到流地址
+                    val finalUrl = resolveMiguRedirect(result.url)
+                    if (finalUrl.isNotEmpty()) {
+                        response.redirect(finalUrl)
+                        log.i("重定向到: ${finalUrl.take(80)}...")
+                    } else {
+                        response.redirect(result.url)
+                        log.i("直接重定向到: ${result.url.take(80)}...")
+                    }
                     return@launch
                 }
-                
+
                 // 兜底模式：直接代理 M3U8 内容，避免 CORS
                 val finalUrl = resolveMiguRedirect(result.url)
                 if (finalUrl.isNotEmpty()) {
