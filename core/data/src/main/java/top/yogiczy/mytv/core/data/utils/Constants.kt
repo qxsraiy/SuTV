@@ -34,8 +34,24 @@ object Constants {
                 url = "http://localhost:10481/migu.m3u",
             ),
             IptvSource(
-                name = "无效占位订阅源",
-                url = "http://1.2.3.4/live.m3u",
+                name = "IPTV默认源 (Guovin)",
+                url = "https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/result.m3u",
+            ),
+            IptvSource(
+                name = "myIPTV IPv4",
+                url = "https://raw.githubusercontent.com/suxuang/myIPTV/refs/heads/main/ipv4.m3u",
+            ),
+            IptvSource(
+                name = "BigBigGrandG 集合源",
+                url = "https://raw.githubusercontent.com/BigBigGrandG/IPTV-URL/release/Gather.m3u",
+            ),
+            IptvSource(
+                name = "茶客源 (vamoschuck)",
+                url = "https://raw.githubusercontent.com/vamoschuck/TV/main/M3U",
+            ),
+            IptvSource(
+                name = "YanG 集合源",
+                url = "https://raw.githubusercontent.com/YanG-1989/m3u/main/Gather.m3u",
             ),
         )
     )
