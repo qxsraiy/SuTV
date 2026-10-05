@@ -2,6 +2,7 @@ package top.yogiczy.mytv.tv.migu
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -11,13 +12,16 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
+import android.view.GestureDetector
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.ArrayAdapter
 import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -27,10 +31,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.json.JSONObject
 
 /**
- * WebView 兜底播放器 - 支持切台
+ * WebView 兜底播放器 - 支持切台和触摸唤出频道列表
+ * 逻辑与直播界面一致：点击/双击/长按 → 频道列表
  */
 class MiguFallbackActivity : Activity() {
 
@@ -50,6 +54,7 @@ class MiguFallbackActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var overlayText: TextView
     private lateinit var rootLayout: FrameLayout
+    private lateinit var gestureDetector: GestureDetector
     private val handler = Handler(Looper.getMainLooper())
 
     // 频道列表
@@ -57,8 +62,9 @@ class MiguFallbackActivity : Activity() {
     private val channelList = mutableListOf<FallbackChannel>()
     private var currentChannelIdx = -1
     private var hostUrl = ""
+    private var channelListDialog: AlertDialog? = null
 
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -71,15 +77,32 @@ class MiguFallbackActivity : Activity() {
             return
         }
 
-        // 从 URL 提取 host
         hostUrl = extractHost(initialUrl)
 
-        // 创建根布局
+        // 手势检测：单击/双击/长按都弹出频道列表
+        gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                showChannelListDialog()
+                return true
+            }
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                showChannelListDialog()
+                return true
+            }
+            override fun onLongPress(e: MotionEvent) {
+                showChannelListDialog()
+            }
+        })
+
         rootLayout = FrameLayout(this).apply {
             setBackgroundColor(Color.BLACK)
+            // 拦截触摸事件交给手势检测
+            setOnTouchListener { _, event ->
+                gestureDetector.onTouchEvent(event)
+                true
+            }
         }
 
-        // 创建 WebView
         webView = WebView(this)
         webView.settings.apply {
             javaScriptEnabled = true
@@ -96,8 +119,10 @@ class MiguFallbackActivity : Activity() {
         webView.webChromeClient = WebChromeClient()
         webView.webViewClient = WebViewClient()
         webView.setBackgroundColor(Color.BLACK)
+        // WebView 不接收触摸事件，交给 rootLayout 处理
+        webView.isClickable = false
+        webView.isFocusable = false
 
-        // 创建频道名覆盖层
         overlayText = TextView(this).apply {
             textSize = 18f
             setTextColor(Color.WHITE)
@@ -127,7 +152,6 @@ class MiguFallbackActivity : Activity() {
 
         setContentView(rootLayout)
 
-        // 全屏
         window.decorView.systemUiVisibility = (
             View.SYSTEM_UI_FLAG_FULLSCREEN or
             View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
@@ -137,19 +161,14 @@ class MiguFallbackActivity : Activity() {
             View.SYSTEM_UI_FLAG_LAYOUT_STABLE
         )
 
-        // 加载初始频道
         loadStream(initialUrl)
         if (channelName.isNotEmpty()) {
             showChannelName(channelName)
         }
 
-        // 后台加载频道列表
         loadChannelList(initialUrl)
     }
 
-    /**
-     * 从 fallback URL 提取 host (如 http://192.168.1.224:10481)
-     */
     private fun extractHost(url: String): String {
         return try {
             val uri = Uri.parse(url)
@@ -159,17 +178,11 @@ class MiguFallbackActivity : Activity() {
         }
     }
 
-    /**
-     * 从 URL 提取 pid
-     */
     private fun extractPid(url: String): String {
         val segments = Uri.parse(url).pathSegments
         return segments.lastOrNull() ?: ""
     }
 
-    /**
-     * 后台加载频道列表
-     */
     private fun loadChannelList(currentUrl: String) {
         val currentPid = extractPid(currentUrl)
         CoroutineScope(Dispatchers.IO).launch {
@@ -194,14 +207,11 @@ class MiguFallbackActivity : Activity() {
                     }
                 }
             } catch (e: Exception) {
-                // 静默失败，不影响播放
+                // 静默失败
             }
         }
     }
 
-    /**
-     * 解析 M3U 为频道列表
-     */
     private fun parseM3u(m3u: String): List<FallbackChannel> {
         val result = mutableListOf<FallbackChannel>()
         val lines = m3u.split("\n", "\r\n")
@@ -212,7 +222,6 @@ class MiguFallbackActivity : Activity() {
         for (line in lines) {
             val trimmed = line.trim()
             if (trimmed.startsWith("#EXTINF")) {
-                // 解析 tvg-name 和 group-title
                 val nameMatch = Regex("tvg-name=\"([^\"]*)\"").find(trimmed)
                 val groupMatch = Regex("group-title=\"([^\"]*)\"").find(trimmed)
                 val tvgIdMatch = Regex("tvg-id=\"([^\"]*)\"").find(trimmed)
@@ -220,7 +229,6 @@ class MiguFallbackActivity : Activity() {
                 currentGroup = groupMatch?.groupValues?.get(1) ?: ""
                 currentPid = tvgIdMatch?.groupValues?.get(1) ?: ""
             } else if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
-                // URL 行 - 提取 pid
                 if (currentPid.isEmpty()) {
                     currentPid = trimmed.substringAfterLast("/").substringBefore("?")
                 }
@@ -231,13 +239,42 @@ class MiguFallbackActivity : Activity() {
                 currentPid = ""
             }
         }
-
         return result
     }
 
     /**
-     * 切换到指定频道
+     * 弹出频道列表对话框（与直播界面逻辑一致）
      */
+    private fun showChannelListDialog() {
+        if (channelList.isEmpty()) {
+            Toast.makeText(this, "频道列表加载中...", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (channelListDialog?.isShowing == true) return
+
+        val displayNames = channelList.mapIndexed { idx, ch ->
+            "${idx + 1}. ${ch.group} - ${ch.name}"
+        }.toTypedArray()
+
+        channelListDialog = AlertDialog.Builder(this)
+            .setTitle("频道列表")
+            .setItems(displayNames) { _, which ->
+                if (which in channelList.indices) {
+                    switchToChannel(which)
+                }
+            }
+            .setOnDismissListener { channelListDialog = null }
+            .create()
+            .apply {
+                show()
+                // 高亮当前频道
+                if (currentChannelIdx >= 0 && currentChannelIdx < displayNames.size) {
+                    listView.setItemChecked(currentChannelIdx, true)
+                    listView.setSelection(currentChannelIdx)
+                }
+            }
+    }
+
     private fun switchToChannel(idx: Int) {
         if (channelList.isEmpty() || idx < 0 || idx >= channelList.size) return
 
@@ -248,17 +285,11 @@ class MiguFallbackActivity : Activity() {
         showChannelName("${channel.group} · ${channel.name}")
     }
 
-    /**
-     * 加载 HLS 流到 WebView
-     */
     private fun loadStream(url: String) {
         val encodedUrl = Uri.encode(url)
         webView.loadUrl("file:///android_asset/hls_player.html#$encodedUrl")
     }
 
-    /**
-     * 显示频道名（3秒后自动隐藏）
-     */
     private var overlayHideRunnable = Runnable { overlayText.visibility = View.GONE }
 
     private fun showChannelName(name: String) {
@@ -269,6 +300,11 @@ class MiguFallbackActivity : Activity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        // 频道列表对话框打开时，只处理上下选择和确认/返回
+        if (channelListDialog?.isShowing == true) {
+            return super.onKeyDown(keyCode, event)
+        }
+
         when (keyCode) {
             KeyEvent.KEYCODE_DPAD_UP -> {
                 if (channelList.isNotEmpty()) {
@@ -285,7 +321,6 @@ class MiguFallbackActivity : Activity() {
                 }
             }
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                // 左右键也可以切台
                 if (channelList.isNotEmpty()) {
                     if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                         val newIdx = if (currentChannelIdx > 0) currentChannelIdx - 1 else channelList.size - 1
@@ -298,20 +333,16 @@ class MiguFallbackActivity : Activity() {
                 }
             }
             KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_CENTER -> {
-                // OK 键显示当前频道名
-                if (currentChannelIdx >= 0 && currentChannelIdx < channelList.size) {
-                    val ch = channelList[currentChannelIdx]
-                    showChannelName("${ch.group} · ${ch.name}")
-                    return true
-                }
+                showChannelListDialog()
+                return true
             }
         }
         return super.onKeyDown(keyCode, event)
     }
 
     override fun onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack()
+        if (channelListDialog?.isShowing == true) {
+            channelListDialog?.dismiss()
         } else {
             super.onBackPressed()
         }
@@ -319,6 +350,7 @@ class MiguFallbackActivity : Activity() {
 
     override fun onDestroy() {
         handler.removeCallbacks(overlayHideRunnable)
+        channelListDialog?.dismiss()
         webView.destroy()
         super.onDestroy()
     }
