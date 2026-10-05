@@ -2,7 +2,6 @@ package top.yogiczy.mytv.tv.migu
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -21,26 +20,22 @@ import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.ArrayAdapter
 import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 
 /**
- * WebView 兜底播放器 - 支持切台和触摸唤出频道列表
- * 逻辑与直播界面一致：点击/双击/长按 → 频道列表
+ * WebView 兜底播放器
+ * 点击/长按/OK键 → 关闭兜底，回到主 app 弹经典频道列表（与直播界面一致）
  */
 class MiguFallbackActivity : Activity() {
 
     companion object {
         const val EXTRA_URL = "extra_url"
         const val EXTRA_CHANNEL_NAME = "extra_channel_name"
+
+        @Volatile
+        var onRequestChannelList: (() -> Unit)? = null
 
         fun startActivity(context: Context, url: String, channelName: String = "") {
             val intent = Intent(context, MiguFallbackActivity::class.java)
@@ -57,14 +52,7 @@ class MiguFallbackActivity : Activity() {
     private lateinit var gestureDetector: GestureDetector
     private val handler = Handler(Looper.getMainLooper())
 
-    // 频道列表
-    private data class FallbackChannel(val name: String, val pid: String, val group: String)
-    private val channelList = mutableListOf<FallbackChannel>()
-    private var currentChannelIdx = -1
-    private var hostUrl = ""
-    private var channelListDialog: AlertDialog? = null
-
-    @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -77,31 +65,17 @@ class MiguFallbackActivity : Activity() {
             return
         }
 
-        hostUrl = extractHost(initialUrl)
-
-        // 手势检测：单击/双击/长按都弹出频道列表
         gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                showChannelListDialog()
-                return true
-            }
-            override fun onDoubleTap(e: MotionEvent): Boolean {
-                showChannelListDialog()
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                requestChannelList()
                 return true
             }
             override fun onLongPress(e: MotionEvent) {
-                showChannelListDialog()
+                requestChannelList()
             }
         })
 
-        rootLayout = FrameLayout(this).apply {
-            setBackgroundColor(Color.BLACK)
-            // 拦截触摸事件交给手势检测
-            setOnTouchListener { _, event ->
-                gestureDetector.onTouchEvent(event)
-                true
-            }
-        }
+        rootLayout = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
 
         webView = WebView(this)
         webView.settings.apply {
@@ -115,13 +89,9 @@ class MiguFallbackActivity : Activity() {
             userAgentString = "Mozilla/5.0 (Linux; Android 10; Pixel) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
             allowFileAccessFromFileURLs = true
         }
-
         webView.webChromeClient = WebChromeClient()
         webView.webViewClient = WebViewClient()
         webView.setBackgroundColor(Color.BLACK)
-        // WebView 不接收触摸事件，交给 rootLayout 处理
-        webView.isClickable = false
-        webView.isFocusable = false
 
         overlayText = TextView(this).apply {
             textSize = 18f
@@ -149,7 +119,6 @@ class MiguFallbackActivity : Activity() {
             ViewGroup.LayoutParams.MATCH_PARENT
         ))
         rootLayout.addView(overlayText, overlayParams)
-
         setContentView(rootLayout)
 
         window.decorView.systemUiVisibility = (
@@ -162,127 +131,36 @@ class MiguFallbackActivity : Activity() {
         )
 
         loadStream(initialUrl)
-        if (channelName.isNotEmpty()) {
-            showChannelName(channelName)
-        }
-
-        loadChannelList(initialUrl)
-    }
-
-    private fun extractHost(url: String): String {
-        return try {
-            val uri = Uri.parse(url)
-            "${uri.scheme}://${uri.host}:${uri.port}"
-        } catch (e: Exception) {
-            "http://localhost:10481"
-        }
-    }
-
-    private fun extractPid(url: String): String {
-        val segments = Uri.parse(url).pathSegments
-        return segments.lastOrNull() ?: ""
-    }
-
-    private fun loadChannelList(currentUrl: String) {
-        val currentPid = extractPid(currentUrl)
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val client = OkHttpClient.Builder()
-                    .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                    .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                    .build()
-
-                val req = Request.Builder().url("$hostUrl/migu.m3u").get().build()
-                client.newCall(req).execute().use { resp ->
-                    val m3u = resp.body?.string() ?: ""
-                    val channels = parseM3u(m3u)
-
-                    withContext(Dispatchers.Main) {
-                        channelList.clear()
-                        channelList.addAll(channels)
-                        currentChannelIdx = channelList.indexOfFirst { it.pid == currentPid }
-                        if (currentChannelIdx < 0 && channelList.isNotEmpty()) {
-                            currentChannelIdx = 0
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                // 静默失败
-            }
-        }
-    }
-
-    private fun parseM3u(m3u: String): List<FallbackChannel> {
-        val result = mutableListOf<FallbackChannel>()
-        val lines = m3u.split("\n", "\r\n")
-        var currentName = ""
-        var currentGroup = ""
-        var currentPid = ""
-
-        for (line in lines) {
-            val trimmed = line.trim()
-            if (trimmed.startsWith("#EXTINF")) {
-                val nameMatch = Regex("tvg-name=\"([^\"]*)\"").find(trimmed)
-                val groupMatch = Regex("group-title=\"([^\"]*)\"").find(trimmed)
-                val tvgIdMatch = Regex("tvg-id=\"([^\"]*)\"").find(trimmed)
-                currentName = nameMatch?.groupValues?.get(1) ?: trimmed.substringAfterLast(",").trim()
-                currentGroup = groupMatch?.groupValues?.get(1) ?: ""
-                currentPid = tvgIdMatch?.groupValues?.get(1) ?: ""
-            } else if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
-                if (currentPid.isEmpty()) {
-                    currentPid = trimmed.substringAfterLast("/").substringBefore("?")
-                }
-                if (currentName.isNotEmpty()) {
-                    result.add(FallbackChannel(currentName, currentPid, currentGroup))
-                }
-                currentName = ""
-                currentPid = ""
-            }
-        }
-        return result
+        if (channelName.isNotEmpty()) showChannelName(channelName)
     }
 
     /**
-     * 弹出频道列表对话框（与直播界面逻辑一致）
+     * Activity 级别拦截所有触摸事件，WebView 收不到触摸
+     * 单击/长按 → 回主app弹频道列表
      */
-    private fun showChannelListDialog() {
-        if (channelList.isEmpty()) {
-            Toast.makeText(this, "频道列表加载中...", Toast.LENGTH_SHORT).show()
-            return
-        }
-        if (channelListDialog?.isShowing == true) return
-
-        val displayNames = channelList.mapIndexed { idx, ch ->
-            "${idx + 1}. ${ch.group} - ${ch.name}"
-        }.toTypedArray()
-
-        channelListDialog = AlertDialog.Builder(this)
-            .setTitle("频道列表")
-            .setItems(displayNames) { _, which ->
-                if (which in channelList.indices) {
-                    switchToChannel(which)
-                }
-            }
-            .setOnDismissListener { channelListDialog = null }
-            .create()
-            .apply {
-                show()
-                // 高亮当前频道
-                if (currentChannelIdx >= 0 && currentChannelIdx < displayNames.size) {
-                    listView.setItemChecked(currentChannelIdx, true)
-                    listView.setSelection(currentChannelIdx)
-                }
-            }
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        gestureDetector.onTouchEvent(ev)
+        return true
     }
 
-    private fun switchToChannel(idx: Int) {
-        if (channelList.isEmpty() || idx < 0 || idx >= channelList.size) return
+    /**
+     * 拦截 OK 键，在 WebView 之前处理
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_CENTER -> {
+                    requestChannelList()
+                    return true
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
-        currentChannelIdx = idx
-        val channel = channelList[idx]
-        val fallbackUrl = "$hostUrl/migufb/${channel.pid}"
-        loadStream(fallbackUrl)
-        showChannelName("${channel.group} · ${channel.name}")
+    private fun requestChannelList() {
+        onRequestChannelList?.invoke()
+        finish()
     }
 
     private fun loadStream(url: String) {
@@ -299,58 +177,8 @@ class MiguFallbackActivity : Activity() {
         handler.postDelayed(overlayHideRunnable, 3000)
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        // 频道列表对话框打开时，只处理上下选择和确认/返回
-        if (channelListDialog?.isShowing == true) {
-            return super.onKeyDown(keyCode, event)
-        }
-
-        when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP -> {
-                if (channelList.isNotEmpty()) {
-                    val newIdx = if (currentChannelIdx > 0) currentChannelIdx - 1 else channelList.size - 1
-                    switchToChannel(newIdx)
-                    return true
-                }
-            }
-            KeyEvent.KEYCODE_DPAD_DOWN -> {
-                if (channelList.isNotEmpty()) {
-                    val newIdx = if (currentChannelIdx < channelList.size - 1) currentChannelIdx + 1 else 0
-                    switchToChannel(newIdx)
-                    return true
-                }
-            }
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                if (channelList.isNotEmpty()) {
-                    if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                        val newIdx = if (currentChannelIdx > 0) currentChannelIdx - 1 else channelList.size - 1
-                        switchToChannel(newIdx)
-                    } else {
-                        val newIdx = if (currentChannelIdx < channelList.size - 1) currentChannelIdx + 1 else 0
-                        switchToChannel(newIdx)
-                    }
-                    return true
-                }
-            }
-            KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_CENTER -> {
-                showChannelListDialog()
-                return true
-            }
-        }
-        return super.onKeyDown(keyCode, event)
-    }
-
-    override fun onBackPressed() {
-        if (channelListDialog?.isShowing == true) {
-            channelListDialog?.dismiss()
-        } else {
-            super.onBackPressed()
-        }
-    }
-
     override fun onDestroy() {
         handler.removeCallbacks(overlayHideRunnable)
-        channelListDialog?.dismiss()
         webView.destroy()
         super.onDestroy()
     }

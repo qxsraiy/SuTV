@@ -257,10 +257,10 @@ object Configs {
         set(value) = SP.putString(KEY.APP_STARTUP_SCREEN.name, value)
 
     /** ==================== 调试（自动按构建类型切换） ==================== */
-    val debugDeveloperMode: Boolean get() = top.yogiczy.mytv.tv.BuildConfig.DEBUG
-    val debugShowFps: Boolean get() = top.yogiczy.mytv.tv.BuildConfig.DEBUG
-    val debugShowVideoPlayerMetadata: Boolean get() = top.yogiczy.mytv.tv.BuildConfig.DEBUG
-    val debugShowLayoutGrids: Boolean get() = top.yogiczy.mytv.tv.BuildConfig.DEBUG
+    val debugDeveloperMode: Boolean get() = false
+    val debugShowFps: Boolean get() = false
+    val debugShowVideoPlayerMetadata: Boolean get() = false
+    val debugShowLayoutGrids: Boolean get() = false
 
     /** ==================== 直播源 ==================== */
     /** 当前直播源 */

@@ -149,6 +149,8 @@ class MainContentState(
 
         videoPlayerState.onError {
             if (_currentPlaybackEpgProgramme != null) return@onError
+            // 频道列表打开时不触发兜底（用户正在选台）
+            if (_isChannelScreenVisible) return@onError
 
             settingsViewModel.iptvChannelLinePlayableUrlList -= currentChannelLine.url
             settingsViewModel.iptvChannelLinePlayableHostList -= currentChannelLine.url.urlHost()
@@ -156,12 +158,15 @@ class MainContentState(
             if (_currentChannelLineIdx < _currentChannel.lineList.size - 1) {
                 changeCurrentChannel(_currentChannel, _currentChannelLineIdx + 1)
             } else {
-                // 所有线路都播放失败，尝试 WebView 兜底播放
-                // 用 /migufb/ 端点让服务器返回正常流地址
+                // 所有线路都播放失败，启动 WebView 兜底播放
                 val baseUrl = currentChannelLine.url
                 val fallbackUrl = baseUrl.replace("/migu/", "/migufb/")
                 val channelName = _currentChannel.name
                 log.e("所有线路播放失败，启动 WebView 兜底: $channelName")
+                // 设置回调：用户点击兜底画面时，回到主 app 弹经典频道列表
+                MiguFallbackActivity.onRequestChannelList = {
+                    _isChannelScreenVisible = true
+                }
                 MiguFallbackActivity.startActivity(
                     Globals.appContext,
                     fallbackUrl,
