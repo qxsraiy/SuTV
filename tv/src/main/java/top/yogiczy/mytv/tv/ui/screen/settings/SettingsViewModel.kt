@@ -200,32 +200,9 @@ class SettingsViewModel : ViewModel() {
             afterSetWhenCloudSyncAutoPull()
         }
 
-    private var _iptvChannelChangeFlip by mutableStateOf(false)
-    var iptvChannelChangeFlip: Boolean
-        get() = _iptvChannelChangeFlip
-        set(value) {
-            _iptvChannelChangeFlip = value
-            Configs.iptvChannelChangeFlip = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _iptvChannelNoSelectEnable by mutableStateOf(false)
-    var iptvChannelNoSelectEnable: Boolean
-        get() = _iptvChannelNoSelectEnable
-        set(value) {
-            _iptvChannelNoSelectEnable = value
-            Configs.iptvChannelNoSelectEnable = value
-            afterSetWhenCloudSyncAutoPull()
-        }
-
-    private var _iptvChannelChangeListLoop by mutableStateOf(false)
-    var iptvChannelChangeListLoop: Boolean
-        get() = _iptvChannelChangeListLoop
-        set(value) {
-            _iptvChannelChangeListLoop = value
-            Configs.iptvChannelChangeListLoop = value
-            afterSetWhenCloudSyncAutoPull()
-        }
+    val iptvChannelChangeFlip: Boolean get() = Configs.iptvChannelChangeFlip
+    val iptvChannelNoSelectEnable: Boolean get() = Configs.iptvChannelNoSelectEnable
+    val iptvChannelChangeListLoop: Boolean get() = Configs.iptvChannelChangeListLoop
 
     private var _epgEnable by mutableStateOf(false)
     var epgEnable: Boolean
@@ -458,9 +435,6 @@ class SettingsViewModel : ViewModel() {
         _iptvChannelLastPlay = Configs.iptvChannelLastPlay
         _iptvChannelLinePlayableHostList = Configs.iptvChannelLinePlayableHostList
         _iptvChannelLinePlayableUrlList = Configs.iptvChannelLinePlayableUrlList
-        _iptvChannelChangeFlip = Configs.iptvChannelChangeFlip
-        _iptvChannelNoSelectEnable = Configs.iptvChannelNoSelectEnable
-        _iptvChannelChangeListLoop = Configs.iptvChannelChangeListLoop
         _epgEnable = Configs.epgEnable
         _epgSourceCurrent = Configs.epgSourceCurrent
         _epgSourceList = Configs.epgSourceList

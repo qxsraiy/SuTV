@@ -22,7 +22,6 @@ import top.yogiczy.mytv.core.data.repositories.iptv.IptvRepository
 import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsAppScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsControlScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsIptvScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsPermissionsScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsThemeScreen
@@ -96,12 +95,6 @@ fun SettingsScreen(
                         toIptvHybridModeScreen = {
                             navController.navigateSingleTop(SettingsSubCategories.IPTV_HYBRID_MODE.name)
                         },
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
-                composable(SettingsCategories.CONTROL.name) {
-                    SettingsControlScreen(
                         onBackPressed = { navController.navigateUp() },
                     )
                 }
