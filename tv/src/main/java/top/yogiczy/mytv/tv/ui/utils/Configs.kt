@@ -584,10 +584,7 @@ object Configs {
 
     enum class VideoPlayerCore(val value: Int, val label: String) {
         /** Media3 */
-        MEDIA3(0, "Media3"),
-
-        /** IJK */
-        IJK(1, "IjkPlayer");
+        MEDIA3(0, "Media3");
 
         companion object {
             fun fromValue(value: Int): VideoPlayerCore {

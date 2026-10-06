@@ -111,21 +111,6 @@ fun QuickOpBtnList(
             )
         }
 
-        item {
-            val settingsViewModel = settingsVM
-
-            QuickOpBtn(
-                title = settingsVM.videoPlayerCore.label,
-                imageVector = Icons.Outlined.SlowMotionVideo,
-                onSelect = {
-                    settingsViewModel.videoPlayerCore = when (settingsViewModel.videoPlayerCore) {
-                        Configs.VideoPlayerCore.MEDIA3 -> Configs.VideoPlayerCore.IJK
-                        Configs.VideoPlayerCore.IJK -> Configs.VideoPlayerCore.MEDIA3
-                    }
-                },
-            )
-        }
-
         if (playerMetadata.videoTracks.isNotEmpty()) {
             item {
                 QuickOpBtn(

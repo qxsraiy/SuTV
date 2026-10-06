@@ -52,8 +52,7 @@ fun SettingsVideoPlayerCoreScreen(
                     supportingContent = {
                         Text(
                             when (core) {
-                                Configs.VideoPlayerCore.MEDIA3 -> "支持全部功能"
-                                Configs.VideoPlayerCore.IJK -> "部分功能可能无法正常使用，仅支持armeabi-v7a、arm64-v8a"
+                                Configs.VideoPlayerCore.MEDIA3 -> "支持全部功能，使用硬件解码"
                             }
                         )
                     },
