@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -151,30 +153,33 @@ fun VodDetailScreen(
             }
 
             var controllerVisible by remember { mutableStateOf(true) }
+            var showEpList by remember { mutableStateOf(false) }
+            val epListState = androidx.compose.foundation.lazy.rememberLazyListState(epIdx)
             val playerViewRef = remember { mutableStateOf<PlayerView?>(null) }
 
-            // 换集后显示控制器
+            // controllerVisible变化时同步PlayerView控制器
+            LaunchedEffect(controllerVisible) {
+                val pv = playerViewRef.value
+                if (pv != null) {
+                    if (controllerVisible) pv.showController()
+                    else pv.hideController()
+                }
+            }
+            // 自动隐藏
+            LaunchedEffect(controllerVisible, showEpList) {
+                if (controllerVisible && !showEpList) {
+                    kotlinx.coroutines.delay(5000)
+                    controllerVisible = false
+                }
+            }
+            // 换集后显示
             LaunchedEffect(currentEp?.url) {
-                kotlinx.coroutines.delay(300)
-                playerViewRef.value?.showController()
+                showEpList = false
+                controllerVisible = true
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = {
-                                val pv = playerViewRef.value
-                                if (pv != null) {
-                                    if (controllerVisible) pv.hideController()
-                                    else pv.showController()
-                                }
-                            }
-                        )
-                    }
-            ) {
-
+            Box(modifier = Modifier.fillMaxSize()) {
+                // PlayerView (内置控制器: 快退/暂停/快进/进度条)
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->
@@ -182,70 +187,155 @@ fun VodDetailScreen(
                             this.player = player
                             useController = true
                             setControllerAutoShow(true)
-                            setControllerShowTimeoutMs(5000)
-                            setShowPreviousButton(true)
-                            setShowNextButton(true)
-                            setControllerVisibilityListener(
-                                object : PlayerView.ControllerVisibilityListener {
-                                    override fun onVisibilityChanged(visibility: Int) {
-                                        controllerVisible = visibility == android.view.View.VISIBLE
-                                    }
-                                }
-                            )
+                            setControllerHideOnTouch(false)
+                            setControllerShowTimeoutMs(0)
+                            setShowPreviousButton(false)
+                            setShowNextButton(false)
                             playerViewRef.value = this
                         }
                     },
-                    update = { view ->
-                        // 接管上一集/下一集按钮
-                        val prevId = view.resources.getIdentifier("exo_prev", "id", "androidx.media3.ui")
-                        val nextId = view.resources.getIdentifier("exo_next", "id", "androidx.media3.ui")
-                        view.findViewById<android.view.View>(prevId)?.setOnClickListener {
-                            if (epIdx > 0) epIdx--
-                        }
-                        view.findViewById<android.view.View>(nextId)?.setOnClickListener {
-                            if (epIdx < epCount - 1) epIdx++
-                        }
-                    },
                 )
-                // 顶部覆盖层: 跟随控制器
+
+                // 触摸捕获层: 点击切换覆盖层
+                if (!controllerVisible) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = { controllerVisible = true })
+                            }
+                    )
+                }
+
+                // 覆盖层
                 if (controllerVisible) {
+                    // 点击空白处隐藏
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = {
+                                    if (!showEpList) controllerVisible = false
+                                })
+                            }
+                    )
+
                     // 左上: 返回
-                    var playBackFocused by remember { mutableStateOf(false) }
+                    var backFocused by remember { mutableStateOf(false) }
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(8.dp)
-                            .onFocusChanged { playBackFocused = it.isFocused }
+                            .onFocusChanged { backFocused = it.isFocused }
                             .focusable()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (playBackFocused) Color(0xAA000000) else Color(0x80000000))
-                            .border(if (playBackFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
+                            .background(if (backFocused) Color(0xAA000000) else Color(0x80000000))
+                            .border(if (backFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
                             .clickable { isPlaying = false }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                     ) {
                         Text("← 返回", color = Color.White, fontSize = 14.sp)
                     }
-                    // 右上: 剧名 · 集数 + 源名
+
+                    // 右上: 剧名·集数(点击弹出剧集列表) + 源名
+                    var infoFocused by remember { mutableStateOf(false) }
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(8.dp)
+                            .onFocusChanged { infoFocused = it.isFocused }
+                            .focusable()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0x80000000))
+                            .background(if (infoFocused) Color(0xAA000000) else Color(0x80000000))
+                            .border(if (infoFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
+                            .clickable { showEpList = !showEpList }
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                     ) {
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                "${detail.vod_name} · ${currentEp?.name ?: ""}",
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
+                                "${detail.vod_name} · ${currentEp?.name ?: ""} ▾",
+                                color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium,
                             )
-                            Text(
-                                ms?.label ?: "",
-                                color = Color(0xFFAAAACC),
-                                fontSize = 11.sp,
-                            )
+                            Text(ms?.label ?: "", color = Color(0xFFAAAACC), fontSize = 11.sp)
+                        }
+                    }
+
+                    // 底部中间偏左: 上一集 (紧挨PlayerView内置快退按钮左边)
+                    var prevFocused by remember { mutableStateOf(false) }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .offset(x = (-220).dp)
+                            .padding(bottom = 14.dp)
+                            .onFocusChanged { prevFocused = it.isFocused }
+                            .focusable()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (prevFocused) Color(0xFF4466AA) else Color(0x80000000))
+                            .clickable { if (epIdx > 0) epIdx-- }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    ) { Text("◀上一集", color = if (epIdx > 0) Color.White else Color(0xFF666666), fontSize = 13.sp) }
+
+                    // 底部中间偏右: 下一集 (紧挨PlayerView内置快进按钮右边)
+                    var nextFocused by remember { mutableStateOf(false) }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .offset(x = 220.dp)
+                            .padding(bottom = 14.dp)
+                            .onFocusChanged { nextFocused = it.isFocused }
+                            .focusable()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (nextFocused) Color(0xFF4466AA) else Color(0x80000000))
+                            .clickable { if (epIdx < epCount - 1) epIdx++ }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    ) { Text("下一集▶", color = if (epIdx < epCount - 1) Color.White else Color(0xFF666666), fontSize = 13.sp) }
+                }
+
+                // 右侧剧集列表
+                if (showEpList && ms != null) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight(0.75f)
+                            .width(200.dp)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xDD000000)),
+                    ) {
+                        androidx.compose.foundation.lazy.LazyColumn(
+                            state = epListState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(4.dp),
+                        ) {
+                            items(ms.episodes.size) { i ->
+                                val ep = ms.episodes[i]
+                                var epFocused by remember { mutableStateOf(false) }
+                                val isCurrent = i == epIdx
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 1.dp)
+                                        .onFocusChanged { epFocused = it.isFocused }
+                                        .focusable()
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(
+                                            when {
+                                                epFocused -> Color(0xFF4466AA)
+                                                isCurrent -> Color(0x44AA0000)
+                                                else -> Color.Transparent
+                                            }
+                                        )
+                                        .border(if (isCurrent) 1.dp else 0.dp, Color(0xFFFF4444), RoundedCornerShape(6.dp))
+                                        .clickable { epIdx = i; showEpList = false }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                ) {
+                                    Text(
+                                        ep.name,
+                                        color = if (isCurrent) Color(0xFFFF6666) else Color.White,
+                                        fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
