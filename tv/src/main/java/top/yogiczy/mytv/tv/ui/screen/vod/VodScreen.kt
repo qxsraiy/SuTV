@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
@@ -91,81 +93,119 @@ fun VodScreen(
                 )
             }
 
-            // 最近观看
-            if (historyItems.isNotEmpty()) {
-                Text(
-                    "最近观看",
-                    color = Color(0xFFAAAAAA),
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                )
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(historyItems) { hist ->
-                        HistoryCard(
-                            item = hist,
-                            onClick = {
-                                onPlayVod(hist.sourceKey, hist.vodId, hist.vodName, hist.vodPic, hist.epIdx)
-                            },
+            // 主体: 左1/5最近观看 + 右4/5影片网格
+            val showHistory = historyItems.isNotEmpty()
+            Row(modifier = Modifier.fillMaxSize()) {
+                // 左侧: 最近观看 (1/5宽, 纯文字列表, 最多5行)
+                if (showHistory) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .background(Color(0xFF161616))
+                            .padding(6.dp),
+                    ) {
+                        Text(
+                            "最近观看",
+                            color = Color(0xFFAAAAAA),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(bottom = 4.dp),
                         )
+                        val histList = historyItems.take(5)
+                        histList.forEach { hist ->
+                            var focused by remember { mutableStateOf(false) }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 1.dp)
+                                    .onFocusChanged { focused = it.isFocused }
+                                    .focusable()
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (focused) Color(0xFF444466) else Color.Transparent)
+                                    .border(if (focused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        onPlayVod(hist.sourceKey, hist.vodId, hist.vodName, hist.vodPic, hist.epIdx)
+                                    }
+                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    hist.vodName,
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    "第${hist.epIdx + 1}集",
+                                    color = Color(0xFF888888),
+                                    fontSize = 9.sp,
+                                    maxLines = 1,
+                                )
+                            }
+                        }
                     }
                 }
-                Spacer(Modifier.height(4.dp))
-            }
 
-            // 影片网格
-            if (state.loading && state.items.isEmpty()) {
+                // 右侧: 影片网格 (4/5宽, 自适应列数)
+                val gridWeight = if (showHistory) 4f else 1f
                 Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("加载中...", color = Color.White, fontSize = 18.sp)
-                }
-            } else if (state.searchResults.isNotEmpty()) {
-                // 搜索结果
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(5),
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                        .weight(gridWeight)
+                        .fillMaxHeight()
                 ) {
-                    items(state.searchResults) { item ->
-                        VodCard(
-                            item = item,
-                            onClick = {
-                                onPlayVod(state.currentSource.key, item.vod_id, item.vod_name, item.vod_pic, 0)
-                            },
-                        )
-                    }
-                }
-            } else if (state.items.isNotEmpty()) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(5),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(state.items) { item ->
-                        VodCard(
-                            item = item,
-                            onClick = {
-                                onPlayVod(state.currentSource.key, item.vod_id, item.vod_name, item.vod_pic, 0)
-                            },
-                        )
-                    }
-                    // 加载更多
-                    if (state.page < state.pageCount) {
-                        item {
-                            LaunchedEffect(Unit) {
-                                vm.loadList(state.currentSource.key, "", state.page + 1)
+                    if (state.loading && state.items.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("加载中...", color = Color.White, fontSize = 18.sp)
+                        }
+                    } else if (state.searchResults.isNotEmpty()) {
+                        // 搜索结果
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(150.dp),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            items(state.searchResults) { item ->
+                                VodCard(
+                                    item = item,
+                                    onClick = {
+                                        onPlayVod(state.currentSource.key, item.vod_id, item.vod_name, item.vod_pic, 0)
+                                    },
+                                )
+                            }
+                        }
+                    } else if (state.items.isNotEmpty()) {
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(150.dp),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            items(state.items) { item ->
+                                VodCard(
+                                    item = item,
+                                    onClick = {
+                                        onPlayVod(state.currentSource.key, item.vod_id, item.vod_name, item.vod_pic, 0)
+                                    },
+                                )
+                            }
+                            // 加载更多
+                            if (state.page < state.pageCount) {
+                                item {
+                                    LaunchedEffect(Unit) {
+                                        vm.loadList(state.currentSource.key, "", state.page + 1)
+                                    }
+                                }
                             }
                         }
                     }
@@ -347,7 +387,7 @@ private fun VodCard(
             contentDescription = item.vod_name,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp)
+                .height(160.dp)
                 .clip(RoundedCornerShape(6.dp)),
             contentScale = ContentScale.Crop,
         )
@@ -355,51 +395,13 @@ private fun VodCard(
         Text(
             item.vod_name,
             color = Color.White,
-            fontSize = 12.sp,
+            fontSize = 11.sp,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             fontWeight = FontWeight.Medium,
         )
         if (item.vod_remarks.isNotEmpty()) {
-            Text(item.vod_remarks, color = Color(0xFF888888), fontSize = 10.sp, maxLines = 1)
+            Text(item.vod_remarks, color = Color(0xFF888888), fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-    }
-}
-
-@Composable
-private fun HistoryCard(
-    item: VodHistoryItem,
-    onClick: () -> Unit,
-) {
-    var focused by remember { mutableStateOf(false) }
-    Column(
-        modifier = Modifier
-            .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .scale(if (focused) 1.08f else 1f)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFF222233))
-            .border(if (focused) 3.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
-            .clickable { onClick() }
-            .padding(4.dp)
-            .width(120.dp),
-    ) {
-        AsyncImage(
-            model = item.vodPic,
-            contentDescription = item.vodName,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(160.dp)
-                .clip(RoundedCornerShape(6.dp)),
-            contentScale = ContentScale.Crop,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            item.vodName,
-            color = Color.White,
-            fontSize = 11.sp,
-            maxLines = 1,
-            fontWeight = FontWeight.Medium,
-        )
-        Text("第${item.epIdx + 1}集", color = Color(0xFF888888), fontSize = 10.sp, maxLines = 1)
     }
 }
