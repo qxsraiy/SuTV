@@ -207,15 +207,18 @@ fun VodDetailScreen(
 
                 // 覆盖层
                 if (controllerVisible) {
-                    // 点击空白处: 关闭剧集列表+隐藏控件 (用clickable, 按钮在上面会优先消费)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickable {
-                                showEpList = false
-                                controllerVisible = false
-                            }
-                    )
+                    // 仅当剧集列表打开时: 点击外部关闭列表+隐藏控件
+                    // 列表关闭时不加全屏层, 让PlayerView内置控件正常响应
+                    if (showEpList) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clickable {
+                                    showEpList = false
+                                    controllerVisible = false
+                                }
+                        )
+                    }
 
                     // 左上: 返回
                     var backFocused by remember { mutableStateOf(false) }
