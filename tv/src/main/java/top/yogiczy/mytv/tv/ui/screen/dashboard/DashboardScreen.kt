@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -94,18 +96,19 @@ fun DashboardScreen(
         },
         onBackPressed = onBackPressed,
     ) {
-        LazyColumn(
-            contentPadding = PaddingValues(top = 20.dp, bottom = childPadding.bottom),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 12.dp),
         ) {
-            item {
-                DashboardModuleList(
-                    modifier = Modifier.focusOnLaunched(),
-                    toLiveScreen = toLiveScreen,
-                    toVodScreen = toVodScreen,
-                    toFavoritesScreen = toFavoritesScreen,
-                )
-            }
+            DashboardModuleList(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .focusOnLaunched(),
+                toLiveScreen = toLiveScreen,
+                toVodScreen = toVodScreen,
+                toFavoritesScreen = toFavoritesScreen,
+            )
         }
     }
 }
