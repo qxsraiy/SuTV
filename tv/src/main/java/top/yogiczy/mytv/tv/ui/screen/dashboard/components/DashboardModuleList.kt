@@ -39,6 +39,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yogiczy.mytv.tv.R
+import top.yogiczy.mytv.tv.ui.screen.vod.VodFavoriteManager
 import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
 import java.io.File
 
@@ -116,17 +117,28 @@ fun DashboardModuleList(
             onSelected = toVodScreen,
         )
 
-        // 收藏 (空接口占位)
+        // 收藏 (展示最新VOD收藏的封面)
+        val favVersion by remember { VodFavoriteManager.version }
+        val latestFav = remember(favVersion) { VodFavoriteManager.load(context).firstOrNull() }
         DashboardCard(
             imageWidth = imageWidth,
             imageHeight = imageHeight,
             textHeight = textHeight,
             imageContent = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFF16213e)),
-                )
+                if (latestFav != null && latestFav.vodPic.isNotBlank()) {
+                    AsyncImage(
+                        model = latestFav.vodPic,
+                        contentDescription = "收藏",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFF16213e)),
+                    )
+                }
             },
             title = "收藏",
             onSelected = toFavoritesScreen,
