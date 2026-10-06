@@ -100,7 +100,7 @@ fun DashboardScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 48.dp, vertical = 12.dp),
+                .padding(horizontal = 56.dp, vertical = 16.dp),
             contentAlignment = Alignment.Center,
         ) {
             DashboardModuleList(

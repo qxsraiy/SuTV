@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -65,8 +65,8 @@ fun DashboardModuleList(
     }
 
     Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(32.dp),
+        modifier = modifier.fillMaxWidth().fillMaxHeight(),
+        horizontalArrangement = Arrangement.spacedBy(36.dp),
     ) {
         // 直播卡片
         DashboardCard(
@@ -142,11 +142,11 @@ private fun DashboardCard(
             .handleKeyEvents(onSelect = onSelected),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // 图片区域：宽高比 3:4
+        // 图片区域：填满可用高度，不超出屏幕
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(0.75f) // 3:4
+                .weight(1f)
                 .clip(RoundedCornerShape(16.dp))
                 .border(
                     width = if (isFocused) 3.dp else 0.dp,
