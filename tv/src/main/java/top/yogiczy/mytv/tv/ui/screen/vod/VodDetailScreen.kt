@@ -209,13 +209,14 @@ fun VodDetailScreen(
 
                 // 覆盖层
                 if (controllerVisible) {
-                    // 点击空白处隐藏
+                    // 点击空白处: 关闭剧集列表+隐藏控件
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .pointerInput(Unit) {
                                 detectTapGestures(onTap = {
-                                    if (!showEpList) controllerVisible = false
+                                    showEpList = false
+                                    controllerVisible = false
                                 })
                             }
                     )
@@ -260,13 +261,13 @@ fun VodDetailScreen(
                         }
                     }
 
-                    // 底部中间偏左: 上一集 (紧挨PlayerView内置快退按钮左边)
+                    // 底部中间偏左: 上一集 (与PlayerView内置快退/暂停/快退同一水平线)
                     var prevFocused by remember { mutableStateOf(false) }
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .offset(x = (-220).dp)
-                            .padding(bottom = 14.dp)
+                            .padding(bottom = 22.dp)
                             .onFocusChanged { prevFocused = it.isFocused }
                             .focusable()
                             .clip(RoundedCornerShape(6.dp))
@@ -275,13 +276,13 @@ fun VodDetailScreen(
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                     ) { Text("◀上一集", color = if (epIdx > 0) Color.White else Color(0xFF666666), fontSize = 13.sp) }
 
-                    // 底部中间偏右: 下一集 (紧挨PlayerView内置快进按钮右边)
+                    // 底部中间偏右: 下一集 (与PlayerView内置快退/暂停/快退同一水平线)
                     var nextFocused by remember { mutableStateOf(false) }
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .offset(x = 220.dp)
-                            .padding(bottom = 14.dp)
+                            .padding(bottom = 22.dp)
                             .onFocusChanged { nextFocused = it.isFocused }
                             .focusable()
                             .clip(RoundedCornerShape(6.dp))
