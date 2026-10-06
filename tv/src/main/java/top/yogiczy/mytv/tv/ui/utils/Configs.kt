@@ -9,6 +9,7 @@ import top.yogiczy.mytv.core.data.entities.epgsource.EpgSource
 import top.yogiczy.mytv.core.data.entities.epgsource.EpgSourceList
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSourceList
+import top.yogiczy.mytv.core.data.entities.vod.VodSourceList
 import top.yogiczy.mytv.core.data.utils.Constants
 import top.yogiczy.mytv.core.data.utils.Globals
 import top.yogiczy.mytv.core.data.utils.SP
@@ -228,6 +229,10 @@ object Configs {
 
         /** 肥羊 AllInOne 文件路径 */
         FEIYANG_ALLINONE_FILE_PATH,
+
+        /** ==================== 点播源 ==================== */
+        /** 点播源列表 (用户添加) */
+        VOD_SOURCE_LIST,
     }
 
     /** ==================== 应用 ==================== */
@@ -269,11 +274,11 @@ object Configs {
             .ifBlank { Globals.json.encodeToString(Constants.IPTV_SOURCE_LIST.first()) })
         set(value) = SP.putString(KEY.IPTV_SOURCE_CURRENT.name, Globals.json.encodeToString(value))
 
-    /** 直播源列表 */
+    /** 直播源列表 (仅用户添加的, 内置源从Constants读取) */
     var iptvSourceList: IptvSourceList
         get() = Globals.json.decodeFromString(
             SP.getString(KEY.IPTV_SOURCE_LIST.name, "")
-                .ifBlank { Globals.json.encodeToString(Constants.IPTV_SOURCE_LIST) }
+                .ifBlank { Globals.json.encodeToString(IptvSourceList()) }
         )
         set(value) = SP.putString(KEY.IPTV_SOURCE_LIST.name, Globals.json.encodeToString(value))
 
@@ -530,6 +535,15 @@ object Configs {
     var feiyangAllInOneFilePath: String
         get() = SP.getString(KEY.FEIYANG_ALLINONE_FILE_PATH.name, "")
         set(value) = SP.putString(KEY.FEIYANG_ALLINONE_FILE_PATH.name, value)
+
+    /** ==================== 点播源 ==================== */
+    /** 点播源列表 (仅用户添加, 内置源从Constants读取) */
+    var vodSourceList: VodSourceList
+        get() = Globals.json.decodeFromString(
+            SP.getString(KEY.VOD_SOURCE_LIST.name, "")
+                .ifBlank { Globals.json.encodeToString(VodSourceList()) }
+        )
+        set(value) = SP.putString(KEY.VOD_SOURCE_LIST.name, Globals.json.encodeToString(value))
 
     enum class UiTimeShowMode(val value: Int, val label: String) {
         /** 隐藏 */

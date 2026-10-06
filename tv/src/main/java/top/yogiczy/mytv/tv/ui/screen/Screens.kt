@@ -14,7 +14,6 @@ enum class Screens(
     Search,
     Push,
     Settings(listOf(SettingsScreen.START_DESTINATION)),
-    About,
     Update,
     MultiView,
     Vod,

@@ -32,7 +32,6 @@ import top.yogiczy.mytv.tv.BuildConfig
 import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.rememberDoubleBackPressedExitState
 import top.yogiczy.mytv.tv.ui.screen.Screens
-import top.yogiczy.mytv.tv.ui.screen.about.AboutScreen
 import top.yogiczy.mytv.tv.ui.screen.agreement.AgreementScreen
 import top.yogiczy.mytv.tv.ui.screen.channels.ChannelsScreen
 import top.yogiczy.mytv.tv.ui.screen.dashboard.DashboardScreen
@@ -197,7 +196,6 @@ fun MainScreen(
                     toMultiViewScreen = { navController.navigateSingleTop(Screens.MultiView()) },
                     toPushScreen = { navController.navigateSingleTop(Screens.Push()) },
                     toSettingsScreen = { navController.navigateSingleTop(Screens.Settings()) },
-                    toAboutScreen = { navController.navigateSingleTop(Screens.About()) },
                     toSettingsIptvSourceScreen = {
                         navController.navigateSingleTop(
                             Screens.Settings.withArgs(SettingsSubCategories.IPTV_SOURCE)
@@ -294,14 +292,6 @@ fun MainScreen(
                     channelGroupListProvider = channelGroupListProvider,
                     onCheckUpdate = { checkUpdate(false) },
                     onReload = { reload() },
-                    onBackPressed = { navController.navigateUp() },
-                )
-            }
-
-            composable(Screens.About()) {
-                AboutScreen(
-                    latestVersionProvider = { updateViewModel.latestRelease.version },
-                    toUpdateScreen = { navController.navigateSingleTop(Screens.Update()) },
                     onBackPressed = { navController.navigateUp() },
                 )
             }

@@ -7,8 +7,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.GridView
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.InsertChart
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Tv
 import androidx.compose.material.icons.outlined.VideoLibrary
@@ -34,7 +32,6 @@ fun DashboardModuleList(
     toMultiViewScreen: () -> Unit = {},
     toPushScreen: () -> Unit = {},
     toSettingsScreen: () -> Unit = {},
-    toAboutScreen: () -> Unit = {},
 ) {
     val childPadding = rememberChildPadding()
 
@@ -96,20 +93,12 @@ fun DashboardModuleList(
 
         item {
             DashboardModuleItem(
-                imageVector = Icons.Outlined.Settings,
-                title = "设置",
-                onSelected = toSettingsScreen,
-            )
-        }
-
-        item {
-            DashboardModuleItem(
                 modifier = Modifier
                     .focusRequester(runtime.lastItemFocusRequester)
                     .handleKeyEvents(onRight = { runtime.scrollToFirst() }),
-                imageVector = Icons.Outlined.Info,
-                title = "关于",
-                onSelected = toAboutScreen,
+                imageVector = Icons.Outlined.Settings,
+                title = "设置",
+                onSelected = toSettingsScreen,
             )
         }
     }

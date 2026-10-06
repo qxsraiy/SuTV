@@ -20,6 +20,8 @@ import top.yogiczy.mytv.core.data.entities.epgsource.EpgSource
 import top.yogiczy.mytv.core.data.entities.epgsource.EpgSourceList
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSourceList
+import top.yogiczy.mytv.core.data.entities.vod.VodSource
+import top.yogiczy.mytv.core.data.entities.vod.VodSourceList
 import top.yogiczy.mytv.core.data.repositories.epg.EpgRepository
 import top.yogiczy.mytv.core.data.repositories.iptv.IptvRepository
 import top.yogiczy.mytv.core.data.utils.ChannelAlias
@@ -103,6 +105,14 @@ object HttpServer : Loggable("HttpServer") {
 
                 server.post("/api/epg-source/push") { request, response ->
                     handleEpgSourcePush(request, response)
+                }
+
+                server.post("/api/vod-source/push") { request, response ->
+                    handleVodSourcePush(request, response)
+                }
+
+                server.get("/api/vod-source/list") { _, response ->
+                    handleVodSourceList(response)
                 }
 
                 server.get("/api/channel-alias") { _, response ->
@@ -312,6 +322,32 @@ object HttpServer : Loggable("HttpServer") {
         }
 
         responseSuccess(response)
+    }
+
+    private fun handleVodSourcePush(
+        request: AsyncHttpServerRequest,
+        response: AsyncHttpServerResponse,
+    ) {
+        val body = request.getBody<JSONObjectBody>().get()
+        val key = body.get("key").toString().ifBlank { "custom_${System.currentTimeMillis()}" }
+        val name = body.get("name").toString()
+        val api = body.get("api").toString()
+
+        if (name.isBlank() || api.isBlank()) {
+            wrapResponse(response).apply { send("名称和接口不能为空") }
+            return
+        }
+
+        val newSource = VodSource(key = key, name = name, api = api, ad = "clean")
+        Configs.vodSourceList = VodSourceList(Configs.vodSourceList + newSource)
+
+        responseSuccess(response)
+    }
+
+    private fun handleVodSourceList(response: AsyncHttpServerResponse) {
+        val allSources = Constants.VOD_SOURCE_LIST + Configs.vodSourceList
+        val json = Globals.json.encodeToString(allSources)
+        wrapResponse(response).apply { send(json) }
     }
 
     private fun handleGetChannelAlias(response: AsyncHttpServerResponse) {
@@ -817,11 +853,8 @@ object HttpServer : Loggable("HttpServer") {
     private fun handleVodSources(response: AsyncHttpServerResponse) {
         try {
             wrapResponse(response)
-            val sources = Constants.VOD_SOURCE_LIST
-            val json = Globals.json.encodeToString(
-                kotlinx.serialization.builtins.ListSerializer(top.yogiczy.mytv.core.data.entities.vod.VodSource.serializer()),
-                sources.value
-            )
+            val sources = Constants.VOD_SOURCE_LIST + Configs.vodSourceList
+            val json = Globals.json.encodeToString(sources)
             response.send(json)
         } catch (e: Exception) {
             log.e("VOD 源列表失败: ${e.message}", e)
@@ -833,7 +866,7 @@ object HttpServer : Loggable("HttpServer") {
         try {
             wrapResponse(response)
             val sourceKey = request.query.getString("source") ?: ""
-            val source = Constants.VOD_SOURCE_LIST.find { it.key == sourceKey }
+            val source = (Constants.VOD_SOURCE_LIST + Configs.vodSourceList).find { it.key == sourceKey }
                 ?: throw Exception("采集源不存在: $sourceKey")
             val url = "${source.api}?ac=list"
             val body = fetchUrl(url)
@@ -861,7 +894,7 @@ object HttpServer : Loggable("HttpServer") {
             val sourceKey = request.query.getString("source") ?: ""
             val typeId = request.query.getString("t") ?: ""
             val page = request.query.getString("page") ?: "1"
-            val source = Constants.VOD_SOURCE_LIST.find { it.key == sourceKey }
+            val source = (Constants.VOD_SOURCE_LIST + Configs.vodSourceList).find { it.key == sourceKey }
                 ?: throw Exception("采集源不存在: $sourceKey")
             val url = buildString {
                 append(source.api).append("?ac=videolist&pg=").append(page)
@@ -889,7 +922,7 @@ object HttpServer : Loggable("HttpServer") {
             val sourceKey = request.query.getString("source") ?: ""
             val wd = request.query.getString("wd") ?: ""
             val page = request.query.getString("page") ?: "1"
-            val source = Constants.VOD_SOURCE_LIST.find { it.key == sourceKey }
+            val source = (Constants.VOD_SOURCE_LIST + Configs.vodSourceList).find { it.key == sourceKey }
                 ?: throw Exception("采集源不存在: $sourceKey")
             val url = "${source.api}?wd=${java.net.URLEncoder.encode(wd, "UTF-8")}&pg=$page"
             val body = fetchUrl(url)
@@ -914,7 +947,7 @@ object HttpServer : Loggable("HttpServer") {
             wrapResponse(response)
             val sourceKey = request.query.getString("source") ?: ""
             val id = request.query.getString("id") ?: ""
-            val source = Constants.VOD_SOURCE_LIST.find { it.key == sourceKey }
+            val source = (Constants.VOD_SOURCE_LIST + Configs.vodSourceList).find { it.key == sourceKey }
                 ?: throw Exception("采集源不存在: $sourceKey")
             val url = "${source.api}?ac=detail&ids=$id"
             val body = fetchUrl(url)

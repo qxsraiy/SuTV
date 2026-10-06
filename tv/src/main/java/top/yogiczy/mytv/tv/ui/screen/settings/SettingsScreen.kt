@@ -27,6 +27,7 @@ import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsPermissionsScre
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsThemeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsUpdateScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsVideoPlayerScreen
+import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsVodScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsChannelGroupVisibilityScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvHybridModeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourceCacheTimeScreen
@@ -36,6 +37,7 @@ import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsVideoPlayerC
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsVideoPlayerDisplayModeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsVideoPlayerLoadTimeoutScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsVideoPlayerRenderModeScreen
+import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsVodSourceScreen
 import top.yogiczy.mytv.tv.ui.utils.navigateSingleTop
 
 object SettingsScreen {
@@ -112,6 +114,15 @@ fun SettingsScreen(
                         },
                         toVideoPlayerLoadTimeoutScreen = {
                             navController.navigateSingleTop(SettingsSubCategories.VIDEO_PLAYER_LOAD_TIMEOUT.name)
+                        },
+                        onBackPressed = { navController.navigateUp() },
+                    )
+                }
+
+                composable(SettingsCategories.VOD.name) {
+                    SettingsVodScreen(
+                        toVodSourceScreen = {
+                            navController.navigateSingleTop(SettingsSubCategories.VOD_SOURCE.name)
                         },
                         onBackPressed = { navController.navigateUp() },
                     )
@@ -254,6 +265,12 @@ fun SettingsScreen(
                             navController.navigateUp()
                             onCheckUpdate()
                         },
+                        onBackPressed = { navController.navigateUp() },
+                    )
+                }
+
+                composable(SettingsSubCategories.VOD_SOURCE.name) {
+                    SettingsVodSourceScreen(
                         onBackPressed = { navController.navigateUp() },
                     )
                 }

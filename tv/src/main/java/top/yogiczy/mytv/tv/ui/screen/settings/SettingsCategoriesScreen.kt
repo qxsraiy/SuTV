@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.LiveTv
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.outlined.Update
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -196,6 +197,7 @@ enum class SettingsCategories(
 ) {
     APP(Icons.Outlined.Devices, "应用"),
     IPTV(Icons.Outlined.LiveTv, "直播源"),
+    VOD(Icons.Outlined.VideoLibrary, "点播源"),
     VIDEO_PLAYER(Icons.Outlined.SmartDisplay, "播放器"),
     UPDATE(Icons.Outlined.Update, "更新"),
     THEME(Icons.Outlined.ColorLens, "主题"),
@@ -207,6 +209,7 @@ enum class SettingsSubCategories {
     IPTV_SOURCE_CACHE_TIME,
     CHANNEL_GROUP_VISIBILITY,
     IPTV_HYBRID_MODE,
+    VOD_SOURCE,
     EPG_SOURCE,
     EPG_REFRESH_TIME_THRESHOLD,
     UI_TIME_SHOW_MODE,

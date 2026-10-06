@@ -100,11 +100,7 @@ object Constants {
     /**
      * Git最新版本信息
      */
-    val GIT_RELEASE_LATEST_URL = mapOf(
-        "stable" to "${GITHUB_PROXY}https://raw.githubusercontent.com/yaoxieyoulei/mytv-android-update/main/tv-stable.json",
-        "beta" to "${GITHUB_PROXY}https://raw.githubusercontent.com/yaoxieyoulei/mytv-android-update/main/tv-beta.json",
-        "dev" to "${GITHUB_PROXY}https://raw.githubusercontent.com/yaoxieyoulei/mytv-android-update/main/tv-dev.json",
-    )
+    val GIT_RELEASE_LATEST_URL = mapOf<String, String>()
 
     /**
      * 网络请求重试次数
@@ -141,7 +137,6 @@ object Constants {
             VodSource("guangsu", "光速资源", "https://api.guangsuapi.com/api.php/provide/vod", "clean"),
             VodSource("maoyan", "猫眼资源", "https://api.maoyanapi.top/api.php/provide/vod", "clean"),
             VodSource("wujin", "无尽资源", "https://api.wujinapi.me/api.php/provide/vod", "clean"),
-            VodSource("bfzy", "暴风资源", "https://bfzyapi.com/api.php/provide/vod", "clean"),
             VodSource("iqiyi", "爱奇艺资源", "https://iqiyizyapi.com/api.php/provide/vod", "clean"),
             VodSource("hongniu", "红牛资源", "https://www.hongniuzy2.com/api.php/provide/vod", "clean"),
             VodSource("huya", "虎牙资源", "https://www.huyaapi.com/api.php/provide/vod", "clean"),
