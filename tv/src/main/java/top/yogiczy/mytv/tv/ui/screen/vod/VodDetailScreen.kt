@@ -66,6 +66,13 @@ fun VodDetailScreen(
     var isPlaying by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
+    // 播放时保存观看历史
+    LaunchedEffect(isPlaying, epIdx) {
+        if (isPlaying) {
+            VodHistoryManager.add(context, VodHistoryItem(sourceKey, vodId, vodName, vodPic, epIdx, System.currentTimeMillis()))
+        }
+    }
+
     // 加载详情
     LaunchedEffect(sourceKey, vodId) {
         vm.loadDetail(sourceKey, vodId)

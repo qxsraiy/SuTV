@@ -43,6 +43,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import top.yogiczy.mytv.core.data.entities.vod.VodItem
 import top.yogiczy.mytv.core.data.entities.vod.VodSource
@@ -54,11 +55,16 @@ fun VodScreen(
 ) {
     val vm = remember { VodViewModel() }
     val state by vm.state
+    val context = LocalContext.current
 
     // 初始加载
     LaunchedEffect(Unit) {
         if (state.sources.isEmpty()) vm.loadSources()
     }
+
+    // 观看历史 — 版本号变化时自动刷新
+    val historyVersion by VodHistoryManager.version
+    var historyItems by remember(historyVersion) { mutableStateOf(VodHistoryManager.load(context)) }
 
     Box(
         modifier = Modifier
@@ -83,6 +89,32 @@ fun VodScreen(
                         vm.loadList(state.currentSource.key, cat.type_id.toString(), 1)
                     },
                 )
+            }
+
+            // 最近观看
+            if (historyItems.isNotEmpty()) {
+                Text(
+                    "最近观看",
+                    color = Color(0xFFAAAAAA),
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                )
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(historyItems) { hist ->
+                        HistoryCard(
+                            item = hist,
+                            onClick = {
+                                onPlayVod(hist.sourceKey, hist.vodId, hist.vodName, hist.vodPic, hist.epIdx)
+                            },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
             }
 
             // 影片网格
@@ -330,5 +362,44 @@ private fun VodCard(
         if (item.vod_remarks.isNotEmpty()) {
             Text(item.vod_remarks, color = Color(0xFF888888), fontSize = 10.sp, maxLines = 1)
         }
+    }
+}
+
+@Composable
+private fun HistoryCard(
+    item: VodHistoryItem,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    Column(
+        modifier = Modifier
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .scale(if (focused) 1.08f else 1f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFF222233))
+            .border(if (focused) 3.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
+            .clickable { onClick() }
+            .padding(4.dp)
+            .width(120.dp),
+    ) {
+        AsyncImage(
+            model = item.vodPic,
+            contentDescription = item.vodName,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(160.dp)
+                .clip(RoundedCornerShape(6.dp)),
+            contentScale = ContentScale.Crop,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            item.vodName,
+            color = Color.White,
+            fontSize = 11.sp,
+            maxLines = 1,
+            fontWeight = FontWeight.Medium,
+        )
+        Text("第${item.epIdx + 1}集", color = Color(0xFF888888), fontSize = 10.sp, maxLines = 1)
     }
 }
