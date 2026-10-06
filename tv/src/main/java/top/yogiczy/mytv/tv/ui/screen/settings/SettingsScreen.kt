@@ -21,6 +21,7 @@ import top.yogiczy.mytv.core.data.repositories.epg.EpgRepository
 import top.yogiczy.mytv.core.data.repositories.iptv.IptvRepository
 import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
+import top.yogiczy.mytv.tv.ui.screen.push.PushScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsAppScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsIptvScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsPermissionsScreen
@@ -74,6 +75,7 @@ fun SettingsScreen(
 
                 composable(SettingsCategories.APP.name) {
                     SettingsAppScreen(
+                        toPushScreen = { navController.navigateSingleTop(SettingsSubCategories.PUSH.name) },
                         onReload = onReload,
                         onBackPressed = { navController.navigateUp() },
                     )
@@ -204,6 +206,12 @@ fun SettingsScreen(
 
                 composable(SettingsSubCategories.VOD_SOURCE.name) {
                     SettingsVodSourceScreen(
+                        onBackPressed = { navController.navigateUp() },
+                    )
+                }
+
+                composable(SettingsSubCategories.PUSH.name) {
+                    PushScreen(
                         onBackPressed = { navController.navigateUp() },
                     )
                 }

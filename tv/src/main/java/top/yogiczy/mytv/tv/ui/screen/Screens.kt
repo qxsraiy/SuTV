@@ -10,7 +10,6 @@ enum class Screens(
     Dashboard,
     Live,
     Favorites,
-    Push,
     Settings(listOf(SettingsScreen.START_DESTINATION)),
     Update,
     Vod,

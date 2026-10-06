@@ -31,6 +31,7 @@ import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 fun SettingsAppScreen(
     modifier: Modifier = Modifier,
     settingsViewModel: SettingsViewModel = settingsVM,
+    toPushScreen: () -> Unit = {},
     onReload: () -> Unit = {},
     onBackPressed: () -> Unit = {},
 ) {
@@ -101,6 +102,15 @@ fun SettingsAppScreen(
                         onReload()
                     }
                 },
+            )
+        }
+
+        item {
+            SettingsListItem(
+                headlineContent = "数据推送",
+                supportingContent = "扫码推送直播源/点播源",
+                onSelect = toPushScreen,
+                link = true,
             )
         }
 

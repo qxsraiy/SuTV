@@ -39,7 +39,6 @@ import top.yogiczy.mytv.tv.ui.screen.vod.VodDetailScreen
 import top.yogiczy.mytv.tv.ui.screen.vod.VodViewModel
 import top.yogiczy.mytv.tv.ui.screen.favorites.FavoritesScreen
 import top.yogiczy.mytv.tv.ui.screen.loading.LoadingScreen
-import top.yogiczy.mytv.tv.ui.screen.push.PushScreen
 
 import top.yogiczy.mytv.tv.ui.screen.settings.SettingsScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.SettingsSubCategories
@@ -190,7 +189,6 @@ fun MainScreen(
                     toLiveScreen = { navController.navigateSingleTop(Screens.Live()) },
                     toVodScreen = { navController.navigateSingleTop(Screens.Vod()) },
                     toFavoritesScreen = { navController.navigateSingleTop(Screens.Favorites()) },
-                    toPushScreen = { navController.navigateSingleTop(Screens.Push()) },
                     toSettingsScreen = { navController.navigateSingleTop(Screens.Settings()) },
                     toSettingsIptvSourceScreen = {
                         navController.navigateSingleTop(
@@ -251,12 +249,6 @@ fun MainScreen(
                     onChannelFavoriteToggle = { onChannelFavoriteToggle(it) },
                     onChannelFavoriteClear = { onChannelFavoriteClear() },
                     epgListProvider = epgListProvider,
-                    onBackPressed = { navController.navigateUp() },
-                )
-            }
-
-            composable(Screens.Push()) {
-                PushScreen(
                     onBackPressed = { navController.navigateUp() },
                 )
             }

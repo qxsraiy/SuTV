@@ -36,8 +36,6 @@ import top.yogiczy.mytv.tv.R
 import top.yogiczy.mytv.tv.migu.MiguApi
 import top.yogiczy.mytv.tv.migu.MiguBackendManager
 import top.yogiczy.mytv.tv.migu.MiguM3uGenerator
-import top.yogiczy.mytv.tv.sync.CloudSync
-import top.yogiczy.mytv.tv.sync.CloudSyncData
 import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.material.SnackbarType
 import top.yogiczy.mytv.tv.ui.utils.Configs
@@ -75,24 +73,6 @@ object HttpServer : Loggable("HttpServer") {
                 }
                 server.get("/web_push_js.js") { _, response ->
                     handleRawResource(response, context, "text/javascript", R.raw.web_push_js)
-                }
-
-                server.get("/advance") { _, response ->
-                    handleAssets(response, context, "text/html", "remote-configs/index.html")
-                }
-
-                server.get("/remote-configs/(.*)") { request, response ->
-                    val contentType = when (request.path.split(".").last()) {
-                        "css" -> "text/css"
-                        "js" -> "text/javascript"
-                        "html" -> "text/html"
-                        "json" -> "application/json"
-                        "svg" -> "image/svg+xml"
-                        "png" -> "image/png"
-                        else -> "text/plain"
-                    }
-
-                    handleAssets(response, context, contentType, request.path.removePrefix("/"))
                 }
 
                 server.get("/api/info") { _, response ->
@@ -133,14 +113,6 @@ object HttpServer : Loggable("HttpServer") {
 
                 server.post("/api/upload/apk") { request, response ->
                     handleUploadApk(request, response, context)
-                }
-
-                server.get("/api/cloud-sync/data") { _, response ->
-                    handleCloudSyncDataGet(response)
-                }
-
-                server.post("/api/cloud-sync/data") { request, response ->
-                    handleCloudSyncDataPost(request, response)
                 }
 
                 server.get("/api/about") { _, response ->
@@ -236,18 +208,6 @@ object HttpServer : Loggable("HttpServer") {
         wrapResponse(response).apply {
             setContentType(contentType)
             send(context.resources.openRawResource(id).readBytes().decodeToString())
-        }
-    }
-
-    private fun handleAssets(
-        response: AsyncHttpServerResponse,
-        context: Context,
-        contentType: String,
-        filename: String,
-    ) {
-        wrapResponse(response).apply {
-            setContentType(contentType)
-            send(context.assets.open(filename).reader().readText())
         }
     }
 
@@ -418,24 +378,6 @@ object HttpServer : Loggable("HttpServer") {
             os.close()
             ApkInstaller.installApk(context, uploadedApkFile.path)
         }
-
-        responseSuccess(response)
-    }
-
-    private fun handleCloudSyncDataGet(response: AsyncHttpServerResponse) {
-        wrapResponse(response).apply {
-            setContentType("application/json")
-            send(Globals.json.encodeToString(runBlocking { CloudSync.getData() }))
-        }
-    }
-
-    private fun handleCloudSyncDataPost(
-        request: AsyncHttpServerRequest,
-        response: AsyncHttpServerResponse
-    ) {
-        val body = request.getBody<JSONObjectBody>().get()
-        val data = Globals.json.decodeFromString<CloudSyncData>(body.toString())
-        runBlocking { data.apply() }
 
         responseSuccess(response)
     }

@@ -211,6 +211,7 @@ enum class SettingsSubCategories {
     EPG_SOURCE,
     EPG_REFRESH_TIME_THRESHOLD,
     UPDATE_CHANNEL,
+    PUSH,
     CLOUD_SYNC_PROVIDER,
 }
 
