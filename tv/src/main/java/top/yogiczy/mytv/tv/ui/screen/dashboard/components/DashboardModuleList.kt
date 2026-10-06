@@ -6,11 +6,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Tv
 import androidx.compose.material.icons.outlined.VideoLibrary
-import androidx.compose.material.icons.outlined.ViewCozy
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
@@ -27,9 +25,7 @@ fun DashboardModuleList(
     modifier: Modifier = Modifier,
     toLiveScreen: () -> Unit = {},
     toVodScreen: () -> Unit = {},
-    toChannelsScreen: () -> Unit = {},
     toFavoritesScreen: () -> Unit = {},
-    toMultiViewScreen: () -> Unit = {},
     toPushScreen: () -> Unit = {},
     toSettingsScreen: () -> Unit = {},
 ) {
@@ -61,25 +57,9 @@ fun DashboardModuleList(
 
         item {
             DashboardModuleItem(
-                imageVector = Icons.Outlined.GridView,
-                title = "全部频道",
-                onSelected = toChannelsScreen,
-            )
-        }
-
-        item {
-            DashboardModuleItem(
                 imageVector = Icons.Outlined.FavoriteBorder,
                 title = "收藏",
                 onSelected = toFavoritesScreen,
-            )
-        }
-
-        item {
-            DashboardModuleItem(
-                imageVector = Icons.Outlined.ViewCozy,
-                title = "多屏同播",
-                onSelected = toMultiViewScreen,
             )
         }
 

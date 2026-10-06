@@ -33,14 +33,12 @@ import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.rememberDoubleBackPressedExitState
 import top.yogiczy.mytv.tv.ui.screen.Screens
 import top.yogiczy.mytv.tv.ui.screen.agreement.AgreementScreen
-import top.yogiczy.mytv.tv.ui.screen.channels.ChannelsScreen
 import top.yogiczy.mytv.tv.ui.screen.dashboard.DashboardScreen
 import top.yogiczy.mytv.tv.ui.screen.vod.VodScreen
 import top.yogiczy.mytv.tv.ui.screen.vod.VodDetailScreen
 import top.yogiczy.mytv.tv.ui.screen.vod.VodViewModel
 import top.yogiczy.mytv.tv.ui.screen.favorites.FavoritesScreen
 import top.yogiczy.mytv.tv.ui.screen.loading.LoadingScreen
-import top.yogiczy.mytv.tv.ui.screen.multiview.MultiViewScreen
 import top.yogiczy.mytv.tv.ui.screen.push.PushScreen
 
 import top.yogiczy.mytv.tv.ui.screen.settings.SettingsScreen
@@ -191,9 +189,7 @@ fun MainScreen(
                     epgListProvider = epgListProvider,
                     toLiveScreen = { navController.navigateSingleTop(Screens.Live()) },
                     toVodScreen = { navController.navigateSingleTop(Screens.Vod()) },
-                    toChannelsScreen = { navController.navigateSingleTop(Screens.Channels()) },
                     toFavoritesScreen = { navController.navigateSingleTop(Screens.Favorites()) },
-                    toMultiViewScreen = { navController.navigateSingleTop(Screens.MultiView()) },
                     toPushScreen = { navController.navigateSingleTop(Screens.Push()) },
                     toSettingsScreen = { navController.navigateSingleTop(Screens.Settings()) },
                     toSettingsIptvSourceScreen = {
@@ -248,16 +244,6 @@ fun MainScreen(
                 }
             }
 
-            composable(Screens.Channels()) {
-                ChannelsScreen(
-                    channelGroupListProvider = filteredChannelGroupListProvider,
-                    onChannelSelected = { onChannelSelected(it) },
-                    onChannelFavoriteToggle = { onChannelFavoriteToggle(it) },
-                    epgListProvider = epgListProvider,
-                    onBackPressed = { navController.navigateUp() },
-                )
-            }
-
             composable(Screens.Favorites()) {
                 FavoritesScreen(
                     channelFavoriteListProvider = { settingsViewModel.iptvChannelFavoriteList },
@@ -298,14 +284,6 @@ fun MainScreen(
 
             composable(Screens.Update()) {
                 UpdateScreen(
-                    onBackPressed = { navController.navigateUp() },
-                )
-            }
-
-            composable(Screens.MultiView()) {
-                MultiViewScreen(
-                    channelGroupListProvider = filteredChannelGroupListProvider,
-                    epgListProvider = epgListProvider,
                     onBackPressed = { navController.navigateUp() },
                 )
             }

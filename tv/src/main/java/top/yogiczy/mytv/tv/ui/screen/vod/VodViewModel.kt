@@ -124,27 +124,40 @@ class VodViewModel : ViewModel() {
         }
     }
 
-    // 并发搜索5个快速源 — 直接调CMS API, 绕过HttpServer
+    // 并发搜索 — 直接调CMS API, 绕过HttpServer
     // 快速搜索专用client: 3.5秒超时
     private val fastClient = okhttp3.OkHttpClient.Builder()
         .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
         .readTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
         .build()
 
-    // 5个快速源 (key, name, api)
-    private val fastSources = listOf(
-        Triple("bfzy", "暴风资源", "https://bfzyapi.com/api.php/provide/vod"),
-        Triple("ffzy", "飞飞资源", "https://cj.ffzyapi.com/api.php/provide/vod"),
-        Triple("360zy", "360资源", "https://360zy.com/api.php/provide/vod"),
-        Triple("guangsu", "光速资源", "https://api.guangsuapi.com/api.php/provide/vod"),
-        Triple("hongniu", "红牛资源", "https://www.hongniuzy2.com/api.php/provide/vod"),
-    )
+    // 当前搜索批次偏移 (每次刷新+5, 循环)
+    private var searchBatchOffset = 0
+    // 上次搜索关键词
+    private var lastSearchWd = ""
+
+    // 从全部源中取5个 (批次轮换)
+    private fun currentBatch(): List<Triple<String, String, String>> {
+        val all = top.yogiczy.mytv.core.data.utils.Constants.VOD_SOURCE_LIST +
+            top.yogiczy.mytv.tv.ui.utils.Configs.vodSourceList
+        if (all.isEmpty()) return emptyList()
+        val size = all.size
+        val result = mutableListOf<Triple<String, String, String>>()
+        for (i in 0 until 5) {
+            val idx = (searchBatchOffset + i) % size
+            val s = all[idx]
+            result.add(Triple(s.key, s.name, s.api))
+        }
+        return result
+    }
 
     fun searchMulti(wd: String) {
+        lastSearchWd = wd
         viewModelScope.launch(Dispatchers.IO) {
             _state.value = _state.value.copy(loading = true)
             val encoded = java.net.URLEncoder.encode(wd, "UTF-8")
-            val jobs = fastSources.map { (key, name, api) ->
+            val batch = currentBatch()
+            val jobs = batch.map { (key, name, api) ->
                 async(Dispatchers.IO) {
                     try {
                         withTimeoutOrNull(3500) {
@@ -160,10 +173,16 @@ class VodViewModel : ViewModel() {
                     } catch (_: Exception) { emptyList() }
                 }
             }
-            // 等全部完成(最多3.5秒), 一次性合并
             val allResults = jobs.awaitAll().flatten().distinctBy { it.vod_name }
             _state.value = _state.value.copy(searchResults = allResults, loading = false)
         }
+    }
+
+    // 刷新搜索: 换5个源重新搜
+    fun refreshSearch() {
+        if (lastSearchWd.isBlank()) return
+        searchBatchOffset += 5
+        searchMulti(lastSearchWd)
     }
 
     fun search(wd: String, sourceKey: String) {

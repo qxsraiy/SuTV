@@ -9,13 +9,10 @@ enum class Screens(
     Loading,
     Dashboard,
     Live,
-    Channels,
     Favorites,
-    Search,
     Push,
     Settings(listOf(SettingsScreen.START_DESTINATION)),
     Update,
-    MultiView,
     Vod,
     VodDetail,
     ;

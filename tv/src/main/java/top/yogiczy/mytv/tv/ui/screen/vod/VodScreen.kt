@@ -292,6 +292,24 @@ private fun VodTopBar(
             ),
         )
         Spacer(Modifier.width(8.dp))
+
+        // 刷新搜索按钮 (换5个源重新搜)
+        var refreshFocused by remember { mutableStateOf(false) }
+        Box(
+            modifier = Modifier
+                .onFocusChanged { refreshFocused = it.isFocused }
+                .focusable()
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (refreshFocused) Color(0xFF6666BB) else Color(0xFF444477))
+                .border(if (refreshFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
+                .clickable { vm.refreshSearch() }
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            Text("⟳", color = Color.White, fontSize = 16.sp)
+        }
+        Spacer(Modifier.width(8.dp))
+
+        // 搜索按钮
         Box(
             modifier = Modifier
                 .onFocusChanged { btnFocused = it.isFocused }
