@@ -1,6 +1,5 @@
 package top.yogiczy.mytv.tv.ui.screen.dashboard.components
 
-import android.widget.ImageView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -8,10 +7,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,7 +29,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
@@ -39,7 +39,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yogiczy.mytv.tv.R
-import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
 import java.io.File
 
@@ -60,7 +59,6 @@ fun DashboardModuleList(
         vodPosterFile = withContext(Dispatchers.IO) {
             DashboardPosterManager.getCurrentPoster(context)
         }
-        // 后台抓下一张
         launch(Dispatchers.IO) {
             DashboardPosterManager.fetchNewPoster(context)
         }
@@ -68,7 +66,7 @@ fun DashboardModuleList(
 
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalArrangement = Arrangement.spacedBy(32.dp),
     ) {
         // 直播卡片
         DashboardCard(
@@ -101,7 +99,6 @@ fun DashboardModuleList(
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else {
-                    // 无缓存时用渐变背景占位
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -137,45 +134,36 @@ private fun DashboardCard(
     onSelected: () -> Unit = {},
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val firstItemFocusRequester = remember { FocusRequester() }
 
     Column(
         modifier = modifier
-            .fillMaxHeight()
             .onFocusChanged { isFocused = it.isFocused || it.hasFocus }
-            .focusRequester(firstItemFocusRequester)
             .focusable()
-            .handleKeyEvents(onSelect = onSelected)
-            .clip(RoundedCornerShape(16.dp))
-            .border(
-                width = if (isFocused) 3.dp else 0.dp,
-                color = if (isFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
-                shape = RoundedCornerShape(16.dp),
-            ),
+            .handleKeyEvents(onSelect = onSelected),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // 图片区域（占大部分）
+        // 图片区域：宽高比 3:4
         Box(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .aspectRatio(0.75f) // 3:4
+                .clip(RoundedCornerShape(16.dp))
+                .border(
+                    width = if (isFocused) 3.dp else 0.dp,
+                    color = if (isFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    shape = RoundedCornerShape(16.dp),
+                ),
         ) {
             imageContent()
         }
 
-        // 文字标签
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.Black.copy(0.8f))
-                .height(48.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = title,
-                color = if (isFocused) MaterialTheme.colorScheme.primary else Color.White,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
-        }
+        // 文字标签（在图片下方，不遮挡）
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = title,
+            color = if (isFocused) MaterialTheme.colorScheme.primary else Color.White,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }

@@ -32,6 +32,9 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Update
+import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -316,15 +319,17 @@ private fun VodTopBar(
                 .background(if (refreshFocused) Color(0xFF6666BB) else Color(0xFF444477))
                 .border(if (refreshFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
                 .clickable { vm.refreshSearch() }
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(8.dp),
         ) {
-            Text(
-                "⟳",
-                color = Color.White,
-                fontSize = 16.sp,
-                modifier = Modifier.graphicsLayer {
-                    rotationZ = if (state.loading) rotation else 0f
-                },
+            Icon(
+                Icons.Outlined.Update,
+                contentDescription = "刷新",
+                tint = Color.White,
+                modifier = Modifier
+                    .size(18.dp)
+                    .graphicsLayer {
+                        rotationZ = if (state.loading) rotation else 0f
+                    },
             )
         }
         Spacer(Modifier.width(8.dp))
