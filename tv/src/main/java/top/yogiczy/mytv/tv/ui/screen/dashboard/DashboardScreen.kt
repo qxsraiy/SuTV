@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -53,6 +54,8 @@ fun DashboardScreen(
     onReload: () -> Unit = {},
     onBackPressed: () -> Unit = {},
 ) {
+    BackHandler { onBackPressed() }
+
     // 全屏 BoxWithConstraints: 自适应计算卡片尺寸和留白
     AppThemeWrapper {
     BoxWithConstraints(
