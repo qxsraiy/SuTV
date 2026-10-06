@@ -8,11 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -45,16 +45,18 @@ import java.io.File
 @Composable
 fun DashboardModuleList(
     modifier: Modifier = Modifier,
+    imageWidth: Dp = 120.dp,
+    imageHeight: Dp = 200.dp,
+    textHeight: Dp = 36.dp,
+    gap: Dp = 24.dp,
     toLiveScreen: () -> Unit = {},
     toVodScreen: () -> Unit = {},
     toFavoritesScreen: () -> Unit = {},
 ) {
     val context = LocalContext.current
 
-    // 点播海报状态
     var vodPosterFile by remember { mutableStateOf<File?>(null) }
 
-    // 打开时：轮换海报 + 后台抓新的
     LaunchedEffect(Unit) {
         vodPosterFile = withContext(Dispatchers.IO) {
             DashboardPosterManager.getCurrentPoster(context)
@@ -65,12 +67,14 @@ fun DashboardModuleList(
     }
 
     Row(
-        modifier = modifier.fillMaxWidth().fillMaxHeight(),
-        horizontalArrangement = Arrangement.spacedBy(36.dp),
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(gap),
     ) {
-        // 直播卡片
+        // 直播
         DashboardCard(
-            modifier = Modifier.weight(1f),
+            imageWidth = imageWidth,
+            imageHeight = imageHeight,
+            textHeight = textHeight,
             imageContent = {
                 AsyncImage(
                     model = ImageRequest.Builder(context)
@@ -86,9 +90,11 @@ fun DashboardModuleList(
             onSelected = toLiveScreen,
         )
 
-        // 点播卡片
+        // 点播
         DashboardCard(
-            modifier = Modifier.weight(1f),
+            imageWidth = imageWidth,
+            imageHeight = imageHeight,
+            textHeight = textHeight,
             imageContent = {
                 val posterFile = vodPosterFile
                 if (posterFile != null && posterFile.exists()) {
@@ -110,9 +116,11 @@ fun DashboardModuleList(
             onSelected = toVodScreen,
         )
 
-        // 收藏卡片（空接口占位）
+        // 收藏 (空接口占位)
         DashboardCard(
-            modifier = Modifier.weight(1f),
+            imageWidth = imageWidth,
+            imageHeight = imageHeight,
+            textHeight = textHeight,
             imageContent = {
                 Box(
                     modifier = Modifier
@@ -128,7 +136,9 @@ fun DashboardModuleList(
 
 @Composable
 private fun DashboardCard(
-    modifier: Modifier = Modifier,
+    imageWidth: Dp,
+    imageHeight: Dp,
+    textHeight: Dp,
     imageContent: @Composable () -> Unit,
     title: String,
     onSelected: () -> Unit = {},
@@ -136,28 +146,29 @@ private fun DashboardCard(
     var isFocused by remember { mutableStateOf(false) }
 
     Column(
-        modifier = modifier
+        modifier = Modifier
+            .width(imageWidth)
             .onFocusChanged { isFocused = it.isFocused || it.hasFocus }
             .focusable()
             .handleKeyEvents(onSelect = onSelected),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // 图片区域：填满可用高度，不超出屏幕
+        // 图片: 固定宽高 (3:5比例由外部计算)
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .clip(RoundedCornerShape(16.dp))
+                .width(imageWidth)
+                .height(imageHeight)
+                .clip(RoundedCornerShape(12.dp))
                 .border(
                     width = if (isFocused) 3.dp else 0.dp,
                     color = if (isFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                 ),
         ) {
             imageContent()
         }
 
-        // 文字标签（在图片下方，不遮挡）
+        // 文字 (图片下方, 不遮挡)
         Spacer(Modifier.height(8.dp))
         Text(
             text = title,
