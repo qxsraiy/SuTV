@@ -26,17 +26,12 @@ import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsIptvScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsPermissionsScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsThemeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsUpdateScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsVideoPlayerScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsVodScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsChannelGroupVisibilityScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvHybridModeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourceCacheTimeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourceScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsUpdateChannelScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsVideoPlayerCoreScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsVideoPlayerDisplayModeScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsVideoPlayerLoadTimeoutScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsVideoPlayerRenderModeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsVodSourceScreen
 import top.yogiczy.mytv.tv.ui.utils.navigateSingleTop
 
@@ -96,24 +91,6 @@ fun SettingsScreen(
                         },
                         toIptvHybridModeScreen = {
                             navController.navigateSingleTop(SettingsSubCategories.IPTV_HYBRID_MODE.name)
-                        },
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
-                composable(SettingsCategories.VIDEO_PLAYER.name) {
-                    SettingsVideoPlayerScreen(
-                        toVideoPlayerCoreScreen = {
-                            navController.navigateSingleTop(SettingsSubCategories.VIDEO_PLAYER_CORE.name)
-                        },
-                        toVideoPlayerRenderModeScreen = {
-                            navController.navigateSingleTop(SettingsSubCategories.VIDEO_PLAYER_RENDER_MODE.name)
-                        },
-                        toVideoPlayerDisplayModeScreen = {
-                            navController.navigateSingleTop(SettingsSubCategories.VIDEO_PLAYER_DISPLAY_MODE.name)
-                        },
-                        toVideoPlayerLoadTimeoutScreen = {
-                            navController.navigateSingleTop(SettingsSubCategories.VIDEO_PLAYER_LOAD_TIMEOUT.name)
                         },
                         onBackPressed = { navController.navigateUp() },
                     )
@@ -207,50 +184,6 @@ fun SettingsScreen(
                         hybridModeProvider = { settingsViewModel.iptvHybridMode },
                         onHybridModeChanged = {
                             settingsViewModel.iptvHybridMode = it
-                            navController.navigateUp()
-                        },
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
-                composable(SettingsSubCategories.VIDEO_PLAYER_CORE.name) {
-                    SettingsVideoPlayerCoreScreen(
-                        coreProvider = { settingsViewModel.videoPlayerCore },
-                        onCoreChanged = {
-                            settingsViewModel.videoPlayerCore = it
-                            navController.navigateUp()
-                        },
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
-                composable(SettingsSubCategories.VIDEO_PLAYER_RENDER_MODE.name) {
-                    SettingsVideoPlayerRenderModeScreen(
-                        renderModeProvider = { settingsViewModel.videoPlayerRenderMode },
-                        onRenderModeChanged = {
-                            settingsViewModel.videoPlayerRenderMode = it
-                            navController.navigateUp()
-                        },
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
-                composable(SettingsSubCategories.VIDEO_PLAYER_DISPLAY_MODE.name) {
-                    SettingsVideoPlayerDisplayModeScreen(
-                        displayModeProvider = { settingsViewModel.videoPlayerDisplayMode },
-                        onDisplayModeChanged = {
-                            settingsViewModel.videoPlayerDisplayMode = it
-                            navController.navigateUp()
-                        },
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
-                composable(SettingsSubCategories.VIDEO_PLAYER_LOAD_TIMEOUT.name) {
-                    SettingsVideoPlayerLoadTimeoutScreen(
-                        timeoutProvider = { settingsViewModel.videoPlayerLoadTimeout },
-                        onTimeoutChanged = {
-                            settingsViewModel.videoPlayerLoadTimeout = it
                             navController.navigateUp()
                         },
                         onBackPressed = { navController.navigateUp() },

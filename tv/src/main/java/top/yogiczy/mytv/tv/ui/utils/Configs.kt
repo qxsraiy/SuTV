@@ -371,9 +371,9 @@ object Configs {
     val iptvChannelChangeListLoop: Boolean get() = false
 
     /** ==================== 节目单 ==================== */
-    /** 启用节目单 */
+    /** 启用节目单 (默认关闭) */
     var epgEnable: Boolean
-        get() = SP.getBoolean(KEY.EPG_ENABLE.name, true)
+        get() = SP.getBoolean(KEY.EPG_ENABLE.name, false)
         set(value) = SP.putBoolean(KEY.EPG_ENABLE.name, value)
 
     /** 当前节目单来源 */
