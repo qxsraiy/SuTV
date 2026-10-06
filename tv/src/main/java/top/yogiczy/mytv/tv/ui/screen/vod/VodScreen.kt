@@ -1,5 +1,10 @@
 package top.yogiczy.mytv.tv.ui.screen.vod
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -39,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -293,8 +299,15 @@ private fun VodTopBar(
         )
         Spacer(Modifier.width(8.dp))
 
-        // 刷新搜索按钮 (换5个源重新搜)
+        // 刷新搜索按钮 (换5个源重新搜, loading时旋转动画)
         var refreshFocused by remember { mutableStateOf(false) }
+        val rotationTransition = rememberInfiniteTransition(label = "refresh")
+        val rotation by rotationTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(tween(800, easing = LinearEasing)),
+            label = "rotation",
+        )
         Box(
             modifier = Modifier
                 .onFocusChanged { refreshFocused = it.isFocused }
@@ -305,7 +318,14 @@ private fun VodTopBar(
                 .clickable { vm.refreshSearch() }
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            Text("⟳", color = Color.White, fontSize = 16.sp)
+            Text(
+                "⟳",
+                color = Color.White,
+                fontSize = 16.sp,
+                modifier = Modifier.graphicsLayer {
+                    rotationZ = if (state.loading) rotation else 0f
+                },
+            )
         }
         Spacer(Modifier.width(8.dp))
 
