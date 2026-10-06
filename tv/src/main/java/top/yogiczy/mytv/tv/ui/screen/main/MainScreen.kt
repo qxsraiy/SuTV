@@ -246,6 +246,10 @@ fun MainScreen(
                     onChannelFavoriteToggle = { onChannelFavoriteToggle(it) },
                     onChannelFavoriteClear = { onChannelFavoriteClear() },
                     epgListProvider = epgListProvider,
+                    onPlayVod = { srcKey, id, name, pic, epIdx ->
+                        vodPlayData = VodPlayData(srcKey, id, name, pic, epIdx)
+                        navController.navigateSingleTop(Screens.VodDetail())
+                    },
                     onBackPressed = { navController.navigateUp() },
                 )
             }

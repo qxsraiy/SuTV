@@ -59,6 +59,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
+import top.yogiczy.mytv.tv.ui.screen.vod.VodFavoriteItem
+import top.yogiczy.mytv.tv.ui.screen.vod.VodFavoriteManager
 
 @Composable
 fun VodDetailScreen(
@@ -237,26 +239,52 @@ fun VodDetailScreen(
                         Text("← 返回", color = Color.White, fontSize = 14.sp)
                     }
 
-                    // 右上: 剧名·集数(点击弹出剧集列表) + 源名
-                    var infoFocused by remember { mutableStateOf(false) }
-                    Box(
+                    // 右上: 收藏 + 剧集列表 (Row)
+                    Row(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .onFocusChanged { infoFocused = it.isFocused }
-                            .focusable()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (infoFocused) Color(0xAA000000) else Color(0x80000000))
-                            .border(if (infoFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
-                            .clickable { showEpList = !showEpList }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                "${detail.vod_name} · ${currentEp?.name ?: ""} ▾",
-                                color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium,
-                            )
-                            Text(ms?.label ?: "", color = Color(0xFFAAAACC), fontSize = 11.sp)
+                        // 收藏按钮
+                        var favState by remember { mutableStateOf(VodFavoriteManager.isFavorite(context, sourceKey, vodId)) }
+                        var favFocused by remember { mutableStateOf(false) }
+                        Box(
+                            modifier = Modifier
+                                .onFocusChanged { favFocused = it.isFocused }
+                                .focusable()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (favFocused) Color(0xAA000000) else Color(0x80000000))
+                                .border(if (favFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
+                                .clickable {
+                                    favState = VodFavoriteManager.toggle(context, VodFavoriteItem(
+                                        sourceKey = sourceKey, vodId = vodId, vodName = vodName, vodPic = vodPic,
+                                    ))
+                                }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                        ) {
+                            Text(if (favState) "★" else "☆", color = if (favState) Color(0xFFFFD700) else Color.White, fontSize = 16.sp)
+                        }
+
+                        // 剧集列表
+                        var infoFocused by remember { mutableStateOf(false) }
+                        Box(
+                            modifier = Modifier
+                                .onFocusChanged { infoFocused = it.isFocused }
+                                .focusable()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (infoFocused) Color(0xAA000000) else Color(0x80000000))
+                                .border(if (infoFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
+                                .clickable { showEpList = !showEpList }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                        ) {
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    "${detail.vod_name} · ${currentEp?.name ?: ""} ▾",
+                                    color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium,
+                                )
+                                Text(ms?.label ?: "", color = Color(0xFFAAAACC), fontSize = 11.sp)
+                            }
                         }
                     }
 
@@ -348,19 +376,44 @@ fun VodDetailScreen(
                         .fillMaxHeight(0.5f)
                         .padding(8.dp),
                 ) {
-                    // 返回
-                    var backFocused by remember { mutableStateOf(false) }
-                    Box(
-                        modifier = Modifier
-                            .onFocusChanged { backFocused = it.isFocused }
-                            .focusable()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (backFocused) Color(0xFF444466) else Color(0xFF333333))
-                            .border(if (backFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
-                            .clickable { player.release(); onBack() }
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                    // 返回 + 收藏 (同一行)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text("← 返回", color = Color.White, fontSize = 14.sp)
+                        var backFocused by remember { mutableStateOf(false) }
+                        Box(
+                            modifier = Modifier
+                                .onFocusChanged { backFocused = it.isFocused }
+                                .focusable()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (backFocused) Color(0xFF444466) else Color(0xFF333333))
+                                .border(if (backFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
+                                .clickable { player.release(); onBack() }
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                        ) {
+                            Text("← 返回", color = Color.White, fontSize = 14.sp)
+                        }
+
+                        // 收藏按钮
+                        var favState by remember { mutableStateOf(VodFavoriteManager.isFavorite(context, sourceKey, vodId)) }
+                        var favFocused by remember { mutableStateOf(false) }
+                        Box(
+                            modifier = Modifier
+                                .onFocusChanged { favFocused = it.isFocused }
+                                .focusable()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (favFocused) Color(0xFF444466) else Color(0xFF333333))
+                                .border(if (favFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
+                                .clickable {
+                                    favState = VodFavoriteManager.toggle(context, VodFavoriteItem(
+                                        sourceKey = sourceKey, vodId = vodId, vodName = vodName, vodPic = vodPic,
+                                    ))
+                                }
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                        ) {
+                            Text(if (favState) "★ 已收藏" else "☆ 收藏", color = if (favState) Color(0xFFFFD700) else Color.White, fontSize = 14.sp)
+                        }
                     }
 
                     Row(
