@@ -6,14 +6,12 @@ import top.yogiczy.mytv.core.data.entities.channel.Channel
 import top.yogiczy.mytv.core.data.entities.channel.ChannelFavoriteList
 import top.yogiczy.mytv.core.data.entities.epg.EpgProgrammeReserveList
 import top.yogiczy.mytv.core.data.entities.epgsource.EpgSource
-import top.yogiczy.mytv.core.data.entities.epgsource.EpgSourceList
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSourceList
 import top.yogiczy.mytv.core.data.entities.vod.VodSourceList
 import top.yogiczy.mytv.core.data.utils.Constants
 import top.yogiczy.mytv.core.data.utils.Globals
 import top.yogiczy.mytv.core.data.utils.SP
-import top.yogiczy.mytv.tv.sync.CloudSyncProvider
 import top.yogiczy.mytv.tv.ui.screen.Screens
 import top.yogiczy.mytv.tv.ui.screen.components.AppThemeDef
 import top.yogiczy.mytv.tv.ui.screensold.videoplayer.VideoPlayerDisplayMode
@@ -111,9 +109,6 @@ object Configs {
         /** 当前节目单来源 */
         EPG_SOURCE_CURRENT,
 
-        /** 节目单来源列表 */
-        EPG_SOURCE_LIST,
-
         /** 节目单刷新时间阈值（小时） */
         EPG_REFRESH_TIME_THRESHOLD,
 
@@ -139,20 +134,8 @@ object Configs {
         /** 使用经典选台界面 */
         UI_USE_CLASSIC_PANEL_SCREEN,
 
-        /** 界面密度缩放比例 */
-        UI_DENSITY_SCALE_RATIO,
-
-        /** 界面字体缩放比例 */
-        UI_FONT_SCALE_RATIO,
-
-        /** 时间显示模式 */
-        UI_TIME_SHOW_MODE,
-
         /** 焦点优化 */
         UI_FOCUS_OPTIMIZE,
-
-        /** 自动关闭界面延时 */
-        UI_SCREEN_AUTO_CLOSE_DELAY,
 
         /** ==================== 更新 ==================== */
         /** 更新强提醒 */
@@ -186,46 +169,9 @@ object Configs {
         /** 播放器 停止上一媒体项 */
         VIDEO_PLAYER_STOP_PREVIOUS_MEDIA_ITEM,
 
-        /** 播放器 跳过同一VSync渲染多帧 */
-        VIDEO_PLAYER_SKIP_MULTIPLE_FRAMES_ON_SAME_VSYNC,
-
         /** ==================== 主题 ==================== */
         /** 当前应用主题 */
         THEME_APP_CURRENT,
-
-        /** ==================== 云同步 ==================== */
-        /** 云同步 自动拉取 */
-        CLOUD_SYNC_AUTO_PULL,
-
-        /** 云同步 提供商 */
-        CLOUD_SYNC_PROVIDER,
-
-        /** 云同步 github gist id */
-        CLOUD_SYNC_GITHUB_GIST_ID,
-
-        /** 云同步 github gist token */
-        CLOUD_SYNC_GITHUB_GIST_TOKEN,
-
-        /** 云同步 gitee gist id */
-        CLOUD_SYNC_GITEE_GIST_ID,
-
-        /** 云同步 gitee gist token */
-        CLOUD_SYNC_GITEE_GIST_TOKEN,
-
-        /** 云同步 网络链接 */
-        CLOUD_SYNC_NETWORK_URL,
-
-        /** 云同步 本地文件 */
-        CLOUD_SYNC_LOCAL_FILE,
-
-        /** 云同步 webdav url */
-        CLOUD_SYNC_WEBDAV_URL,
-
-        /** 云同步 webdav 用户名 */
-        CLOUD_SYNC_WEBDAV_USERNAME,
-
-        /** 云同步 webdav 密码 */
-        CLOUD_SYNC_WEBDAV_PASSWORD,
 
         /** 肥羊 AllInOne 文件路径 */
         FEIYANG_ALLINONE_FILE_PATH,
@@ -382,13 +328,6 @@ object Configs {
             .ifBlank { Globals.json.encodeToString(Constants.EPG_SOURCE_LIST.first()) })
         set(value) = SP.putString(KEY.EPG_SOURCE_CURRENT.name, Globals.json.encodeToString(value))
 
-    /** 节目单来源列表 */
-    var epgSourceList: EpgSourceList
-        get() = Globals.json.decodeFromString(
-            SP.getString(KEY.EPG_SOURCE_LIST.name, Globals.json.encodeToString(EpgSourceList()))
-        )
-        set(value) = SP.putString(KEY.EPG_SOURCE_LIST.name, Globals.json.encodeToString(value))
-
     /** 节目单刷新时间阈值（小时） */
     var epgRefreshTimeThreshold: Int
         get() = SP.getInt(KEY.EPG_REFRESH_TIME_THRESHOLD.name, Constants.EPG_REFRESH_TIME_THRESHOLD)
@@ -416,32 +355,14 @@ object Configs {
     /** 显示节目进度 - 写死关闭 */
     val uiShowEpgProgrammeProgress: Boolean get() = false
 
-    /** 显示常驻节目进度 - 写死关闭 */
-    val uiShowEpgProgrammePermanentProgress: Boolean get() = false
-
     /** 显示台标 - 写死开启 */
     val uiShowChannelLogo: Boolean get() = true
 
     /** 显示频道预览 - 写死关闭 */
     val uiShowChannelPreview: Boolean get() = false
 
-    /** 使用经典选台界面 - 写死开启 */
-    val uiUseClassicPanelScreen: Boolean get() = true
-
-    /** 界面密度缩放比例 - 写死自适应(0) */
-    val uiDensityScaleRatio: Float get() = 0f
-
-    /** 界面字体缩放比例 - 写死1 */
-    val uiFontScaleRatio: Float get() = 1f
-
-    /** 时间显示模式 - 写死隐藏 */
-    val uiTimeShowMode: UiTimeShowMode get() = UiTimeShowMode.HIDDEN
-
     /** 焦点优化 - 写死开启 */
     val uiFocusOptimize: Boolean get() = false
-
-    /** 自动关闭界面延时 - 写死15秒 */
-    val uiScreenAutoCloseDelay: Long get() = 15000L
 
     /** ==================== 更新 ==================== */
     /** 更新强提醒 */
@@ -503,11 +424,6 @@ object Configs {
         get() = SP.getBoolean(KEY.VIDEO_PLAYER_STOP_PREVIOUS_MEDIA_ITEM.name, true)
         set(value) = SP.putBoolean(KEY.VIDEO_PLAYER_STOP_PREVIOUS_MEDIA_ITEM.name, value)
 
-    /** 播放器 跳过同一VSync渲染多帧 */
-    var videoPlayerSkipMultipleFramesOnSameVSync: Boolean
-        get() = SP.getBoolean(KEY.VIDEO_PLAYER_SKIP_MULTIPLE_FRAMES_ON_SAME_VSYNC.name, true)
-        set(value) = SP.putBoolean(KEY.VIDEO_PLAYER_SKIP_MULTIPLE_FRAMES_ON_SAME_VSYNC.name, value)
-
     /** ==================== 主题 ==================== */
     /** 当前应用主题 */
     var themeAppCurrent: AppThemeDef?
@@ -517,19 +433,6 @@ object Configs {
         set(value) = SP.putString(
             KEY.THEME_APP_CURRENT.name,
             value?.let { Globals.json.encodeToString(value) } ?: "")
-
-    /** ==================== 云同步（已移除，保留空壳防编译错误） ==================== */
-    val cloudSyncAutoPull: Boolean get() = false
-    val cloudSyncProvider: CloudSyncProvider get() = CloudSyncProvider.GITHUB_GIST
-    val cloudSyncGithubGistId: String get() = ""
-    val cloudSyncGithubGistToken: String get() = ""
-    val cloudSyncGiteeGistId: String get() = ""
-    val cloudSyncGiteeGistToken: String get() = ""
-    val cloudSyncNetworkUrl: String get() = ""
-    val cloudSyncLocalFilePath: String get() = ""
-    val cloudSyncWebDavUrl: String get() = ""
-    val cloudSyncWebDavUsername: String get() = ""
-    val cloudSyncWebDavPassword: String get() = ""
 
     /** 肥羊 AllInOne 文件路径 */
     var feiyangAllInOneFilePath: String
@@ -544,26 +447,6 @@ object Configs {
                 .ifBlank { Globals.json.encodeToString(VodSourceList()) }
         )
         set(value) = SP.putString(KEY.VOD_SOURCE_LIST.name, Globals.json.encodeToString(value))
-
-    enum class UiTimeShowMode(val value: Int, val label: String) {
-        /** 隐藏 */
-        HIDDEN(0, "隐藏"),
-
-        /** 常显 */
-        ALWAYS(1, "常显"),
-
-        /** 整点 */
-        EVERY_HOUR(2, "整点"),
-
-        /** 半点 */
-        HALF_HOUR(3, "半点");
-
-        companion object {
-            fun fromValue(value: Int): UiTimeShowMode {
-                return entries.firstOrNull { it.value == value } ?: ALWAYS
-            }
-        }
-    }
 
     enum class IptvHybridMode(val value: Int, val label: String) {
         /** 禁用 */
@@ -614,7 +497,6 @@ object Configs {
             appLastLatestVersion = appLastLatestVersion,
             appAgreementAgreed = appAgreementAgreed,
             appStartupScreen = appStartupScreen,
-            debugDeveloperMode = debugDeveloperMode,
             debugShowFps = debugShowFps,
             debugShowVideoPlayerMetadata = debugShowVideoPlayerMetadata,
             debugShowLayoutGrids = debugShowLayoutGrids,
@@ -633,24 +515,16 @@ object Configs {
             iptvChannelLinePlayableHostList = iptvChannelLinePlayableHostList,
             iptvChannelLinePlayableUrlList = iptvChannelLinePlayableUrlList,
             iptvChannelChangeFlip = iptvChannelChangeFlip,
-            iptvChannelNoSelectEnable = iptvChannelNoSelectEnable,
             iptvChannelChangeListLoop = iptvChannelChangeListLoop,
             epgEnable = epgEnable,
             epgSourceCurrent = epgSourceCurrent,
-            epgSourceList = epgSourceList,
             epgRefreshTimeThreshold = epgRefreshTimeThreshold,
             epgSourceFollowIptv = epgSourceFollowIptv,
             epgChannelReserveList = epgChannelReserveList,
             uiShowEpgProgrammeProgress = uiShowEpgProgrammeProgress,
-            uiShowEpgProgrammePermanentProgress = uiShowEpgProgrammePermanentProgress,
             uiShowChannelLogo = uiShowChannelLogo,
             uiShowChannelPreview = uiShowChannelPreview,
-            uiUseClassicPanelScreen = uiUseClassicPanelScreen,
-            uiDensityScaleRatio = uiDensityScaleRatio,
-            uiFontScaleRatio = uiFontScaleRatio,
-            uiTimeShowMode = uiTimeShowMode,
             uiFocusOptimize = uiFocusOptimize,
-            uiScreenAutoCloseDelay = uiScreenAutoCloseDelay,
             updateForceRemind = updateForceRemind,
             updateChannel = updateChannel,
             videoPlayerCore = videoPlayerCore,
@@ -661,19 +535,7 @@ object Configs {
             videoPlayerDisplayMode = videoPlayerDisplayMode,
             videoPlayerForceAudioSoftDecode = videoPlayerForceAudioSoftDecode,
             videoPlayerStopPreviousMediaItem = videoPlayerStopPreviousMediaItem,
-            videoPlayerSkipMultipleFramesOnSameVSync = videoPlayerSkipMultipleFramesOnSameVSync,
             themeAppCurrent = themeAppCurrent,
-            cloudSyncAutoPull = cloudSyncAutoPull,
-            cloudSyncProvider = cloudSyncProvider,
-            cloudSyncGithubGistId = cloudSyncGithubGistId,
-            cloudSyncGithubGistToken = cloudSyncGithubGistToken,
-            cloudSyncGiteeGistId = cloudSyncGiteeGistId,
-            cloudSyncGiteeGistToken = cloudSyncGiteeGistToken,
-            cloudSyncNetworkUrl = cloudSyncNetworkUrl,
-            cloudSyncLocalFilePath = cloudSyncLocalFilePath,
-            cloudSyncWebDavUrl = cloudSyncWebDavUrl,
-            cloudSyncWebDavUsername = cloudSyncWebDavUsername,
-            cloudSyncWebDavPassword = cloudSyncWebDavPassword,
             feiyangAllInOneFilePath = feiyangAllInOneFilePath,
         )
     }
@@ -700,7 +562,6 @@ object Configs {
         configs.iptvChannelLinePlayableUrlList?.let { iptvChannelLinePlayableUrlList = it }
         configs.epgEnable?.let { epgEnable = it }
         configs.epgSourceCurrent?.let { epgSourceCurrent = it }
-        configs.epgSourceList?.let { epgSourceList = it }
         configs.epgRefreshTimeThreshold?.let { epgRefreshTimeThreshold = it }
         configs.epgSourceFollowIptv?.let { epgSourceFollowIptv = it }
         configs.epgChannelReserveList?.let { epgChannelReserveList = it }
@@ -715,7 +576,6 @@ object Configs {
         configs.videoPlayerForceAudioSoftDecode?.let { videoPlayerForceAudioSoftDecode = it }
         configs.videoPlayerStopPreviousMediaItem?.let { videoPlayerStopPreviousMediaItem = it }
         configs.themeAppCurrent?.let { themeAppCurrent = it }
-        configs.updateForceRemind?.let { updateForceRemind = it }
         configs.feiyangAllInOneFilePath?.let { feiyangAllInOneFilePath = it }
     }
 
@@ -726,7 +586,6 @@ object Configs {
         val appLastLatestVersion: String? = null,
         val appAgreementAgreed: Boolean? = null,
         val appStartupScreen: String? = null,
-        val debugDeveloperMode: Boolean? = null,
         val debugShowFps: Boolean? = null,
         val debugShowVideoPlayerMetadata: Boolean? = null,
         val debugShowLayoutGrids: Boolean? = null,
@@ -745,24 +604,16 @@ object Configs {
         val iptvChannelLinePlayableHostList: Set<String>? = null,
         val iptvChannelLinePlayableUrlList: Set<String>? = null,
         val iptvChannelChangeFlip: Boolean? = null,
-        val iptvChannelNoSelectEnable: Boolean? = null,
         val iptvChannelChangeListLoop: Boolean? = null,
         val epgEnable: Boolean? = null,
         val epgSourceCurrent: EpgSource? = null,
-        val epgSourceList: EpgSourceList? = null,
         val epgRefreshTimeThreshold: Int? = null,
         val epgSourceFollowIptv: Boolean? = null,
         val epgChannelReserveList: EpgProgrammeReserveList? = null,
         val uiShowEpgProgrammeProgress: Boolean? = null,
-        val uiShowEpgProgrammePermanentProgress: Boolean? = null,
         val uiShowChannelLogo: Boolean? = null,
         val uiShowChannelPreview: Boolean? = null,
-        val uiUseClassicPanelScreen: Boolean? = null,
-        val uiDensityScaleRatio: Float? = null,
-        val uiFontScaleRatio: Float? = null,
-        val uiTimeShowMode: UiTimeShowMode? = null,
         val uiFocusOptimize: Boolean? = null,
-        val uiScreenAutoCloseDelay: Long? = null,
         val updateForceRemind: Boolean? = null,
         val updateChannel: String? = null,
         val videoPlayerCore: VideoPlayerCore? = null,
@@ -773,33 +624,10 @@ object Configs {
         val videoPlayerDisplayMode: VideoPlayerDisplayMode? = null,
         val videoPlayerForceAudioSoftDecode: Boolean? = null,
         val videoPlayerStopPreviousMediaItem: Boolean? = null,
-        val videoPlayerSkipMultipleFramesOnSameVSync: Boolean? = null,
         val themeAppCurrent: AppThemeDef? = null,
-        val cloudSyncAutoPull: Boolean? = null,
-        val cloudSyncProvider: CloudSyncProvider? = null,
-        val cloudSyncGithubGistId: String? = null,
-        val cloudSyncGithubGistToken: String? = null,
-        val cloudSyncGiteeGistId: String? = null,
-        val cloudSyncGiteeGistToken: String? = null,
-        val cloudSyncNetworkUrl: String? = null,
-        val cloudSyncLocalFilePath: String? = null,
-        val cloudSyncWebDavUrl: String? = null,
-        val cloudSyncWebDavUsername: String? = null,
-        val cloudSyncWebDavPassword: String? = null,
         val feiyangAllInOneFilePath: String? = null,
     ) {
         fun desensitized() = copy(
-            cloudSyncAutoPull = null,
-            cloudSyncProvider = null,
-            cloudSyncGithubGistId = null,
-            cloudSyncGithubGistToken = null,
-            cloudSyncGiteeGistId = null,
-            cloudSyncGiteeGistToken = null,
-            cloudSyncNetworkUrl = null,
-            cloudSyncLocalFilePath = null,
-            cloudSyncWebDavUrl = null,
-            cloudSyncWebDavUsername = null,
-            cloudSyncWebDavPassword = null,
             iptvChannelLastPlay = null,
             iptvChannelLinePlayableHostList = null,
             iptvChannelLinePlayableUrlList = null,

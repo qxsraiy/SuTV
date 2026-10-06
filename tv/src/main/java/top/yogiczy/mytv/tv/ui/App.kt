@@ -54,11 +54,8 @@ fun App(
 
     CompositionLocalProvider(
         LocalDensity provides Density(
-            density = LocalDensity.current.density * when (settingsViewModel.uiDensityScaleRatio) {
-                0f -> configuration.screenWidthDp.toFloat() / DESIGN_WIDTH
-                else -> settingsViewModel.uiDensityScaleRatio
-            },
-            fontScale = LocalDensity.current.fontScale * settingsViewModel.uiFontScaleRatio,
+            density = LocalDensity.current.density * configuration.screenWidthDp.toFloat() / DESIGN_WIDTH,
+            fontScale = LocalDensity.current.fontScale,
         ),
     ) {
         PopupHandleableApplication {

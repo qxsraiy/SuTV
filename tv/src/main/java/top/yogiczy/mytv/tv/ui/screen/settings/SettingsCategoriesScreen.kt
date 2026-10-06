@@ -19,19 +19,12 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
-import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
-import androidx.compose.material.icons.outlined.BugReport
-import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.ColorLens
-import androidx.compose.material.icons.outlined.ControlCamera
 import androidx.compose.material.icons.outlined.Devices
-import androidx.compose.material.icons.outlined.DisplaySettings
 import androidx.compose.material.icons.outlined.LiveTv
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.VideoLibrary
-import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -208,11 +201,8 @@ enum class SettingsSubCategories {
     CHANNEL_GROUP_VISIBILITY,
     IPTV_HYBRID_MODE,
     VOD_SOURCE,
-    EPG_SOURCE,
-    EPG_REFRESH_TIME_THRESHOLD,
     UPDATE_CHANNEL,
     PUSH,
-    CLOUD_SYNC_PROVIDER,
 }
 
 @Preview(device = "id:Android TV (720p)")

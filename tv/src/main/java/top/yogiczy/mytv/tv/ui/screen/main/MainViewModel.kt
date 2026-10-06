@@ -33,8 +33,6 @@ import top.yogiczy.mytv.core.data.utils.ChannelAlias
 import top.yogiczy.mytv.core.data.utils.ChannelUtil
 import top.yogiczy.mytv.core.data.utils.Constants
 import top.yogiczy.mytv.core.data.utils.Logger
-import top.yogiczy.mytv.tv.sync.CloudSync
-import top.yogiczy.mytv.tv.sync.CloudSyncData
 import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.material.SnackbarType
 import top.yogiczy.mytv.tv.ui.utils.Configs
@@ -52,7 +50,6 @@ class MainViewModel : ViewModel() {
 
     init {
         viewModelScope.launch {
-            pullCloudSyncData()
             init()
             _lastJob?.join()
             refreshOtherIptvSource()
@@ -66,20 +63,6 @@ class MainViewModel : ViewModel() {
             refreshChannel()
             refreshEpg()
             mergeEpgMetadata()
-        }
-    }
-
-    private suspend fun pullCloudSyncData() {
-        if (!Configs.cloudSyncAutoPull) return
-
-        _uiState.value = MainUiState.Loading("拉取云端数据")
-        runCatching {
-            val syncData = CloudSync.pull()
-
-            if (syncData != CloudSyncData.EMPTY) {
-                syncData.apply()
-                needRefresh()
-            }
         }
     }
 

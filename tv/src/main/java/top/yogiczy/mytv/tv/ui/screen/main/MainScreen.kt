@@ -41,7 +41,6 @@ import top.yogiczy.mytv.tv.ui.screen.favorites.FavoritesScreen
 import top.yogiczy.mytv.tv.ui.screen.loading.LoadingScreen
 
 import top.yogiczy.mytv.tv.ui.screen.settings.SettingsScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.SettingsSubCategories
 import top.yogiczy.mytv.tv.ui.screen.settings.SettingsViewModel
 import top.yogiczy.mytv.tv.ui.screen.settings.settingsVM
 import top.yogiczy.mytv.tv.ui.screen.update.UpdateScreen
@@ -182,17 +181,10 @@ fun MainScreen(
                 enterTransition = { fadeIn(tween(300)) },
             ) {
                 DashboardScreen(
-                    currentIptvSourceProvider = { settingsViewModel.iptvSourceCurrent },
                     toLiveScreen = { navController.navigateSingleTop(Screens.Live()) },
                     toVodScreen = { navController.navigateSingleTop(Screens.Vod()) },
                     toFavoritesScreen = { navController.navigateSingleTop(Screens.Favorites()) },
                     toSettingsScreen = { navController.navigateSingleTop(Screens.Settings()) },
-                    toSettingsIptvSourceScreen = {
-                        navController.navigateSingleTop(
-                            Screens.Settings.withArgs(SettingsSubCategories.IPTV_SOURCE)
-                        )
-                    },
-                    onReload = { reload() },
                     onBackPressed = onBackPressed,
                 )
             }

@@ -45,13 +45,10 @@ import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
 @Composable
 fun DashboardScreen(
     modifier: Modifier = Modifier,
-    currentIptvSourceProvider: () -> IptvSource = { IptvSource() },
     toLiveScreen: () -> Unit = {},
     toVodScreen: () -> Unit = {},
     toFavoritesScreen: () -> Unit = {},
     toSettingsScreen: () -> Unit = {},
-    toSettingsIptvSourceScreen: () -> Unit = {},
-    onReload: () -> Unit = {},
     onBackPressed: () -> Unit = {},
 ) {
     BackHandler { onBackPressed() }
@@ -137,9 +134,7 @@ fun DashboardScreen(
 @Composable
 private fun DashboardScreenPreview() {
     MyTvTheme {
-        DashboardScreen(
-            currentIptvSourceProvider = { IptvSource(name = "默认直播源1") },
-        )
+        DashboardScreen()
     }
 }
 
