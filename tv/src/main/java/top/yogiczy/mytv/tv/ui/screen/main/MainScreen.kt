@@ -9,7 +9,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -33,6 +36,9 @@ import top.yogiczy.mytv.tv.ui.screen.about.AboutScreen
 import top.yogiczy.mytv.tv.ui.screen.agreement.AgreementScreen
 import top.yogiczy.mytv.tv.ui.screen.channels.ChannelsScreen
 import top.yogiczy.mytv.tv.ui.screen.dashboard.DashboardScreen
+import top.yogiczy.mytv.tv.ui.screen.vod.VodScreen
+import top.yogiczy.mytv.tv.ui.screen.vod.VodDetailScreen
+import top.yogiczy.mytv.tv.ui.screen.vod.VodViewModel
 import top.yogiczy.mytv.tv.ui.screen.favorites.FavoritesScreen
 import top.yogiczy.mytv.tv.ui.screen.loading.LoadingScreen
 import top.yogiczy.mytv.tv.ui.screen.multiview.MultiViewScreen
@@ -57,6 +63,10 @@ fun MainScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val uiState by mainViewModel.uiState.collectAsState()
+
+    // 点播
+    val vodViewModel = remember { VodViewModel() }
+    var vodPlayData by remember { mutableStateOf(VodPlayData("", "", "", "", 0)) }
 
     mainViewModel.needRefresh = { settingsViewModel.refresh() }
 
@@ -181,6 +191,7 @@ fun MainScreen(
                     onChannelSelected = { onChannelSelected(it) },
                     epgListProvider = epgListProvider,
                     toLiveScreen = { navController.navigateSingleTop(Screens.Live()) },
+                    toVodScreen = { navController.navigateSingleTop(Screens.Vod()) },
                     toChannelsScreen = { navController.navigateSingleTop(Screens.Channels()) },
                     toFavoritesScreen = { navController.navigateSingleTop(Screens.Favorites()) },
                     toSearchScreen = { navController.navigateSingleTop(Screens.Search()) },
@@ -319,6 +330,48 @@ fun MainScreen(
                     onBackPressed = { navController.navigateUp() },
                 )
             }
+
+            composable(
+                route = Screens.Vod(),
+                enterTransition = { fadeIn(tween(300)) },
+                exitTransition = { fadeOut(tween(300)) },
+            ) {
+                VodScreen(
+                    onPlayVod = { srcKey, id, name, pic, epIdx ->
+                        vodPlayData = VodPlayData(srcKey, id, name, pic, epIdx)
+                        navController.navigateSingleTop(Screens.VodDetail())
+                    },
+                    onBack = {
+                        navController.navigateSingleTop(Screens.Dashboard())
+                    },
+                )
+            }
+
+            composable(
+                route = Screens.VodDetail(),
+                enterTransition = { fadeIn(tween(300)) },
+                exitTransition = { fadeOut(tween(300)) },
+            ) {
+                VodDetailScreen(
+                    vm = vodViewModel,
+                    sourceKey = vodPlayData.sourceKey,
+                    vodId = vodPlayData.vodId,
+                    vodName = vodPlayData.vodName,
+                    vodPic = vodPlayData.vodPic,
+                    initialEpIdx = vodPlayData.epIdx,
+                    onBack = {
+                        navController.navigateSingleTop(Screens.Vod())
+                    },
+                )
+            }
         },
     )
 }
+
+private data class VodPlayData(
+    val sourceKey: String,
+    val vodId: String,
+    val vodName: String,
+    val vodPic: String,
+    val epIdx: Int,
+)

@@ -4,6 +4,8 @@ import top.yogiczy.mytv.core.data.entities.epgsource.EpgSource
 import top.yogiczy.mytv.core.data.entities.epgsource.EpgSourceList
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSourceList
+import top.yogiczy.mytv.core.data.entities.vod.VodSource
+import top.yogiczy.mytv.core.data.entities.vod.VodSourceList
 
 /**
  * 常量
@@ -128,6 +130,39 @@ object Constants {
      * 日志历史最大保留条数
      */
     const val LOG_HISTORY_MAX_SIZE = 100
+
+    /**
+     * 点播采集源 (苹果CMS API)
+     */
+    val VOD_SOURCE_LIST = VodSourceList(
+        listOf(
+            VodSource("ffzy", "非凡资源", "http://cj.ffzyapi.com/api.php/provide/vod", "clean", true),
+            VodSource("360zy", "360资源", "https://360zy.com/api.php/provide/vod", "clean"),
+            VodSource("guangsu", "光速资源", "https://api.guangsuapi.com/api.php/provide/vod", "clean"),
+            VodSource("maoyan", "猫眼资源", "https://api.maoyanapi.top/api.php/provide/vod", "clean"),
+            VodSource("wujin", "无尽资源", "https://api.wujinapi.me/api.php/provide/vod", "clean"),
+            VodSource("bfzy", "暴风资源", "https://bfzyapi.com/api.php/provide/vod", "clean"),
+            VodSource("iqiyi", "爱奇艺资源", "https://iqiyizyapi.com/api.php/provide/vod", "clean"),
+            VodSource("hongniu", "红牛资源", "https://www.hongniuzy2.com/api.php/provide/vod", "clean"),
+            VodSource("huya", "虎牙资源", "https://www.huyaapi.com/api.php/provide/vod", "clean"),
+            VodSource("suoni", "索尼资源", "https://suoniapi.com/api.php/provide/vod", "clean"),
+            VodSource("tyys", "天翼资源", "https://tyyszyapi.com/api.php/provide/vod", "clean"),
+            VodSource("jszy", "JS资源", "https://jszyapi.com/api.php/provide/vod", "clean"),
+            VodSource("dytt", "电影天堂", "http://caiji.dyttzyapi.com/api.php/provide/vod", "clean"),
+            VodSource("xlapi", "新浪资源", "http://api.xinlangapi.com/xinlangapi.php/provide/vod", "clean"),
+            VodSource("bdzy", "百度资源", "https://api.apibdzy.com/api.php/provide/vod", "clean"),
+            VodSource("niuniu", "牛牛资源", "https://api.niuniuzy.me/api.php/provide/vod", "clean"),
+            VodSource("zuida", "最大资源", "https://api.zuidapi.com/api.php/provide/vod", "clean"),
+            VodSource("dbzy", "DB资源", "https://caiji.dbzy5.com/api.php/provide/vod", "clean"),
+            VodSource("kczy", "快车资源", "https://caiji.kuaichezy.org/api.php/provide/vod", "clean"),
+            VodSource("lzi", "LZI资源", "https://cj.lziapi.com/api.php/provide/vod", "clean"),
+            VodSource("rycj", "RY资源", "https://cj.rycjapi.com/api.php/provide/vod", "clean"),
+            VodSource("hhzy", "HH资源", "https://hhzyapi.com/api.php/provide/vod", "clean"),
+            VodSource("yhzy", "YH资源", "https://m3u8.apiyhzy.com/api.php/provide/vod", "clean"),
+            VodSource("mdzy", "MD资源", "https://www.mdzyapi.com/api.php/provide/vod", "clean"),
+            VodSource("sdzy", "SD资源", "http://sdzyapi.com/api.php/provide/vod", "clean"),
+        )
+    )
 
     /**
      * 界面 临时频道界面显示时间

@@ -12,6 +12,7 @@ import androidx.compose.material.icons.outlined.InsertChart
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Tv
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material.icons.outlined.ViewCozy
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -28,6 +29,7 @@ import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
 fun DashboardModuleList(
     modifier: Modifier = Modifier,
     toLiveScreen: () -> Unit = {},
+    toVodScreen: () -> Unit = {},
     toChannelsScreen: () -> Unit = {},
     toFavoritesScreen: () -> Unit = {},
     toSearchScreen: () -> Unit = {},
@@ -51,6 +53,14 @@ fun DashboardModuleList(
                 imageVector = Icons.Outlined.Tv,
                 title = "直播",
                 onSelected = toLiveScreen,
+            )
+        }
+
+        item {
+            DashboardModuleItem(
+                imageVector = Icons.Outlined.VideoLibrary,
+                title = "点播",
+                onSelected = toVodScreen,
             )
         }
 

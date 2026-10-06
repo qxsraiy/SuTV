@@ -54,6 +54,7 @@ fun DashboardScreen(
     onChannelFavoriteToggle: (Channel) -> Unit = {},
     epgListProvider: () -> EpgList = { EpgList() },
     toLiveScreen: () -> Unit = {},
+    toVodScreen: () -> Unit = {},
     toChannelsScreen: () -> Unit = {},
     toFavoritesScreen: () -> Unit = {},
     toSearchScreen: () -> Unit = {},
@@ -93,6 +94,7 @@ fun DashboardScreen(
                 DashboardModuleList(
                     modifier = Modifier.focusOnLaunched(),
                     toLiveScreen = toLiveScreen,
+                    toVodScreen = toVodScreen,
                     toChannelsScreen = toChannelsScreen,
                     toFavoritesScreen = toFavoritesScreen,
                     toSearchScreen = toSearchScreen,

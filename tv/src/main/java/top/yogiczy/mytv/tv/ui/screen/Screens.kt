@@ -17,6 +17,8 @@ enum class Screens(
     About,
     Update,
     MultiView,
+    Vod,
+    VodDetail,
     ;
 
     operator fun invoke(): String {

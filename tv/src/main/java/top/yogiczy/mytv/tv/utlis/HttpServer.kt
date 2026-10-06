@@ -181,6 +181,23 @@ object HttpServer : Loggable("HttpServer") {
                     handleMiguProxy(request, response)
                 }
 
+                // === 点播 (VOD) 代理 ===
+                server.get("/vod/sources") { _, response ->
+                    handleVodSources(response)
+                }
+                server.get("/vod/categories") { request, response ->
+                    handleVodCategories(request, response)
+                }
+                server.get("/vod/list") { request, response ->
+                    handleVodList(request, response)
+                }
+                server.get("/vod/search") { request, response ->
+                    handleVodSearch(request, response)
+                }
+                server.get("/vod/detail") { request, response ->
+                    handleVodDetail(request, response)
+                }
+
                 log.i("设置服务已启动: $serverUrl")
             } catch (ex: Exception) {
                 log.e("设置服务启动失败: ${ex.message}", ex)
@@ -794,6 +811,184 @@ object HttpServer : Loggable("HttpServer") {
             }
         }
     }
+
+    // === VOD 代理处理函数 ===
+
+    private fun handleVodSources(response: AsyncHttpServerResponse) {
+        try {
+            wrapResponse(response)
+            val sources = Constants.VOD_SOURCE_LIST
+            val json = Globals.json.encodeToString(
+                kotlinx.serialization.builtins.ListSerializer(top.yogiczy.mytv.core.data.entities.vod.VodSource.serializer()),
+                sources.value
+            )
+            response.send(json)
+        } catch (e: Exception) {
+            log.e("VOD 源列表失败: ${e.message}", e)
+            response.send("[]")
+        }
+    }
+
+    private fun handleVodCategories(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse) {
+        try {
+            wrapResponse(response)
+            val sourceKey = request.query.getString("source") ?: ""
+            val source = Constants.VOD_SOURCE_LIST.find { it.key == sourceKey }
+                ?: throw Exception("采集源不存在: $sourceKey")
+            val url = "${source.api}?ac=list"
+            val body = fetchUrl(url)
+            val cmsResp = jsonIgnorant.decodeFromString(VodCmsListResponse.serializer(), body)
+            val cats = cmsResp.`class`.map {
+                top.yogiczy.mytv.core.data.entities.vod.VodCategory(
+                    type_id = it.type_id,
+                    type_name = it.type_name,
+                    type_pid = it.type_pid,
+                )
+            }
+            response.send(Globals.json.encodeToString(
+                kotlinx.serialization.builtins.ListSerializer(top.yogiczy.mytv.core.data.entities.vod.VodCategory.serializer()),
+                cats
+            ))
+        } catch (e: Exception) {
+            log.e("VOD 分类失败: ${e.message}", e)
+            response.send("[]")
+        }
+    }
+
+    private fun handleVodList(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse) {
+        try {
+            wrapResponse(response)
+            val sourceKey = request.query.getString("source") ?: ""
+            val typeId = request.query.getString("t") ?: ""
+            val page = request.query.getString("page") ?: "1"
+            val source = Constants.VOD_SOURCE_LIST.find { it.key == sourceKey }
+                ?: throw Exception("采集源不存在: $sourceKey")
+            val url = buildString {
+                append(source.api).append("?ac=videolist&pg=").append(page)
+                if (typeId.isNotEmpty()) append("&t=").append(typeId)
+            }
+            val body = fetchUrl(url)
+            val cmsResp = jsonIgnorant.decodeFromString(VodCmsListResponse.serializer(), body)
+            val items = cmsResp.list.map { it.toVodItem() }
+            val result = top.yogiczy.mytv.core.data.entities.vod.VodItemList(
+                list = items, page = cmsResp.page,
+                pagecount = cmsResp.pagecount, total = cmsResp.total
+            )
+            response.send(Globals.json.encodeToString(
+                top.yogiczy.mytv.core.data.entities.vod.VodItemList.serializer(), result
+            ))
+        } catch (e: Exception) {
+            log.e("VOD 列表失败: ${e.message}", e)
+            response.send("""{"list":[],"pagecount":0}""")
+        }
+    }
+
+    private fun handleVodSearch(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse) {
+        try {
+            wrapResponse(response)
+            val sourceKey = request.query.getString("source") ?: ""
+            val wd = request.query.getString("wd") ?: ""
+            val page = request.query.getString("page") ?: "1"
+            val source = Constants.VOD_SOURCE_LIST.find { it.key == sourceKey }
+                ?: throw Exception("采集源不存在: $sourceKey")
+            val url = "${source.api}?wd=${java.net.URLEncoder.encode(wd, "UTF-8")}&pg=$page"
+            val body = fetchUrl(url)
+            val cmsResp = jsonIgnorant.decodeFromString(VodCmsListResponse.serializer(), body)
+            val items = cmsResp.list.map { it.toVodItem() }
+            val result = top.yogiczy.mytv.core.data.entities.vod.VodItemList(
+                list = items, page = cmsResp.page,
+                pagecount = cmsResp.pagecount, total = cmsResp.total
+            )
+            response.send(Globals.json.encodeToString(
+                top.yogiczy.mytv.core.data.entities.vod.VodItemList.serializer(), result
+            ))
+        } catch (e: Exception) {
+            log.e("VOD 搜索失败: ${e.message}", e)
+            response.send("""{"list":[],"pagecount":0}""")
+        }
+    }
+
+    private fun handleVodDetail(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse) {
+        try {
+            wrapResponse(response)
+            val sourceKey = request.query.getString("source") ?: ""
+            val id = request.query.getString("id") ?: ""
+            val source = Constants.VOD_SOURCE_LIST.find { it.key == sourceKey }
+                ?: throw Exception("采集源不存在: $sourceKey")
+            val url = "${source.api}?ac=detail&ids=$id"
+            val body = fetchUrl(url)
+            val cmsResp = jsonIgnorant.decodeFromString(VodCmsListResponse.serializer(), body)
+            val item = cmsResp.list.firstOrNull() ?: throw Exception("未找到影片")
+            val detail = item.toVodDetail(sourceKey)
+            response.send(Globals.json.encodeToString(
+                top.yogiczy.mytv.core.data.entities.vod.VodDetail.serializer(), detail
+            ))
+        } catch (e: Exception) {
+            log.e("VOD 详情失败: ${e.message}", e)
+            response.send("""{"vod_name":"","play_sources":[]}""")
+        }
+    }
+
+    /** HTTP GET 抓取 */
+    private fun fetchUrl(url: String): String {
+        val client = okhttp3.OkHttpClient.Builder()
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+        val req = okhttp3.Request.Builder().url(url)
+            .header("User-Agent", "Mozilla/5.0")
+            .build()
+        client.newCall(req).execute().use { resp ->
+            if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}")
+            return resp.body?.string() ?: throw Exception("空响应")
+        }
+    }
+}
+
+/** CMS 条目转 VodItem */
+private fun VodCmsItem.toVodItem() = top.yogiczy.mytv.core.data.entities.vod.VodItem(
+    vod_id = vod_id.toString(),
+    vod_name = vod_name,
+    vod_pic = vod_pic,
+    vod_remarks = vod_remarks,
+    type_name = type_name,
+    vod_year = vod_year,
+    vod_area = vod_area,
+    vod_score = vod_score,
+)
+
+/** CMS 条目转 VodDetail (解析 play_from / play_url) */
+private fun VodCmsItem.toVodDetail(sourceKey: String): top.yogiczy.mytv.core.data.entities.vod.VodDetail {
+    val lineNames = vod_play_from.split("$$$")
+    val lineUrls = vod_play_url.split("$$$")
+    val playSources = lineNames.mapIndexed { i, lineName ->
+        val eps = (lineUrls.getOrNull(i) ?: "").split("#")
+            .filter { it.isNotBlank() }
+            .map { ep ->
+                val parts = ep.split("$", limit = 2)
+                top.yogiczy.mytv.core.data.entities.vod.Episode(
+                    name = if (parts.size > 1) parts[0] else "第${ep}集",
+                    url = if (parts.size > 1) parts[1] else parts[0],
+                )
+            }
+        top.yogiczy.mytv.core.data.entities.vod.PlaySource(name = lineName.trim(), episodes = eps)
+    }.filter { it.episodes.isNotEmpty() }
+
+    return top.yogiczy.mytv.core.data.entities.vod.VodDetail(
+        vod_id = vod_id.toString(),
+        vod_name = vod_name,
+        vod_pic = vod_pic,
+        vod_content = vod_content,
+        vod_actor = vod_actor,
+        vod_director = vod_director,
+        vod_area = vod_area,
+        vod_year = vod_year,
+        type_name = type_name,
+        vod_remarks = vod_remarks,
+        vod_score = vod_score,
+        play_sources = playSources,
+        source = sourceKey,
+    )
 }
 
 @Serializable
@@ -813,3 +1008,47 @@ private data class AppAbout(
     val deviceName: String,
     val deviceId: String,
 )
+
+// === VOD 代理实现 ===
+
+@Serializable
+private data class VodCmsItem(
+    val vod_id: Int = 0,
+    val vod_name: String = "",
+    val vod_pic: String = "",
+    val vod_remarks: String = "",
+    val type_name: String = "",
+    val vod_year: String = "",
+    val vod_area: String = "",
+    val vod_score: String = "",
+    val vod_content: String = "",
+    val vod_actor: String = "",
+    val vod_director: String = "",
+    val vod_play_from: String = "",
+    val vod_play_url: String = "",
+)
+
+@Serializable
+private data class VodCmsListResponse(
+    val code: Int = 0,
+    val msg: String = "",
+    val list: List<VodCmsItem> = emptyList(),
+    val page: Int = 1,
+    val pagecount: Int = 1,
+    val total: Int = 0,
+    val limit: Int = 0,
+    val `class`: List<VodCmsCategory> = emptyList(),
+)
+
+@Serializable
+private data class VodCmsCategory(
+    val type_id: Int = 0,
+    val type_name: String = "",
+    val type_pid: Int = 0,
+)
+
+private val jsonIgnorant = kotlinx.serialization.json.Json {
+    ignoreUnknownKeys = true
+    isLenient = true
+    coerceInputValues = true
+}
