@@ -26,10 +26,6 @@
                 </div>
 
                 <template v-if="tabActive === 'config'">
-                    <van-cell-group inset>
-                        <van-cell title="点击进入高级模式" is-link url="/advance"></van-cell>
-                    </van-cell-group>
-
                     <van-cell-group inset title="直播源">
                         <van-cell title="自定义直播源">
                             <template #label>
@@ -203,119 +199,11 @@
                         </van-cell>
                     </van-cell-group>
 
-                    <van-cell-group inset title="云同步">
-                        <van-cell title="服务商">
-                            <template #label>
-                                <van-radio-group direction="horizontal" v-model="configs.cloudSyncProvider">
-                                    <van-radio name="GITHUB_GIST">GitHub Gist</van-radio>
-                                    <van-radio name="GITEE_GIST">Gitee 代码片段</van-radio>
-                                    <van-radio name="NETWORK_URL">网络链接</van-radio>
-                                    <van-radio name="LOCAL_FILE">本地文件</van-radio>
-                                    <van-radio name="WEBDAV">WebDAV</van-radio>
-                                </van-radio-group>
-                            </template>
-                        </van-cell>
-
-                        <template v-if="configs.cloudSyncProvider === 'GITHUB_GIST'">
-                            <van-cell title="Github Gist Id">
-                                <template #label>
-                                    <van-field class="!p-0" v-model="configs.cloudSyncGithubGistId"></van-field>
-                                </template>
-                            </van-cell>
-
-                            <van-cell title="Github Gist Token">
-                                <template #label>
-                                    <van-field class="!p-0" v-model="configs.cloudSyncGithubGistToken"></van-field>
-                                </template>
-                            </van-cell>
-                        </template>
-
-                        <template v-if="configs.cloudSyncProvider === 'GITEE_GIST'">
-                            <van-cell title="Gitee 代码片段 Id">
-                                <template #label>
-                                    <van-field class="!p-0" v-model="configs.cloudSyncGiteeGistId"></van-field>
-                                </template>
-                            </van-cell>
-
-                            <van-cell title="Gitee 代码片段 Token">
-                                <template #label>
-                                    <van-field class="!p-0" v-model="configs.cloudSyncGiteeGistToken"></van-field>
-                                </template>
-                            </van-cell>
-                        </template>
-
-                        <template v-if="configs.cloudSyncProvider === 'NETWORK_URL'">
-                            <van-cell title="网络链接">
-                                <template #label>
-                                    <van-field class="!p-0" v-model="configs.cloudSyncNetworkUrl"></van-field>
-                                </template>
-                            </van-cell>
-                        </template>
-
-                        <template v-if="configs.cloudSyncProvider === 'LOCAL_FILE'">
-                            <van-cell title="本地文件路径">
-                                <template #label>
-                                    <van-field class="!p-0" v-model="configs.cloudSyncLocalFilePath"></van-field>
-                                </template>
-                            </van-cell>
-                        </template>
-
-                        <template v-if="configs.cloudSyncProvider === 'WEBDAV'">
-                            <van-cell title="WebDAV 地址">
-                                <template #label>
-                                    <van-field class="!p-0" v-model="configs.cloudSyncWebDavUrl"></van-field>
-                                </template>
-                            </van-cell>
-
-                            <van-cell title="WebDAV 用户名">
-                                <template #label>
-                                    <van-field class="!p-0" v-model="configs.cloudSyncWebDavUsername"></van-field>
-                                </template>
-                            </van-cell>
-
-                            <van-cell title="WebDAV 密码">
-                                <template #label>
-                                    <van-field class="!p-0" v-model="configs.cloudSyncWebDavPassword"></van-field>
-                                </template>
-                            </van-cell>
-                        </template>
-
-                        <van-cell>
-                            <div class="flex justify-end">
-                                <van-button @click="pushConfigs" size="small" type="primary">
-                                    推送
-                                </van-button>
-                            </div>
-                        </van-cell>
-                    </van-cell-group>
-
                     <van-cell-group inset title="调试">
                         <van-cell title="上传apk">
                             <template #extra>
                                 <van-uploader :after-read="uploadApkAfterRead" accept=".apk" />
                             </template>
-                        </van-cell>
-                    </van-cell-group>
-
-                    <van-cell-group inset title="二进制">
-                        <van-cell title="上传二进制">
-                            <template #extra>
-                                <van-uploader :after-read="uploadAllInOneAfterRead" accept="*.*" />
-                            </template>
-                        </van-cell>
-
-                        <van-cell title="二进制文件地址">
-                            <template #label>
-                                <van-field class="!p-0" v-model="configs.feiyangAllInOneFilePath"></van-field>
-                            </template>
-                        </van-cell>
-
-                        <van-cell>
-                            <div class="flex justify-end">
-                                <van-button @click="pushConfigs" size="small" type="primary">
-                                    推送
-                                </van-button>
-                            </div>
                         </van-cell>
                     </van-cell-group>
                 </template>
@@ -564,19 +452,6 @@
                     }
                 }
 
-                async function uploadAllInOneAfterRead(file) {
-                    try {
-                        vant.showLoadingToast({ message: '加载中...', forbidClick: true, duration: 0 })
-                        const formData = new FormData()
-                        formData.append('filename', file.file)
-                        await requestApi('/api/upload/allinone', { method: "POST", body: formData })
-                        vant.closeToast()
-                    } catch (e) {
-                        vant.showFailToast('上传AllInOne失败')
-                        console.error(e)
-                    }
-                }
-
                 const videoPlayerHeadersExample = "Header-Name-1: Header-Value-1\nHeader-Name-2: Header-Value-2"
 
                 onMounted(async () => {
@@ -606,7 +481,6 @@
                     channelAlias,
                     updateChannelAlias,
                     uploadApkAfterRead,
-                    uploadAllInOneAfterRead,
                     videoPlayerHeadersExample,
                 }
             }

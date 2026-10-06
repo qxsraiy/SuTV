@@ -163,10 +163,6 @@ object HttpServer : Loggable("HttpServer") {
                     handleFileContentWithDirPost(request, response)
                 }
 
-                server.post("/api/upload/allinone") { request, response ->
-                    handleUploadAllInOne(request, response)
-                }
-
                 // 咪咕直播源 - 内置后端
                 server.get("/migu.m3u") { request, response ->
                     handleMiguM3u(request, response, context)
@@ -421,44 +417,6 @@ object HttpServer : Loggable("HttpServer") {
             os.flush()
             os.close()
             ApkInstaller.installApk(context, uploadedApkFile.path)
-        }
-
-        responseSuccess(response)
-    }
-
-    private fun handleUploadAllInOne(
-        request: AsyncHttpServerRequest,
-        response: AsyncHttpServerResponse,
-    ) {
-        val body = request.getBody<MultipartFormDataBody>()
-
-        val contentLength = request.headers["Content-Length"]?.toLong() ?: 1
-        var hasReceived = 0L
-
-        val allinoneFile = File(Globals.fileDir, "uploads/allinone").apply { parentFile?.mkdirs() }
-
-        body.setMultipartCallback { part ->
-            if (part.isFile) {
-                with(allinoneFile.outputStream()) {
-
-                    body.setDataCallback { _, bb ->
-                        val byteArray = bb.allByteArray
-                        hasReceived += byteArray.size
-                        Snackbar.show(
-                            "正在接收文件: ${(hasReceived * 100f / contentLength).toInt()}%",
-                            leadingLoading = true,
-                            id = "uploading_file",
-                        )
-                        write(byteArray)
-                    }
-                }
-            }
-        }
-
-        body.setEndCallback {
-            body.dataEmitter.close()
-            Configs.feiyangAllInOneFilePath = allinoneFile.absolutePath
-            Snackbar.show("文件接收完成", id = "uploading_file")
         }
 
         responseSuccess(response)
