@@ -183,9 +183,6 @@ fun MainScreen(
             ) {
                 DashboardScreen(
                     currentIptvSourceProvider = { settingsViewModel.iptvSourceCurrent },
-                    channelFavoriteListProvider = { settingsViewModel.iptvChannelFavoriteList },
-                    onChannelSelected = { onChannelSelected(it) },
-                    epgListProvider = epgListProvider,
                     toLiveScreen = { navController.navigateSingleTop(Screens.Live()) },
                     toVodScreen = { navController.navigateSingleTop(Screens.Vod()) },
                     toFavoritesScreen = { navController.navigateSingleTop(Screens.Favorites()) },
@@ -258,6 +255,10 @@ fun MainScreen(
                 arguments = listOf(
                     navArgument(SettingsScreen.START_DESTINATION) { type = NavType.StringType }
                 ),
+                enterTransition = { fadeIn(tween(300)) },
+                exitTransition = { fadeOut(tween(300)) },
+                popEnterTransition = { fadeIn(tween(300)) },
+                popExitTransition = { fadeOut(tween(300)) },
             ) { backStackEntry ->
                 SettingsScreen(
                     startDestinationProvider = {

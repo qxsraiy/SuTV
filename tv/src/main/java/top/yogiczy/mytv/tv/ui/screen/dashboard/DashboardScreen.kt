@@ -41,7 +41,6 @@ import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
 import top.yogiczy.mytv.core.data.repositories.iptv.IptvRepository
 import top.yogiczy.mytv.tv.ui.rememberChildPadding
 import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
-import top.yogiczy.mytv.tv.ui.screen.dashboard.components.DashboardFavoriteList
 import top.yogiczy.mytv.tv.ui.screen.dashboard.components.DashboardModuleList
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.utils.Configs
@@ -52,10 +51,6 @@ import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
 fun DashboardScreen(
     modifier: Modifier = Modifier,
     currentIptvSourceProvider: () -> IptvSource = { IptvSource() },
-    channelFavoriteListProvider: () -> ChannelFavoriteList = { ChannelFavoriteList() },
-    onChannelSelected: (Channel) -> Unit = {},
-    onChannelFavoriteToggle: (Channel) -> Unit = {},
-    epgListProvider: () -> EpgList = { EpgList() },
     toLiveScreen: () -> Unit = {},
     toVodScreen: () -> Unit = {},
     toFavoritesScreen: () -> Unit = {},
@@ -109,15 +104,6 @@ fun DashboardScreen(
                     toLiveScreen = toLiveScreen,
                     toVodScreen = toVodScreen,
                     toFavoritesScreen = toFavoritesScreen,
-                )
-            }
-
-            item {
-                DashboardFavoriteList(
-                    channelFavoriteListProvider = channelFavoriteListProvider,
-                    onChannelSelected = onChannelSelected,
-                    onChannelUnFavorite = onChannelFavoriteToggle,
-                    epgListProvider = epgListProvider,
                 )
             }
         }
@@ -174,8 +160,6 @@ private fun DashboardScreenScreen() {
     MyTvTheme {
         DashboardScreen(
             currentIptvSourceProvider = { IptvSource(name = "默认直播源1") },
-            channelFavoriteListProvider = { ChannelFavoriteList.EXAMPLE },
-            epgListProvider = { EpgList.example(ChannelList.EXAMPLE) },
         )
         // PreviewWithLayoutGrids { }
     }
