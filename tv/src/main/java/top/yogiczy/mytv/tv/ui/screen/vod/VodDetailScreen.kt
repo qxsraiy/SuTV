@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.hls.HlsMediaSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.common.MediaItem
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
@@ -56,7 +58,6 @@ fun VodDetailScreen(
     onBack: () -> Unit,
 ) {
     val state by vm.state
-    var sourceIdx by remember { mutableIntStateOf(0) }
     var epIdx by remember { mutableIntStateOf(initialEpIdx) }
     var isPlaying by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -67,6 +68,19 @@ fun VodDetailScreen(
     }
 
     val detail = state.detail
+
+    // 优先选含 m3u8 URL 的线路 (详情变化时自动重选)
+    var sourceIdx by remember(detail) {
+        mutableIntStateOf(
+            if (detail != null && detail.play_sources.isNotEmpty()) {
+                val idx = detail.play_sources.indexOfFirst {
+                    it.episodes.any { e -> e.url.contains("m3u8", ignoreCase = true) }
+                }
+                if (idx >= 0) idx else 0
+            } else 0
+        )
+    }
+
     // 创建 ExoPlayer
     val player = remember {
         ExoPlayer.Builder(context).build()
@@ -81,14 +95,32 @@ fun VodDetailScreen(
             .background(Color(0xFF1A1A1A))
     ) {
         if (isPlaying && detail != null) {
-            // 全屏播放
+            // 全屏播放 — 强制选含 m3u8 URL 的线路
             val sources = detail.play_sources
-            val currentSource = sources.getOrNull(sourceIdx)
+            val effectiveSourceIdx = if (sources.getOrNull(sourceIdx)?.episodes?.any { it.url.contains("m3u8", ignoreCase = true) } == true) {
+                sourceIdx
+            } else {
+                val m3u8Idx = sources.indexOfFirst { it.episodes.any { e -> e.url.contains("m3u8", ignoreCase = true) } }
+                if (m3u8Idx >= 0) m3u8Idx else sourceIdx
+            }
+            val currentSource = sources.getOrNull(effectiveSourceIdx)
             val currentEp = currentSource?.episodes?.getOrNull(epIdx)
+            android.util.Log.d("VodPlayer", "sourceIdx=$sourceIdx effective=$effectiveSourceIdx url=${currentEp?.url}")
 
             LaunchedEffect(currentEp?.url) {
-                if (currentEp != null) {
-                    player.setMediaItem(MediaItem.fromUri(currentEp.url))
+                if (currentEp != null && currentEp.url.isNotBlank()) {
+                    if (currentEp.url.contains("m3u8", ignoreCase = true)) {
+                        // HLS 流: 用 HlsMediaSource 确保走 HLS 解析
+                        val dataSourceFactory = DefaultHttpDataSource.Factory()
+                            .setUserAgent("Mozilla/5.0")
+                            .setConnectTimeoutMs(15000)
+                            .setReadTimeoutMs(20000)
+                        val hlsSource = HlsMediaSource.Factory(dataSourceFactory)
+                            .createMediaSource(MediaItem.fromUri(currentEp.url))
+                        player.setMediaSource(hlsSource)
+                    } else {
+                        player.setMediaItem(MediaItem.fromUri(currentEp.url))
+                    }
                     player.prepare()
                     player.playWhenReady = true
                 }
