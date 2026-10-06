@@ -33,7 +33,6 @@ import top.yogiczy.mytv.tv.ui.screensold.channel.components.ChannelItemGrid
 import top.yogiczy.mytv.tv.ui.screensold.channel.components.ChannelItemGroupList
 import top.yogiczy.mytv.tv.ui.screensold.channel.components.ChannelNumber
 import top.yogiczy.mytv.tv.ui.screensold.components.rememberScreenAutoCloseState
-import top.yogiczy.mytv.tv.ui.screensold.datetime.components.DateTimeDetail
 import top.yogiczy.mytv.tv.ui.screensold.videoplayer.player.VideoPlayer
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.tooling.PreviewWithLayoutGrids
@@ -122,8 +121,6 @@ fun ChannelScreenTopRight(
                         .height(30.dp),
                 )
             }
-
-            DateTimeDetail()
         }
     }
 }

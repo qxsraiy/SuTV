@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Tv
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.runtime.Composable
@@ -25,7 +24,6 @@ fun DashboardModuleList(
     toLiveScreen: () -> Unit = {},
     toVodScreen: () -> Unit = {},
     toFavoritesScreen: () -> Unit = {},
-    toSettingsScreen: () -> Unit = {},
 ) {
     val childPadding = rememberChildPadding()
 
@@ -55,20 +53,12 @@ fun DashboardModuleList(
 
         item {
             DashboardModuleItem(
-                imageVector = Icons.Outlined.FavoriteBorder,
-                title = "收藏",
-                onSelected = toFavoritesScreen,
-            )
-        }
-
-        item {
-            DashboardModuleItem(
                 modifier = Modifier
                     .focusRequester(runtime.lastItemFocusRequester)
                     .handleKeyEvents(onRight = { runtime.scrollToFirst() }),
-                imageVector = Icons.Outlined.Settings,
-                title = "设置",
-                onSelected = toSettingsScreen,
+                imageVector = Icons.Outlined.FavoriteBorder,
+                title = "收藏",
+                onSelected = toFavoritesScreen,
             )
         }
     }

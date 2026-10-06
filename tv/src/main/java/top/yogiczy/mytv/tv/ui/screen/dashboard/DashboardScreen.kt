@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.SyncAlt
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,12 +23,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
+import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import kotlinx.coroutines.launch
 import top.yogiczy.mytv.core.data.entities.channel.Channel
@@ -39,7 +43,6 @@ import top.yogiczy.mytv.tv.ui.rememberChildPadding
 import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
 import top.yogiczy.mytv.tv.ui.screen.dashboard.components.DashboardFavoriteList
 import top.yogiczy.mytv.tv.ui.screen.dashboard.components.DashboardModuleList
-import top.yogiczy.mytv.tv.ui.screen.dashboard.components.DashboardTime
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.utils.Configs
 import top.yogiczy.mytv.tv.ui.utils.focusOnLaunched
@@ -78,7 +81,22 @@ fun DashboardScreen(
                 },
             )
         },
-        headerExtra = { DashboardTime() },
+        headerExtra = {
+            var settingsFocused by remember { mutableStateOf(false) }
+            Box(
+                modifier = Modifier
+                    .onFocusChanged { settingsFocused = it.isFocused || it.hasFocus }
+                    .focusable()
+                    .handleKeyEvents(onSelect = toSettingsScreen),
+            ) {
+                Icon(
+                    Icons.Outlined.Settings,
+                    contentDescription = "设置",
+                    modifier = Modifier.size(if (settingsFocused) 30.dp else 26.dp),
+                    tint = if (settingsFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        },
         onBackPressed = onBackPressed,
     ) {
         LazyColumn(
@@ -91,7 +109,6 @@ fun DashboardScreen(
                     toLiveScreen = toLiveScreen,
                     toVodScreen = toVodScreen,
                     toFavoritesScreen = toFavoritesScreen,
-                    toSettingsScreen = toSettingsScreen,
                 )
             }
 

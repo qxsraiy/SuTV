@@ -36,7 +36,6 @@ import top.yogiczy.mytv.tv.ui.screen.settings.SettingsSubCategories
 import top.yogiczy.mytv.tv.ui.screen.settings.settingsVM
 import top.yogiczy.mytv.tv.ui.screensold.channel.components.ChannelNumber
 import top.yogiczy.mytv.tv.ui.screensold.components.rememberScreenAutoCloseState
-import top.yogiczy.mytv.tv.ui.screensold.datetime.components.DateTimeDetail
 import top.yogiczy.mytv.tv.ui.screensold.quickop.components.QuickOpBtnList
 import top.yogiczy.mytv.tv.ui.screensold.videoplayer.VideoPlayerDisplayMode
 import top.yogiczy.mytv.tv.ui.screensold.videoplayer.player.VideoPlayer
@@ -143,8 +142,6 @@ private fun QuickOpScreenTop(
                         .height(30.dp),
                 )
             }
-
-            DateTimeDetail()
         }
     }
 }
