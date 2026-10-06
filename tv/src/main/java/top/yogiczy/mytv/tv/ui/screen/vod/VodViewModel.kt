@@ -3,7 +3,6 @@ package top.yogiczy.mytv.tv.ui.screen.vod
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -49,6 +48,12 @@ class VodViewModel : ViewModel() {
 
     private val _state = androidx.compose.runtime.mutableStateOf(VodUiState())
     val state: androidx.compose.runtime.State<VodUiState> = _state
+
+    // 共享OkHttpClient, 避免每次创建
+    private val httpClient = okhttp3.OkHttpClient.Builder()
+        .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(12, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
 
     init {
         loadSources()
@@ -118,6 +123,7 @@ class VodViewModel : ViewModel() {
 
     fun search(wd: String, sourceKey: String) {
         viewModelScope.launch(Dispatchers.IO) {
+            // 只改搜索状态, 不动源/分类/列表 — 防止搜索失败后全空
             _state.value = _state.value.copy(loading = true)
             try {
                 val json = apiGet("$serverUrl/vod/search?source=$sourceKey&wd=${java.net.URLEncoder.encode(wd, "UTF-8")}")
@@ -131,30 +137,8 @@ class VodViewModel : ViewModel() {
         }
     }
 
-    // 搜索全部源 — 并发查询, 合并去重
-    fun searchAll(wd: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            _state.value = _state.value.copy(loading = true, searchResults = emptyList())
-            val sources = _state.value.sources
-            val results = mutableListOf<VodItem>()
-            val jobs = sources.map { src ->
-                async(Dispatchers.IO) {
-                    try {
-                        val json = apiGet("$serverUrl/vod/search?source=${src.key}&wd=${java.net.URLEncoder.encode(wd, "UTF-8")}")
-                        val resp = vodJson.decodeFromString(VodItemList.serializer(), json)
-                        resp.list.map { it.copy() } // 标记来源
-                    } catch (e: Exception) {
-                        emptyList<VodItem>()
-                    }
-                }
-            }
-            for (job in jobs) {
-                results.addAll(job.await())
-                // 渐进式更新
-                _state.value = _state.value.copy(searchResults = results.toList())
-            }
-            _state.value = _state.value.copy(loading = false)
-        }
+    fun clearSearch() {
+        _state.value = _state.value.copy(searchResults = emptyList())
     }
 
     fun loadDetail(sourceKey: String, id: String) {
@@ -163,7 +147,6 @@ class VodViewModel : ViewModel() {
             try {
                 val json = apiGet("$serverUrl/vod/detail?source=$sourceKey&id=$id")
                 val detail = vodJson.decodeFromString(VodDetail.serializer(), json)
-                // 原始源的线路
                 val merged = detail.play_sources.map { ps ->
                     MergedPlaySource(sourceKey, detail.source, id, ps.name, ps.episodes)
                 }
@@ -174,54 +157,13 @@ class VodViewModel : ViewModel() {
         }
     }
 
-    // 跨源搜索同名影片并加载详情, 合并所有播放线路
-    fun searchAndMergeSources(vodName: String, originalSourceKey: String, originalVodId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val allSources = _state.value.sources
-            val current = _state.value.mergedSources.toMutableList()
-            val searchedNames = current.map { it.sourceKey }.toMutableSet()
-            searchedNames.add(originalSourceKey) // 跳过原始源
-
-            val jobs = allSources.filter { it.key !in searchedNames }.map { src ->
-                async(Dispatchers.IO) {
-                    try {
-                        val searchJson = apiGet("$serverUrl/vod/search?source=${src.key}&wd=${java.net.URLEncoder.encode(vodName, "UTF-8")}")
-                        val searchResp = vodJson.decodeFromString(VodItemList.serializer(), searchJson)
-                        // 找名称完全匹配或包含的结果
-                        val match = searchResp.list.find { it.vod_name == vodName || it.vod_name.contains(vodName) || vodName.contains(it.vod_name) }
-                        if (match != null) {
-                            val detailJson = apiGet("$serverUrl/vod/detail?source=${src.key}&id=${match.vod_id}")
-                            val d = vodJson.decodeFromString(VodDetail.serializer(), detailJson)
-                            d.play_sources.map { ps ->
-                                MergedPlaySource(src.key, src.name, match.vod_id, ps.name, ps.episodes)
-                            }
-                        } else emptyList()
-                    } catch (e: Exception) {
-                        emptyList()
-                    }
-                }
-            }
-            for (job in jobs) {
-                val newSources = job.await()
-                if (newSources.isNotEmpty()) {
-                    current.addAll(newSources)
-                    _state.value = _state.value.copy(mergedSources = current.toList())
-                }
-            }
-        }
-    }
-
     fun clearDetail() {
         _state.value = _state.value.copy(detail = null)
     }
 
     private suspend fun apiGet(url: String): String = withContext(Dispatchers.IO) {
-        val client = okhttp3.OkHttpClient.Builder()
-            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-            .build()
         val req = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build()
-        client.newCall(req).execute().use { resp ->
+        httpClient.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}")
             resp.body?.string() ?: throw Exception("空响应")
         }

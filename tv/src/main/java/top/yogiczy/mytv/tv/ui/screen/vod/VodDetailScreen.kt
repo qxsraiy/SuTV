@@ -91,16 +91,9 @@ fun VodDetailScreen(
         }
     }
 
-    // 加载详情 + 跨源搜索
+    // 加载详情 (内部自动触发跨源搜索)
     LaunchedEffect(sourceKey, vodId) {
         vm.loadDetail(sourceKey, vodId)
-    }
-    // 详情加载后自动搜索所有源
-    LaunchedEffect(state.detail?.vod_name) {
-        val name = state.detail?.vod_name
-        if (name != null && name.isNotBlank()) {
-            vm.searchAndMergeSources(name, sourceKey, vodId)
-        }
     }
 
     // 创建 ExoPlayer

@@ -263,6 +263,7 @@ private fun VodTopBar(
         Spacer(Modifier.width(12.dp))
 
         // 搜索框
+        val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
         BasicTextField(
             value = searchText,
             onValueChange = { searchText = it },
@@ -277,6 +278,17 @@ private fun VodTopBar(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             singleLine = true,
             cursorBrush = androidx.compose.ui.graphics.SolidColor(Color.White),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+            ),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                onSearch = {
+                    if (searchText.isNotEmpty()) {
+                        keyboardController?.hide()
+                        vm.search(searchText, state.currentSource.key)
+                    }
+                },
+            ),
         )
         Spacer(Modifier.width(8.dp))
         Box(
@@ -287,7 +299,10 @@ private fun VodTopBar(
                 .background(if (btnFocused) Color(0xFF6666BB) else Color(0xFF5555AA))
                 .border(if (btnFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
                 .clickable {
-                    if (searchText.isNotEmpty()) vm.searchAll(searchText)
+                    if (searchText.isNotEmpty()) {
+                        keyboardController?.hide()
+                        vm.search(searchText, state.currentSource.key)
+                    }
                 }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {

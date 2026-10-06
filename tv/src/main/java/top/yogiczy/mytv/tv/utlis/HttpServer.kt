@@ -908,6 +908,7 @@ object HttpServer : Loggable("HttpServer") {
         }
     }
 
+    /** 从拼音字符串提取首字母 (如 "zhanlang" → "zl") */
     private fun handleVodDetail(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse) {
         try {
             wrapResponse(response)
@@ -1026,6 +1027,8 @@ private data class VodCmsItem(
     val vod_director: String = "",
     val vod_play_from: String = "",
     val vod_play_url: String = "",
+    val vod_en: String = "",
+    val vod_letter: String = "",
 )
 
 @Serializable
