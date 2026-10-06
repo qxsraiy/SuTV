@@ -1,14 +1,17 @@
 package top.yogiczy.mytv.tv.ui.screen.vod
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -74,7 +77,7 @@ fun VodScreen(
             .background(Color(0xFF1A1A1A))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // 顶部栏: 返回 + 源选择 + 搜索
+            // 顶部栏
             VodTopBar(
                 vm = vm,
                 state = state,
@@ -108,7 +111,7 @@ fun VodScreen(
                         Text(
                             "最近观看",
                             color = Color(0xFFAAAAAA),
-                            fontSize = 13.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(bottom = 4.dp),
                         )
@@ -133,15 +136,16 @@ fun VodScreen(
                                 Text(
                                     hist.vodName,
                                     color = Color.White,
-                                    fontSize = 11.sp,
+                                    fontSize = 17.sp,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .basicMarquee(),
                                 )
                                 Text(
                                     "第${hist.epIdx + 1}集",
                                     color = Color(0xFF888888),
-                                    fontSize = 9.sp,
+                                    fontSize = 14.sp,
                                     maxLines = 1,
                                 )
                             }
@@ -149,49 +153,42 @@ fun VodScreen(
                     }
                 }
 
-                // 右侧: 影片网格 (4/5宽, 自适应列数)
+                // 右侧: 影片网格 (4/5宽, 自适应列数, 至少2行完整)
                 val gridWeight = if (showHistory) 4f else 1f
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier
                         .weight(gridWeight)
                         .fillMaxHeight()
                 ) {
-                    if (state.loading && state.items.isEmpty()) {
+                    // 根据可用高度计算: 2行完整的最小列宽
+                    // 卡片高度 = 图片高 + 文字高(~36dp) + padding(~8dp) ≈ 图片高 + 44dp
+                    // 2行 = 2*(图片高+44) + 1*间距(6) ≤ 可用高度
+                    // 图片高 ≤ (可用高度 - 6) / 2 - 44
+                    // 列宽 = 图片高 * 3/4 (3:4竖版比例)
+                    val availH = maxHeight
+                    val maxImageH = (availH - 6.dp) / 2f - 44.dp
+                    val minColW = (maxImageH * 3f / 4f).coerceAtLeast(80.dp)
+
+                    val displayItems = if (state.searchResults.isNotEmpty()) state.searchResults else state.items
+                    val isLoading = state.loading && displayItems.isEmpty()
+
+                    if (isLoading) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text("加载中...", color = Color.White, fontSize = 18.sp)
                         }
-                    } else if (state.searchResults.isNotEmpty()) {
-                        // 搜索结果
+                    } else if (displayItems.isNotEmpty()) {
                         LazyVerticalGrid(
-                            columns = GridCells.Adaptive(150.dp),
+                            columns = GridCells.Adaptive(minColW),
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(6.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            items(state.searchResults) { item ->
-                                VodCard(
-                                    item = item,
-                                    onClick = {
-                                        onPlayVod(state.currentSource.key, item.vod_id, item.vod_name, item.vod_pic, 0)
-                                    },
-                                )
-                            }
-                        }
-                    } else if (state.items.isNotEmpty()) {
-                        LazyVerticalGrid(
-                            columns = GridCells.Adaptive(150.dp),
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            items(state.items) { item ->
+                            items(displayItems) { item ->
                                 VodCard(
                                     item = item,
                                     onClick = {
@@ -200,7 +197,7 @@ fun VodScreen(
                                 )
                             }
                             // 加载更多
-                            if (state.page < state.pageCount) {
+                            if (state.searchResults.isEmpty() && state.page < state.pageCount) {
                                 item {
                                     LaunchedEffect(Unit) {
                                         vm.loadList(state.currentSource.key, "", state.page + 1)
@@ -290,7 +287,7 @@ private fun VodTopBar(
                 .background(if (btnFocused) Color(0xFF6666BB) else Color(0xFF5555AA))
                 .border(if (btnFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
                 .clickable {
-                    if (searchText.isNotEmpty()) vm.search(searchText, state.currentSource.key)
+                    if (searchText.isNotEmpty()) vm.searchAll(searchText)
                 }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
@@ -382,12 +379,13 @@ private fun VodCard(
             .clickable { onClick() }
             .padding(4.dp),
     ) {
+        // 3:4 竖版长方形比例
         AsyncImage(
             model = item.vod_pic,
             contentDescription = item.vod_name,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp)
+                .aspectRatio(3f / 4f)
                 .clip(RoundedCornerShape(6.dp)),
             contentScale = ContentScale.Crop,
         )

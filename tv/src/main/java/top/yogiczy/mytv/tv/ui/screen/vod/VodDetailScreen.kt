@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,14 +16,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.tv.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -41,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -66,61 +69,57 @@ fun VodDetailScreen(
     var isPlaying by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    // 播放时保存观看历史
-    LaunchedEffect(isPlaying, epIdx) {
-        if (isPlaying) {
-            VodHistoryManager.add(context, VodHistoryItem(sourceKey, vodId, vodName, vodPic, epIdx, System.currentTimeMillis()))
-        }
-    }
-
-    // 加载详情
-    LaunchedEffect(sourceKey, vodId) {
-        vm.loadDetail(sourceKey, vodId)
-    }
-
     val detail = state.detail
+    val mergedSources = state.mergedSources
 
-    // 优先选含 m3u8 URL 的线路 (详情变化时自动重选)
-    var sourceIdx by remember(detail) {
+    // 选含 m3u8 URL 的线路
+    var selectedLineIdx by remember(mergedSources) {
         mutableIntStateOf(
-            if (detail != null && detail.play_sources.isNotEmpty()) {
-                val idx = detail.play_sources.indexOfFirst {
-                    it.episodes.any { e -> e.url.contains("m3u8", ignoreCase = true) }
-                }
-                if (idx >= 0) idx else 0
-            } else 0
+            mergedSources.indexOfFirst { ms ->
+                ms.episodes.any { e -> e.url.contains("m3u8", ignoreCase = true) }
+            }.let { if (it >= 0) it else 0 }
         )
     }
 
+    // 播放时保存观看历史
+    LaunchedEffect(isPlaying, epIdx) {
+        if (isPlaying) {
+            val ms = mergedSources.getOrNull(selectedLineIdx)
+            val realSourceKey = ms?.sourceKey ?: sourceKey
+            val realVodId = ms?.vodId ?: vodId
+            VodHistoryManager.add(context, VodHistoryItem(realSourceKey, realVodId, vodName, vodPic, epIdx, System.currentTimeMillis()))
+        }
+    }
+
+    // 加载详情 + 跨源搜索
+    LaunchedEffect(sourceKey, vodId) {
+        vm.loadDetail(sourceKey, vodId)
+    }
+    // 详情加载后自动搜索所有源
+    LaunchedEffect(state.detail?.vod_name) {
+        val name = state.detail?.vod_name
+        if (name != null && name.isNotBlank()) {
+            vm.searchAndMergeSources(name, sourceKey, vodId)
+        }
+    }
+
     // 创建 ExoPlayer
-    val player = remember {
-        ExoPlayer.Builder(context).build()
-    }
-    DisposableEffect(Unit) {
-        onDispose { player.release() }
-    }
+    val player = remember { ExoPlayer.Builder(context).build() }
+    DisposableEffect(Unit) { onDispose { player.release() } }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF1A1A1A))
     ) {
-        if (isPlaying && detail != null) {
-            // 全屏播放 — 强制选含 m3u8 URL 的线路
-            val sources = detail.play_sources
-            val effectiveSourceIdx = if (sources.getOrNull(sourceIdx)?.episodes?.any { it.url.contains("m3u8", ignoreCase = true) } == true) {
-                sourceIdx
-            } else {
-                val m3u8Idx = sources.indexOfFirst { it.episodes.any { e -> e.url.contains("m3u8", ignoreCase = true) } }
-                if (m3u8Idx >= 0) m3u8Idx else sourceIdx
-            }
-            val currentSource = sources.getOrNull(effectiveSourceIdx)
-            val currentEp = currentSource?.episodes?.getOrNull(epIdx)
+        if (isPlaying && detail != null && mergedSources.isNotEmpty()) {
+            // ===== 全屏播放 =====
+            val ms = mergedSources.getOrNull(selectedLineIdx)
+            val currentEp = ms?.episodes?.getOrNull(epIdx)
 
             LaunchedEffect(currentEp?.url) {
                 if (currentEp != null && currentEp.url.isNotBlank()) {
                     if (currentEp.url.contains("m3u8", ignoreCase = true)) {
-                        // HLS 流: 用 HlsMediaSource 确保走 HLS 解析
                         val dataSourceFactory = DefaultHttpDataSource.Factory()
                             .setUserAgent("Mozilla/5.0")
                             .setConnectTimeoutMs(15000)
@@ -146,7 +145,6 @@ fun VodDetailScreen(
                         }
                     },
                 )
-                // 返回按钮
                 var playBackFocused by remember { mutableStateOf(false) }
                 Box(
                     modifier = Modifier
@@ -164,12 +162,13 @@ fun VodDetailScreen(
                 }
             }
         } else if (detail != null) {
-            // 详情页
+            // ===== 详情页: 上半图片+简介, 下半换源+选集 =====
             Column(modifier = Modifier.fillMaxSize()) {
-                // 顶部: 封面 + 信息
-                Row(
+                // ---- 上半部分: 返回 + 封面 + 信息 (屏幕一半高度) ----
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .fillMaxHeight(0.5f)
                         .padding(8.dp),
                 ) {
                     // 返回
@@ -181,125 +180,131 @@ fun VodDetailScreen(
                             .clip(RoundedCornerShape(8.dp))
                             .background(if (backFocused) Color(0xFF444466) else Color(0xFF333333))
                             .border(if (backFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
-                            .clickable {
-                                player.release()
-                                onBack()
-                            }
+                            .clickable { player.release(); onBack() }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                     ) {
                         Text("← 返回", color = Color.White, fontSize = 14.sp)
                     }
-                }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                ) {
-                    AsyncImage(
-                        model = detail.vod_pic.ifBlank { vodPic },
-                        contentDescription = detail.vod_name,
-                        modifier = Modifier
-                            .width(160.dp)
-                            .height(240.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop,
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(detail.vod_name.ifBlank { vodName }, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(4.dp))
-                        Text("${detail.type_name}  ${detail.vod_year}  ${detail.vod_area}", color = Color(0xFF888888), fontSize = 13.sp)
-                        if (detail.vod_score.isNotBlank()) {
-                            Text("评分: ${detail.vod_score}", color = Color(0xFFAAAA44), fontSize = 13.sp)
-                        }
-                        if (detail.vod_remarks.isNotBlank()) {
-                            Text("备注: ${detail.vod_remarks}", color = Color(0xFF888888), fontSize = 13.sp)
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        if (detail.vod_director.isNotBlank()) {
-                            Text("导演: ${detail.vod_director}", color = Color(0xFFAAAAAA), fontSize = 12.sp, maxLines = 1)
-                        }
-                        if (detail.vod_actor.isNotBlank()) {
-                            Text("演员: ${detail.vod_actor}", color = Color(0xFFAAAAAA), fontSize = 12.sp, maxLines = 2)
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            detail.vod_content.replace("<[^>]+>".toRegex(), "").trim(),
-                            color = Color(0xFFCCCCCC),
-                            fontSize = 12.sp,
-                            maxLines = 4,
-                        )
-                    }
-                }
-
-                // 线路切换
-                if (detail.play_sources.size > 1) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            .padding(top = 4.dp),
                     ) {
-                        detail.play_sources.forEachIndexed { i, src ->
-                            var srcFocused by remember { mutableStateOf(false) }
-                            Box(
-                                modifier = Modifier
-                                    .onFocusChanged { srcFocused = it.isFocused }
-                                    .focusable()
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(
-                                        if (srcFocused) Color(0xFF6666BB)
-                                        else if (i == sourceIdx) Color(0xFF5555AA)
-                                        else Color(0xFF333333)
-                                    )
-                                    .border(if (srcFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(6.dp))
-                                    .clickable { sourceIdx = i; epIdx = 0 }
-                                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                            ) {
-                                Text(src.name, color = Color.White, fontSize = 13.sp)
+                        // 封面: 屏幕一半宽度
+                        AsyncImage(
+                            model = detail.vod_pic.ifBlank { vodPic },
+                            contentDescription = detail.vod_name,
+                            modifier = Modifier
+                                .width(120.dp)
+                                .aspectRatio(3f / 4f)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(detail.vod_name.ifBlank { vodName }, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Spacer(Modifier.height(2.dp))
+                            Text("${detail.type_name}  ${detail.vod_year}  ${detail.vod_area}", color = Color(0xFF888888), fontSize = 12.sp, maxLines = 1)
+                            if (detail.vod_score.isNotBlank()) {
+                                Text("评分: ${detail.vod_score}", color = Color(0xFFAAAA44), fontSize = 12.sp)
                             }
+                            if (detail.vod_remarks.isNotBlank()) {
+                                Text("备注: ${detail.vod_remarks}", color = Color(0xFF888888), fontSize = 12.sp)
+                            }
+                            if (detail.vod_director.isNotBlank()) {
+                                Text("导演: ${detail.vod_director}", color = Color(0xFFAAAAAA), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                            if (detail.vod_actor.isNotBlank()) {
+                                Text("演员: ${detail.vod_actor}", color = Color(0xFFAAAAAA), fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                detail.vod_content.replace("<[^>]+>".toRegex(), "").trim(),
+                                color = Color(0xFFCCCCCC),
+                                fontSize = 11.sp,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     }
                 }
 
-                // 选集网格
-                val eps = detail.play_sources.getOrNull(sourceIdx)?.episodes ?: emptyList()
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(6),
+                // ---- 下半部分: 换源 + 选集 (屏幕一半高度) ----
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                        .padding(horizontal = 8.dp),
                 ) {
-                    items(eps.size) { i ->
-                        var epFocused by remember { mutableStateOf(false) }
-                        Box(
-                            modifier = Modifier
-                                .onFocusChanged { epFocused = it.isFocused }
-                                .focusable()
-                                .scale(if (epFocused) 1.08f else 1f)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(
-                                    if (epFocused) Color(0xFF6666BB)
-                                    else if (i == epIdx) Color(0xFF5555AA)
-                                    else Color(0xFF333333)
-                                )
-                                .border(if (epFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(6.dp))
-                                .clickable {
-                                    epIdx = i
-                                    isPlaying = true
-                                }
-                                .padding(8.dp),
-                            contentAlignment = Alignment.Center,
+                    // 换源标签 (横向滚动)
+                    if (mergedSources.isNotEmpty()) {
+                        Text("换源 (${mergedSources.size}条线路)", color = Color(0xFF888888), fontSize = 12.sp, modifier = Modifier.padding(bottom = 2.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(bottom = 4.dp),
                         ) {
-                            Text(
-                                eps[i].name.ifBlank { "第${i+1}集" },
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                            )
+                            items(mergedSources.size) { i ->
+                                val ms = mergedSources[i]
+                                var srcFocused by remember { mutableStateOf(false) }
+                                Box(
+                                    modifier = Modifier
+                                        .onFocusChanged { srcFocused = it.isFocused }
+                                        .focusable()
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(
+                                            if (srcFocused) Color(0xFF6666BB)
+                                            else if (i == selectedLineIdx) Color(0xFF5555AA)
+                                            else Color(0xFF333333)
+                                        )
+                                        .border(if (srcFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(6.dp))
+                                        .clickable { selectedLineIdx = i; epIdx = 0 }
+                                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                                ) {
+                                    Text(ms.label, color = Color.White, fontSize = 12.sp, maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+
+                    // 选集网格
+                    val eps = mergedSources.getOrNull(selectedLineIdx)?.episodes ?: emptyList()
+                    Text("选集 (${eps.size}集)", color = Color(0xFF888888), fontSize = 12.sp, modifier = Modifier.padding(bottom = 2.dp))
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(70.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        items(eps.size) { i ->
+                            var epFocused by remember { mutableStateOf(false) }
+                            Box(
+                                modifier = Modifier
+                                    .onFocusChanged { epFocused = it.isFocused }
+                                    .focusable()
+                                    .scale(if (epFocused) 1.08f else 1f)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(
+                                        if (epFocused) Color(0xFF6666BB)
+                                        else if (i == epIdx) Color(0xFF5555AA)
+                                        else Color(0xFF333333)
+                                    )
+                                    .border(if (epFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        epIdx = i
+                                        isPlaying = true
+                                    }
+                                    .padding(8.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    eps[i].name.ifBlank { "第${i+1}集" },
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    maxLines = 1,
+                                )
+                            }
                         }
                     }
                 }
