@@ -3,8 +3,11 @@ package top.yogiczy.mytv.tv.ui.screen.vod
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import okhttp3.Request
 import top.yogiczy.mytv.core.data.entities.vod.Episode
@@ -118,6 +121,48 @@ class VodViewModel : ViewModel() {
             } catch (e: Exception) {
                 _state.value = _state.value.copy(loading = false, error = e.message)
             }
+        }
+    }
+
+    // 并发搜索5个快速源 — 直接调CMS API, 绕过HttpServer
+    // 快速搜索专用client: 3.5秒超时
+    private val fastClient = okhttp3.OkHttpClient.Builder()
+        .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
+
+    // 5个快速源 (key, name, api)
+    private val fastSources = listOf(
+        Triple("bfzy", "暴风资源", "https://bfzyapi.com/api.php/provide/vod"),
+        Triple("ffzy", "飞飞资源", "https://cj.ffzyapi.com/api.php/provide/vod"),
+        Triple("360zy", "360资源", "https://360zy.com/api.php/provide/vod"),
+        Triple("guangsu", "光速资源", "https://api.guangsuapi.com/api.php/provide/vod"),
+        Triple("hongniu", "红牛资源", "https://www.hongniuzy2.com/api.php/provide/vod"),
+    )
+
+    fun searchMulti(wd: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.value = _state.value.copy(loading = true)
+            val encoded = java.net.URLEncoder.encode(wd, "UTF-8")
+            val jobs = fastSources.map { (key, name, api) ->
+                async(Dispatchers.IO) {
+                    try {
+                        withTimeoutOrNull(3500) {
+                            val url = "$api?wd=$encoded&pg=1"
+                            val req = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build()
+                            fastClient.newCall(req).execute().use { resp ->
+                                if (!resp.isSuccessful) return@withTimeoutOrNull emptyList()
+                                val body = resp.body?.string() ?: return@withTimeoutOrNull emptyList()
+                                val cms = vodJson.decodeFromString(VodItemList.serializer(), body)
+                                cms.list.map { it.copy(sourceKey = key, sourceName = name) }
+                            }
+                        } ?: emptyList()
+                    } catch (_: Exception) { emptyList() }
+                }
+            }
+            // 等全部完成(最多3.5秒), 一次性合并
+            val allResults = jobs.awaitAll().flatten().distinctBy { it.vod_name }
+            _state.value = _state.value.copy(searchResults = allResults, loading = false)
         }
     }
 

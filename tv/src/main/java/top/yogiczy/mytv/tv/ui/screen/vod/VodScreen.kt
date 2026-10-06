@@ -192,7 +192,8 @@ fun VodScreen(
                                 VodCard(
                                     item = item,
                                     onClick = {
-                                        onPlayVod(state.currentSource.key, item.vod_id, item.vod_name, item.vod_pic, 0)
+                                        val sk = if (item.sourceKey.isNotEmpty()) item.sourceKey else state.currentSource.key
+                                        onPlayVod(sk, item.vod_id, item.vod_name, item.vod_pic, 0)
                                     },
                                 )
                             }
@@ -285,7 +286,7 @@ private fun VodTopBar(
                 onSearch = {
                     if (searchText.isNotEmpty()) {
                         keyboardController?.hide()
-                        vm.search(searchText, state.currentSource.key)
+                        vm.searchMulti(searchText)
                     }
                 },
             ),
@@ -301,7 +302,7 @@ private fun VodTopBar(
                 .clickable {
                     if (searchText.isNotEmpty()) {
                         keyboardController?.hide()
-                        vm.search(searchText, state.currentSource.key)
+                        vm.searchMulti(searchText)
                     }
                 }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -415,6 +416,9 @@ private fun VodCard(
         )
         if (item.vod_remarks.isNotEmpty()) {
             Text(item.vod_remarks, color = Color(0xFF888888), fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (item.sourceName.isNotEmpty()) {
+            Text(item.sourceName, color = Color(0xFF6688AA), fontSize = 8.sp, maxLines = 1)
         }
     }
 }

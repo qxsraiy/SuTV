@@ -9,7 +9,6 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.InsertChart
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Tv
 import androidx.compose.material.icons.outlined.VideoLibrary
@@ -32,7 +31,6 @@ fun DashboardModuleList(
     toVodScreen: () -> Unit = {},
     toChannelsScreen: () -> Unit = {},
     toFavoritesScreen: () -> Unit = {},
-    toSearchScreen: () -> Unit = {},
     toMultiViewScreen: () -> Unit = {},
     toPushScreen: () -> Unit = {},
     toSettingsScreen: () -> Unit = {},
@@ -77,14 +75,6 @@ fun DashboardModuleList(
                 imageVector = Icons.Outlined.FavoriteBorder,
                 title = "收藏",
                 onSelected = toFavoritesScreen,
-            )
-        }
-
-        item {
-            DashboardModuleItem(
-                imageVector = Icons.Outlined.Search,
-                title = "搜索",
-                onSelected = toSearchScreen,
             )
         }
 

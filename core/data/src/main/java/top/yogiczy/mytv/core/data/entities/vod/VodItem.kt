@@ -15,6 +15,8 @@ data class VodItem(
     val vod_year: String = "",
     val vod_area: String = "",
     val vod_score: String = "",
+    val sourceKey: String = "",
+    val sourceName: String = "",
 )
 
 @Serializable

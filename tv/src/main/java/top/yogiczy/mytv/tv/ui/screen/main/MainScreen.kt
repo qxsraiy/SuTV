@@ -43,7 +43,7 @@ import top.yogiczy.mytv.tv.ui.screen.favorites.FavoritesScreen
 import top.yogiczy.mytv.tv.ui.screen.loading.LoadingScreen
 import top.yogiczy.mytv.tv.ui.screen.multiview.MultiViewScreen
 import top.yogiczy.mytv.tv.ui.screen.push.PushScreen
-import top.yogiczy.mytv.tv.ui.screen.search.SearchScreen
+
 import top.yogiczy.mytv.tv.ui.screen.settings.SettingsScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.SettingsSubCategories
 import top.yogiczy.mytv.tv.ui.screen.settings.SettingsViewModel
@@ -194,7 +194,6 @@ fun MainScreen(
                     toVodScreen = { navController.navigateSingleTop(Screens.Vod()) },
                     toChannelsScreen = { navController.navigateSingleTop(Screens.Channels()) },
                     toFavoritesScreen = { navController.navigateSingleTop(Screens.Favorites()) },
-                    toSearchScreen = { navController.navigateSingleTop(Screens.Search()) },
                     toMultiViewScreen = { navController.navigateSingleTop(Screens.MultiView()) },
                     toPushScreen = { navController.navigateSingleTop(Screens.Push()) },
                     toSettingsScreen = { navController.navigateSingleTop(Screens.Settings()) },
@@ -267,16 +266,6 @@ fun MainScreen(
                     onChannelSelected = { onChannelSelected(it) },
                     onChannelFavoriteToggle = { onChannelFavoriteToggle(it) },
                     onChannelFavoriteClear = { onChannelFavoriteClear() },
-                    epgListProvider = epgListProvider,
-                    onBackPressed = { navController.navigateUp() },
-                )
-            }
-
-            composable(Screens.Search()) {
-                SearchScreen(
-                    channelGroupListProvider = filteredChannelGroupListProvider,
-                    onChannelSelected = { onChannelSelected(it) },
-                    onChannelFavoriteToggle = { onChannelFavoriteToggle(it) },
                     epgListProvider = epgListProvider,
                     onBackPressed = { navController.navigateUp() },
                 )
