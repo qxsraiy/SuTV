@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -25,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.tv.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -33,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +54,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 
@@ -109,6 +113,24 @@ fun VodDetailScreen(
             // ===== 全屏播放 =====
             val ms = mergedSources.getOrNull(selectedLineIdx)
             val currentEp = ms?.episodes?.getOrNull(epIdx)
+            val epCount = ms?.episodes?.size ?: 0
+
+            // 自动连播: 播放完毕自动下一集
+            val latestEpIdx = rememberUpdatedState(epIdx)
+            val latestEpCount = rememberUpdatedState(epCount)
+            DisposableEffect(player) {
+                val listener = object : Player.Listener {
+                    override fun onPlaybackStateChanged(state: Int) {
+                        if (state == Player.STATE_ENDED) {
+                            if (latestEpIdx.value < latestEpCount.value - 1) {
+                                epIdx = latestEpIdx.value + 1
+                            }
+                        }
+                    }
+                }
+                player.addListener(listener)
+                onDispose { player.removeListener(listener) }
+            }
 
             LaunchedEffect(currentEp?.url) {
                 if (currentEp != null && currentEp.url.isNotBlank()) {
@@ -128,30 +150,104 @@ fun VodDetailScreen(
                 }
             }
 
-            Box(modifier = Modifier.fillMaxSize()) {
+            var controllerVisible by remember { mutableStateOf(true) }
+            val playerViewRef = remember { mutableStateOf<PlayerView?>(null) }
+
+            // 换集后显示控制器
+            LaunchedEffect(currentEp?.url) {
+                kotlinx.coroutines.delay(300)
+                playerViewRef.value?.showController()
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = {
+                                val pv = playerViewRef.value
+                                if (pv != null) {
+                                    if (controllerVisible) pv.hideController()
+                                    else pv.showController()
+                                }
+                            }
+                        )
+                    }
+            ) {
+
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->
                         PlayerView(ctx).apply {
                             this.player = player
                             useController = true
+                            setControllerAutoShow(true)
+                            setControllerShowTimeoutMs(5000)
+                            setShowPreviousButton(true)
+                            setShowNextButton(true)
+                            setControllerVisibilityListener(
+                                object : PlayerView.ControllerVisibilityListener {
+                                    override fun onVisibilityChanged(visibility: Int) {
+                                        controllerVisible = visibility == android.view.View.VISIBLE
+                                    }
+                                }
+                            )
+                            playerViewRef.value = this
+                        }
+                    },
+                    update = { view ->
+                        // 接管上一集/下一集按钮
+                        val prevId = view.resources.getIdentifier("exo_prev", "id", "androidx.media3.ui")
+                        val nextId = view.resources.getIdentifier("exo_next", "id", "androidx.media3.ui")
+                        view.findViewById<android.view.View>(prevId)?.setOnClickListener {
+                            if (epIdx > 0) epIdx--
+                        }
+                        view.findViewById<android.view.View>(nextId)?.setOnClickListener {
+                            if (epIdx < epCount - 1) epIdx++
                         }
                     },
                 )
-                var playBackFocused by remember { mutableStateOf(false) }
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp)
-                        .onFocusChanged { playBackFocused = it.isFocused }
-                        .focusable()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (playBackFocused) Color(0xAA000000) else Color(0x80000000))
-                        .border(if (playBackFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
-                        .clickable { isPlaying = false }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                ) {
-                    Text("← 返回", color = Color.White, fontSize = 14.sp)
+                // 顶部覆盖层: 跟随控制器
+                if (controllerVisible) {
+                    // 左上: 返回
+                    var playBackFocused by remember { mutableStateOf(false) }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp)
+                            .onFocusChanged { playBackFocused = it.isFocused }
+                            .focusable()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (playBackFocused) Color(0xAA000000) else Color(0x80000000))
+                            .border(if (playBackFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
+                            .clickable { isPlaying = false }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                    ) {
+                        Text("← 返回", color = Color.White, fontSize = 14.sp)
+                    }
+                    // 右上: 剧名 · 集数 + 源名
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0x80000000))
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    ) {
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                "${detail.vod_name} · ${currentEp?.name ?: ""}",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                ms?.label ?: "",
+                                color = Color(0xFFAAAACC),
+                                fontSize = 11.sp,
+                            )
+                        }
+                    }
                 }
             }
         } else if (detail != null) {
