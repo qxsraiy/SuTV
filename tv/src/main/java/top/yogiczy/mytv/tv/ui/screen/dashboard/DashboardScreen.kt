@@ -36,6 +36,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
+import top.yogiczy.mytv.tv.ui.screen.components.AppThemeWrapper
 import top.yogiczy.mytv.tv.ui.screen.dashboard.components.DashboardModuleList
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
@@ -53,10 +54,10 @@ fun DashboardScreen(
     onBackPressed: () -> Unit = {},
 ) {
     // 全屏 BoxWithConstraints: 自适应计算卡片尺寸和留白
+    AppThemeWrapper {
     BoxWithConstraints(
         modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black),
+            .fillMaxSize(),
     ) {
         val screenW = maxWidth
         val screenH = maxHeight
@@ -125,6 +126,7 @@ fun DashboardScreen(
             toVodScreen = toVodScreen,
             toFavoritesScreen = toFavoritesScreen,
         )
+    }
     }
 }
 
