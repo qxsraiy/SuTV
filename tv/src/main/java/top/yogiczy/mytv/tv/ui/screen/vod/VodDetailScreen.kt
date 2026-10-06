@@ -105,7 +105,6 @@ fun VodDetailScreen(
             }
             val currentSource = sources.getOrNull(effectiveSourceIdx)
             val currentEp = currentSource?.episodes?.getOrNull(epIdx)
-            android.util.Log.d("VodPlayer", "sourceIdx=$sourceIdx effective=$effectiveSourceIdx url=${currentEp?.url}")
 
             LaunchedEffect(currentEp?.url) {
                 if (currentEp != null && currentEp.url.isNotBlank()) {
