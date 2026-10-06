@@ -4,32 +4,24 @@ import android.content.Context
 import android.content.Intent
 import com.koushikdutta.async.AsyncServer
 import com.koushikdutta.async.http.body.JSONObjectBody
-import com.koushikdutta.async.http.body.MultipartFormDataBody
-import com.koushikdutta.async.http.body.StringBody
 import com.koushikdutta.async.http.server.AsyncHttpServer
 import com.koushikdutta.async.http.server.AsyncHttpServerRequest
 import com.koushikdutta.async.http.server.AsyncHttpServerResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import okhttp3.Request
-import top.yogiczy.mytv.core.data.entities.epgsource.EpgSource
-import top.yogiczy.mytv.core.data.entities.epgsource.EpgSourceList
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSourceList
 import top.yogiczy.mytv.core.data.entities.vod.VodSource
 import top.yogiczy.mytv.core.data.entities.vod.VodSourceList
-import top.yogiczy.mytv.core.data.repositories.epg.EpgRepository
 import top.yogiczy.mytv.core.data.repositories.iptv.IptvRepository
-import top.yogiczy.mytv.core.data.utils.ChannelAlias
 import top.yogiczy.mytv.core.data.utils.Constants
 import top.yogiczy.mytv.core.data.utils.Globals
 import top.yogiczy.mytv.core.data.utils.Loggable
 import top.yogiczy.mytv.core.data.utils.Logger
-import top.yogiczy.mytv.core.util.utils.ApkInstaller
 import top.yogiczy.mytv.tv.BuildConfig
 import top.yogiczy.mytv.tv.HttpServerService
 import top.yogiczy.mytv.tv.R
@@ -47,10 +39,6 @@ import java.net.SocketException
 
 object HttpServer : Loggable("HttpServer") {
     private const val SERVER_PORT = 10481
-    private val uploadedApkFile by lazy {
-        File(Globals.cacheDir, "uploaded_apk.apk").apply { deleteOnExit() }
-    }
-
     val serverUrl by lazy { "http://${getLocalIpAddress()}:${SERVER_PORT}" }
 
     fun start(context: Context) {
@@ -83,36 +71,12 @@ object HttpServer : Loggable("HttpServer") {
                     handleIptvSourcePush(request, response)
                 }
 
-                server.post("/api/epg-source/push") { request, response ->
-                    handleEpgSourcePush(request, response)
-                }
-
                 server.post("/api/vod-source/push") { request, response ->
                     handleVodSourcePush(request, response)
                 }
 
                 server.get("/api/vod-source/list") { _, response ->
                     handleVodSourceList(response)
-                }
-
-                server.get("/api/channel-alias") { _, response ->
-                    handleGetChannelAlias(response)
-                }
-
-                server.post("/api/channel-alias") { request, response ->
-                    handleUpdateChannelAlias(request, response)
-                }
-
-                server.get("/api/configs") { _, response ->
-                    handleConfigsGet(response)
-                }
-
-                server.post("/api/configs") { request, response ->
-                    handleConfigsPush(request, response)
-                }
-
-                server.post("/api/upload/apk") { request, response ->
-                    handleUploadApk(request, response, context)
                 }
 
                 server.get("/api/about") { _, response ->
@@ -264,22 +228,6 @@ object HttpServer : Loggable("HttpServer") {
         responseSuccess(response)
     }
 
-    private fun handleEpgSourcePush(
-        request: AsyncHttpServerRequest,
-        response: AsyncHttpServerResponse,
-    ) {
-        val body = request.getBody<JSONObjectBody>().get()
-        val name = body.get("name").toString()
-        val url = body.get("url").toString()
-
-        EpgSource(name, url).let {
-            Configs.epgSourceList = EpgSourceList(Configs.epgSourceList + it)
-            Configs.epgSourceCurrent = it
-        }
-
-        responseSuccess(response)
-    }
-
     private fun handleVodSourcePush(
         request: AsyncHttpServerRequest,
         response: AsyncHttpServerResponse,
@@ -304,82 +252,6 @@ object HttpServer : Loggable("HttpServer") {
         val allSources = Constants.VOD_SOURCE_LIST + Configs.vodSourceList
         val json = Globals.json.encodeToString(allSources)
         wrapResponse(response).apply { send(json) }
-    }
-
-    private fun handleGetChannelAlias(response: AsyncHttpServerResponse) {
-        wrapResponse(response).apply {
-            send(runCatching { ChannelAlias.aliasFile.readText() }.getOrElse { "" })
-        }
-    }
-
-    private fun handleUpdateChannelAlias(
-        request: AsyncHttpServerRequest,
-        response: AsyncHttpServerResponse,
-    ) {
-        val alias = request.getBody<StringBody>().get()
-
-        ChannelAlias.aliasFile.writeText(alias)
-        runBlocking {
-            IptvRepository.clearAllCache()
-            EpgRepository.clearAllCache()
-        }
-
-        responseSuccess(response)
-    }
-
-    private fun handleConfigsGet(response: AsyncHttpServerResponse) {
-        wrapResponse(response).apply {
-            setContentType("application/json")
-            send(Globals.json.encodeToString(Configs.toPartial()))
-        }
-    }
-
-    private fun handleConfigsPush(
-        request: AsyncHttpServerRequest,
-        response: AsyncHttpServerResponse,
-    ) {
-        val body = request.getBody<JSONObjectBody>().get()
-        val configs = Globals.json.decodeFromString<Configs.Partial>(body.toString())
-        Configs.fromPartial(configs)
-
-        responseSuccess(response)
-    }
-
-    private fun handleUploadApk(
-        request: AsyncHttpServerRequest,
-        response: AsyncHttpServerResponse,
-        context: Context,
-    ) {
-        val body = request.getBody<MultipartFormDataBody>()
-
-        val os = uploadedApkFile.outputStream()
-        val contentLength = request.headers["Content-Length"]?.toLong() ?: 1
-        var hasReceived = 0L
-
-        body.setMultipartCallback { part ->
-            if (part.isFile) {
-                body.setDataCallback { _, bb ->
-                    val byteArray = bb.allByteArray
-                    hasReceived += byteArray.size
-                    Snackbar.show(
-                        "正在接收文件: ${(hasReceived * 100f / contentLength).toInt()}%",
-                        leadingLoading = true,
-                        id = "uploading_apk",
-                    )
-                    os.write(byteArray)
-                }
-            }
-        }
-
-        body.setEndCallback {
-            Snackbar.show("正在准备安装，请稍后...", leadingLoading = true, duration = 10_000)
-            body.dataEmitter.close()
-            os.flush()
-            os.close()
-            ApkInstaller.installApk(context, uploadedApkFile.path)
-        }
-
-        responseSuccess(response)
     }
 
     private fun handleAboutGet(response: AsyncHttpServerResponse) {

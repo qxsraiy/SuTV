@@ -1,30 +1,55 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 
 <head>
-    <meta charset="utf-8">
-    <meta content="width=device-width, initial-scale=1" name="viewport">
-    <title>天光云影</title>
-    <link href="./web_push_css.css" rel="stylesheet" />
-    <script src="./web_push_js.js"></script>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>数据推送</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vant@4/lib/index.css" />
     <style>
-        .van-theme-dark body {
-            color: #f5f5f5;
-            background-color: black;
+        body {
+            margin: 0;
+            background-color: var(--van-background);
+        }
+
+        .w-full {
+            width: 100% !important;
+        }
+
+        .!pl-0 .van-field__label {
+            padding-left: 0;
+        }
+
+        .!p-0 .van-cell {
+            padding: 0;
+        }
+
+        .justify-end {
+            justify-content: flex-end;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .gap-1 {
+            gap: 4px;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .flex-col {
+            flex-direction: column;
         }
     </style>
 </head>
 
 <body>
-    <div class="min-h-100vh pt-46px pb-66px" id="app">
-        <van-config-provider :theme="isDark ? 'dark' : undefined">
+    <div id="app">
+        <van-config-provider :theme-vars="{ cellVerticalPadding: '8px' }" :theme="isDark ? 'dark' : 'light'">
             <template v-if="info">
-                <div class="p-20px pt-0">
-                    <div class="ml-16px text-32px">{{ info.appTitle }}</div>
-                    <div class="ml-16px text-gray text-14px">{{ info.appRepo }}</div>
-                </div>
-
                 <template v-if="tabActive === 'config'">
                     <van-cell-group inset title="直播源">
                         <van-cell title="自定义直播源">
@@ -73,59 +98,6 @@
                                 </van-space>
                             </template>
                         </van-cell>
-
-                        <van-cell title="频道图标提供">
-                            <template #label>
-                                <van-space class="w-full" direction="vertical" size="small">
-                                    <span>格式：{name} - 保持不变，{name|lowercase} - 小写，{name|uppercase} - 大写</span>
-
-                                    <van-field class="!p-0" placeholder="https://live.fanmingming.com/tv/{name}.png"
-                                        v-model="configs.iptvChannelLogoProvider"></van-field>
-
-                                    <div class="flex justify-end">
-                                        <van-button @click="pushConfigs" size="small" type="primary">
-                                            推送
-                                        </van-button>
-                                    </div>
-                                </van-space>
-                            </template>
-                        </van-cell>
-
-                        <van-cell title="频道别名">
-                            <template #label>
-                                <van-space class="w-full" direction="vertical" size="small">
-                                    <van-field :placeholder="channelAliasExample" class="!p-0" rows="5" type="textarea"
-                                        v-model="channelAlias"></van-field>
-
-                                    <div class="flex justify-end">
-                                        <van-button @click="updateChannelAlias" size="small" type="primary">
-                                            推送
-                                        </van-button>
-                                    </div>
-                                </van-space></template>
-                        </van-cell>
-                    </van-cell-group>
-
-                    <van-cell-group inset title="节目单">
-                        <van-cell title="自定义节目单">
-                            <template #label>
-                                <van-space class="w-full" direction="vertical" size="small">
-                                    <span>支持xml、xml.gz格式</span>
-
-                                    <van-field class="!pl-0" input-align="right" label="名称" placeholder="节目单名称"
-                                        v-model="epgSource.name"></van-field>
-
-                                    <van-field class="!pl-0" input-align="right" label="链接" placeholder="节目单链接"
-                                        v-model="epgSource.url"></van-field>
-
-                                    <div class="flex justify-end">
-                                        <van-button @click="pushEpgSource" size="small" type="primary">
-                                            推送节目单
-                                        </van-button>
-                                    </div>
-                                </van-space>
-                            </template>
-                        </van-cell>
                     </van-cell-group>
 
                     <van-cell-group inset title="点播源">
@@ -166,46 +138,6 @@
                             </template>
                         </van-cell>
                     </van-cell-group>
-
-                    <van-cell-group inset title="播放器">
-                        <van-cell title="自定义ua">
-                            <template #label>
-                                <van-space class="w-full" direction="vertical" size="small">
-                                    <van-field class="!p-0" placeholder="播放器自定义ua"
-                                        v-model="configs.videoPlayerUserAgent"></van-field>
-
-                                    <div class="flex justify-end">
-                                        <van-button @click="pushConfigs" size="small" type="primary">
-                                            推送
-                                        </van-button>
-                                    </div>
-                                </van-space>
-                            </template>
-                        </van-cell>
-
-                        <van-cell title="自定义headers">
-                            <template #label>
-                                <van-space class="w-full" direction="vertical" size="small">
-                                    <van-field :placeholder="videoPlayerHeadersExample" autosize class="!p-0" rows="3"
-                                        type="textarea" v-model="configs.videoPlayerHeaders"></van-field>
-
-                                    <div class="flex justify-end">
-                                        <van-button @click="pushConfigs" size="small" type="primary">
-                                            推送
-                                        </van-button>
-                                    </div>
-                                </van-space>
-                            </template>
-                        </van-cell>
-                    </van-cell-group>
-
-                    <van-cell-group inset title="调试">
-                        <van-cell title="上传apk">
-                            <template #extra>
-                                <van-uploader :after-read="uploadApkAfterRead" accept=".apk" />
-                            </template>
-                        </van-cell>
-                    </van-cell-group>
                 </template>
 
                 <template v-else-if="tabActive === 'log'">
@@ -241,7 +173,6 @@
     <script>
         const { createApp, ref, onMounted, watch, nextTick } = Vue
 
-        // const baseUrl = "http://127.0.0.1:10481"
         const baseUrl = ""
 
         async function requestApi(url, config) {
@@ -271,31 +202,6 @@
                         vant.closeToast()
                     } catch (e) {
                         vant.showFailToast('无法获取信息')
-                        console.error(e)
-                    }
-                }
-
-                const configs = ref({})
-                async function refreshConfigs() {
-                    try {
-                        configs.value = await (await requestApi('/api/configs')).json()
-                    } catch (e) {
-                        vant.showFailToast('无法获取配置')
-                        console.error(e)
-                    }
-                }
-                async function pushConfigs() {
-                    try {
-                        vant.showLoadingToast({ message: '加载中...', forbidClick: true, duration: 0 })
-                        await requestApi('/api/configs', {
-                            method: "POST",
-                            body: JSON.stringify(configs.value),
-                            headers: { 'Content-Type': 'application/json' }
-                        })
-                        await refreshConfigs()
-                        vant.showSuccessToast("推送配置成功")
-                    } catch (e) {
-                        vant.showFailToast('推送配置失败')
                         console.error(e)
                     }
                 }
@@ -350,32 +256,6 @@
                     reader.readAsText(file.file);
                 }
 
-                const epgSource = ref({ name: `添加于${dayjs().format('YYYY-MM-DD HH:mm:ss')}`, url: '' })
-                async function pushEpgSource() {
-                    if (!epgSource.value.name) {
-                        vant.showFailToast('请填写节目单名称')
-                        return
-                    }
-
-                    if (!epgSource.value.url) {
-                        vant.showFailToast('请填写节目单链接')
-                        return
-                    }
-
-                    try {
-                        vant.showLoadingToast({ message: '加载中...', forbidClick: true, duration: 0 })
-                        await requestApi('/api/epg-source/push', {
-                            method: "POST",
-                            body: JSON.stringify({ ...epgSource.value }),
-                            headers: { 'Content-Type': 'application/json' }
-                        })
-                        vant.showSuccessToast("推送节目单成功")
-                    } catch (e) {
-                        vant.showFailToast('推送节目单失败')
-                        console.error(e)
-                    }
-                }
-
                 const vodSource = ref({ name: '', key: '', api: '' })
                 const vodSourceList = ref([])
                 async function pushVodSource() {
@@ -410,54 +290,8 @@
                     }
                 }
 
-                const channelAliasExample = `{
-    "__suffix": [
-        "高码",
-        "HD"
-    ],
-    "频道1": [
-        "别名1",
-        "别名2"
-    ]
-}`
-                const channelAlias = ref('')
-                async function refreshChannelAlias() {
-                    channelAlias.value = await (await requestApi('/api/channel-alias')).text()
-                }
-                async function updateChannelAlias() {
-                    try {
-                        vant.showLoadingToast({ message: '加载中...', forbidClick: true, duration: 0 })
-                        await requestApi('/api/channel-alias', {
-                            method: "POST",
-                            body: channelAlias.value,
-                        })
-                        vant.showSuccessToast("更新频道别名成功")
-                        await refreshChannelAlias()
-                    } catch (e) {
-                        vant.showFailToast('更新频道别名失败')
-                        console.error(e)
-                    }
-                }
-
-                async function uploadApkAfterRead(file) {
-                    try {
-                        vant.showLoadingToast({ message: '加载中...', forbidClick: true, duration: 0 })
-                        const formData = new FormData()
-                        formData.append('filename', file.file)
-                        await requestApi('/api/upload/apk', { method: "POST", body: formData })
-                        vant.closeToast()
-                    } catch (e) {
-                        vant.showFailToast('上传apk失败')
-                        console.error(e)
-                    }
-                }
-
-                const videoPlayerHeadersExample = "Header-Name-1: Header-Value-1\nHeader-Name-2: Header-Value-2"
-
                 onMounted(async () => {
                     await refreshInfo()
-                    await refreshChannelAlias()
-                    await refreshConfigs()
                     await refreshVodSourceList()
                 })
 
@@ -466,22 +300,13 @@
                     isDark,
                     tabActive,
                     info,
-                    configs,
-                    pushConfigs,
                     iptvSource,
                     pushIptvSource,
                     uploadIptvSourceContentAfterRead,
-                    epgSource,
-                    pushEpgSource,
                     vodSource,
                     pushVodSource,
                     vodSourceList,
                     refreshVodSourceList,
-                    channelAliasExample,
-                    channelAlias,
-                    updateChannelAlias,
-                    uploadApkAfterRead,
-                    videoPlayerHeadersExample,
                 }
             }
         })
