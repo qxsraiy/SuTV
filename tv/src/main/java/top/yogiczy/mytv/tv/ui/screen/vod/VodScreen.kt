@@ -34,7 +34,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
@@ -52,6 +54,11 @@ fun VodScreen(
 ) {
     val vm = remember { VodViewModel() }
     val state by vm.state
+
+    // 初始加载
+    LaunchedEffect(Unit) {
+        if (state.sources.isEmpty()) vm.loadSources()
+    }
 
     Box(
         modifier = Modifier
@@ -85,6 +92,25 @@ fun VodScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text("加载中...", color = Color.White, fontSize = 18.sp)
+                }
+            } else if (state.searchResults.isNotEmpty()) {
+                // 搜索结果
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(5),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(state.searchResults) { item ->
+                        VodCard(
+                            item = item,
+                            onClick = {
+                                onPlayVod(state.currentSource.key, item.vod_id, item.vod_name, item.vod_pic, 0)
+                            },
+                        )
+                    }
                 }
             } else if (state.items.isNotEmpty()) {
                 LazyVerticalGrid(
@@ -126,6 +152,10 @@ private fun VodTopBar(
 ) {
     var searchText by remember { mutableStateOf("") }
     var showSources by remember { mutableStateOf(false) }
+    var backFocused by remember { mutableStateOf(false) }
+    var sourceFocused by remember { mutableStateOf(false) }
+    var searchFocused by remember { mutableStateOf(false) }
+    var btnFocused by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier
@@ -136,8 +166,11 @@ private fun VodTopBar(
         // 返回
         Box(
             modifier = Modifier
+                .onFocusChanged { backFocused = it.isFocused }
+                .focusable()
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF333333))
+                .background(if (backFocused) Color(0xFF444466) else Color(0xFF333333))
+                .border(if (backFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
                 .clickable { onBack() }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
@@ -148,8 +181,11 @@ private fun VodTopBar(
         // 采集源选择
         Box(
             modifier = Modifier
+                .onFocusChanged { sourceFocused = it.isFocused }
+                .focusable()
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF333333))
+                .background(if (sourceFocused) Color(0xFF444466) else Color(0xFF333333))
+                .border(if (sourceFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
                 .clickable { showSources = !showSources }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
@@ -164,8 +200,11 @@ private fun VodTopBar(
             textStyle = TextStyle(color = Color.White, fontSize = 14.sp),
             modifier = Modifier
                 .weight(1f)
+                .onFocusChanged { searchFocused = it.isFocused }
+                .focusable()
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF333333))
+                .background(if (searchFocused) Color(0xFF444466) else Color(0xFF333333))
+                .border(if (searchFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             singleLine = true,
             cursorBrush = androidx.compose.ui.graphics.SolidColor(Color.White),
@@ -173,8 +212,11 @@ private fun VodTopBar(
         Spacer(Modifier.width(8.dp))
         Box(
             modifier = Modifier
+                .onFocusChanged { btnFocused = it.isFocused }
+                .focusable()
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF5555AA))
+                .background(if (btnFocused) Color(0xFF6666BB) else Color(0xFF5555AA))
+                .border(if (btnFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
                 .clickable {
                     if (searchText.isNotEmpty()) vm.search(searchText, state.currentSource.key)
                 }
@@ -194,13 +236,18 @@ private fun VodTopBar(
         ) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(state.sources) { source ->
+                    var focused by remember { mutableStateOf(false) }
                     Box(
                         modifier = Modifier
+                            .onFocusChanged { focused = it.isFocused }
+                            .focusable()
                             .clip(RoundedCornerShape(6.dp))
                             .background(
-                                if (source.key == state.currentSource.key) Color(0xFF5555AA)
+                                if (focused) Color(0xFF5555AA)
+                                else if (source.key == state.currentSource.key) Color(0xFF444466)
                                 else Color(0xFF333333)
                             )
+                            .border(if (focused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(6.dp))
                             .clickable {
                                 vm.selectSource(source)
                                 showSources = false
@@ -209,33 +256,6 @@ private fun VodTopBar(
                     ) {
                         Text(source.name, color = Color.White, fontSize = 13.sp)
                     }
-                }
-            }
-        }
-    }
-
-    // 搜索结果覆盖
-    if (state.searchResults.isNotEmpty()) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF1A1A1A)),
-        ) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(5),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(state.searchResults) { item ->
-                    VodCard(
-                        item = item,
-                        onClick = {
-                            onPlayVod(state.currentSource.key, item.vod_id, item.vod_name, item.vod_pic, 0)
-                        },
-                    )
                 }
             }
         }
@@ -255,10 +275,15 @@ private fun CategoryTabs(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(categories) { cat ->
+            var focused by remember { mutableStateOf(false) }
             Box(
                 modifier = Modifier
+                    .onFocusChanged { focused = it.isFocused }
+                    .focusable()
+                    .scale(if (focused) 1.1f else 1f)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFF333333))
+                    .background(if (focused) Color(0xFF5555AA) else Color(0xFF333333))
+                    .border(if (focused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(6.dp))
                     .clickable { onSelect(cat) }
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             ) {
@@ -273,10 +298,15 @@ private fun VodCard(
     item: VodItem,
     onClick: () -> Unit,
 ) {
+    var focused by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .scale(if (focused) 1.05f else 1f)
             .clip(RoundedCornerShape(8.dp))
             .background(Color(0xFF222222))
+            .border(if (focused) 3.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
             .clickable { onClick() }
             .padding(4.dp),
     ) {
