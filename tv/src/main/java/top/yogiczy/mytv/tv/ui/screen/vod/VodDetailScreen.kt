@@ -196,28 +196,24 @@ fun VodDetailScreen(
                     },
                 )
 
-                // 触摸捕获层: 点击切换覆盖层
+                // 触摸捕获层: 控件隐藏时点击唤出
                 if (!controllerVisible) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .pointerInput(Unit) {
-                                detectTapGestures(onTap = { controllerVisible = true })
-                            }
+                            .clickable { controllerVisible = true }
                     )
                 }
 
                 // 覆盖层
                 if (controllerVisible) {
-                    // 点击空白处: 关闭剧集列表+隐藏控件
+                    // 点击空白处: 关闭剧集列表+隐藏控件 (用clickable, 按钮在上面会优先消费)
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .pointerInput(Unit) {
-                                detectTapGestures(onTap = {
-                                    showEpList = false
-                                    controllerVisible = false
-                                })
+                            .clickable {
+                                showEpList = false
+                                controllerVisible = false
                             }
                     )
 
@@ -261,13 +257,12 @@ fun VodDetailScreen(
                         }
                     }
 
-                    // 底部中间偏左: 上一集 (与PlayerView内置快退/暂停/快退同一水平线)
+                    // 屏幕正中间偏左: 上一集
                     var prevFocused by remember { mutableStateOf(false) }
                     Box(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
+                            .align(Alignment.Center)
                             .offset(x = (-220).dp)
-                            .padding(bottom = 22.dp)
                             .onFocusChanged { prevFocused = it.isFocused }
                             .focusable()
                             .clip(RoundedCornerShape(6.dp))
@@ -276,13 +271,12 @@ fun VodDetailScreen(
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                     ) { Text("◀上一集", color = if (epIdx > 0) Color.White else Color(0xFF666666), fontSize = 13.sp) }
 
-                    // 底部中间偏右: 下一集 (与PlayerView内置快退/暂停/快退同一水平线)
+                    // 屏幕正中间偏右: 下一集
                     var nextFocused by remember { mutableStateOf(false) }
                     Box(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
+                            .align(Alignment.Center)
                             .offset(x = 220.dp)
-                            .padding(bottom = 22.dp)
                             .onFocusChanged { nextFocused = it.isFocused }
                             .focusable()
                             .clip(RoundedCornerShape(6.dp))
