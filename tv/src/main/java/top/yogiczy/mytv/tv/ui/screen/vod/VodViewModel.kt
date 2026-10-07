@@ -204,9 +204,7 @@ class VodViewModel : ViewModel() {
         val req = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build()
         httpClient.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}")
-            val body = resp.body?.string() ?: throw Exception("空响应")
-            if (!body.trimStart().startsWith("{")) throw Exception("非JSON响应")
-            body
+            resp.body?.string() ?: throw Exception("空响应")
         }
     }
 
