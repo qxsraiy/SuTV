@@ -723,6 +723,7 @@ object HttpServer : Loggable("HttpServer") {
     /**
      * 多源并发搜索: 取5个源同时搜索, 聚合去重后返回
      * 参数: wd=关键词, offset=批次偏移(每次+5换源)
+     * 智能回退: 全词搜不到时, 逐步缩短关键词重试, 最后用原始关键词过滤结果
      */
     private fun handleVodSearchMulti(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -730,7 +731,6 @@ object HttpServer : Loggable("HttpServer") {
                 wrapResponse(response)
                 val wd = request.query.getString("wd") ?: ""
                 val offset = (request.query.getString("offset") ?: "0").toIntOrNull() ?: 0
-                val encoded = java.net.URLEncoder.encode(wd, "UTF-8")
 
                 val all = Constants.VOD_SOURCE_LIST + Configs.vodSourceList
                 if (all.isEmpty()) {
@@ -744,25 +744,63 @@ object HttpServer : Loggable("HttpServer") {
                     Triple(s.key, s.name, s.api)
                 }
 
-                // 并发搜索5个源, 每个最多6秒
-                val results = batch.map { (key, name, api) ->
-                    async(Dispatchers.IO) {
-                        try {
-                            withTimeoutOrNull(6000) {
-                                val url = "$api?wd=$encoded&pg=1"
-                                val req = okhttp3.Request.Builder().url(url)
-                                    .header("User-Agent", "Mozilla/5.0").build()
-                                sharedClient.newCall(req).execute().use { resp ->
-                                    if (!resp.isSuccessful) return@withTimeoutOrNull emptyList()
-                                    val body = resp.body?.string() ?: return@withTimeoutOrNull emptyList()
-                                    if (!body.trimStart().startsWith("{")) return@withTimeoutOrNull emptyList()
-                                    val cms = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
-                                    cms.list.map { it.toVodItem().copy(sourceKey = key, sourceName = name) }
-                                }
-                            } ?: emptyList()
-                        } catch (_: Exception) { emptyList() }
-                    }
+                // 搜索单个源, 返回结果列表
+                suspend fun searchOne(key: String, name: String, api: String, keyword: String): List<top.yogiczy.mytv.core.data.entities.vod.VodItem> {
+                    val encoded = java.net.URLEncoder.encode(keyword, "UTF-8")
+                    return try {
+                        withTimeoutOrNull(6000) {
+                            val url = "$api?wd=$encoded&pg=1"
+                            val req = okhttp3.Request.Builder().url(url)
+                                .header("User-Agent", "Mozilla/5.0").build()
+                            sharedClient.newCall(req).execute().use { resp ->
+                                if (!resp.isSuccessful) return@withTimeoutOrNull emptyList()
+                                val body = resp.body?.string() ?: return@withTimeoutOrNull emptyList()
+                                if (!body.trimStart().startsWith("{")) return@withTimeoutOrNull emptyList()
+                                val cms = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
+                                cms.list.map { it.toVodItem().copy(sourceKey = key, sourceName = name) }
+                            }
+                        } ?: emptyList()
+                    } catch (_: Exception) { emptyList() }
+                }
+
+                // 第一轮: 用原始关键词搜索
+                var results = batch.map { (key, name, api) ->
+                    async(Dispatchers.IO) { searchOne(key, name, api, wd) }
                 }.awaitAll().flatten().distinctBy { it.vod_name }
+
+                // 智能回退: 如果全词搜不到, 逐步缩短关键词
+                if (results.isEmpty() && wd.length > 2) {
+                    // 生成缩短的关键词候选: 去掉末尾的非中文字符, 再逐步去掉末尾字符
+                    val chinesePart = wd.takeWhile { it.code in 0x4E00..0x9FFF }
+                    val candidates = mutableListOf<String>()
+                    if (chinesePart.isNotEmpty() && chinesePart != wd) {
+                        candidates.add(chinesePart)  // "大明1566" → "大明"
+                    }
+                    // 逐步去掉末尾字符 (至少保留2个字符)
+                    var shortened = wd
+                    while (shortened.length > 2) {
+                        shortened = shortened.dropLast(1)
+                        if (shortened != chinesePart) candidates.add(shortened)
+                    }
+
+                    for (kw in candidates.distinct()) {
+                        results = batch.map { (key, name, api) ->
+                            async(Dispatchers.IO) { searchOne(key, name, api, kw) }
+                        }.awaitAll().flatten().distinctBy { it.vod_name }
+                        if (results.isNotEmpty()) {
+                            // 用原始关键词过滤结果 (模糊匹配: 原始关键词的数字部分需在标题中)
+                            val filtered = results.filter { item ->
+                                wd.all { ch ->
+                                    if (ch.isDigit()) item.vod_name.contains(ch) || item.vod_name.any { it == ch }
+                                    else true  // 中文字符已在搜索中匹配
+                                }
+                            }
+                            results = if (filtered.isNotEmpty()) filtered else results
+                            log.i("多源搜索回退: '$wd' → 用'$kw'搜索, ${results.size}条结果")
+                            break
+                        }
+                    }
+                }
 
                 val result = top.yogiczy.mytv.core.data.entities.vod.VodItemList(
                     list = results, page = 1, pagecount = 1, total = results.size
@@ -770,7 +808,7 @@ object HttpServer : Loggable("HttpServer") {
                 response.send(Globals.json.encodeToString(
                     top.yogiczy.mytv.core.data.entities.vod.VodItemList.serializer(), result
                 ))
-                log.i("多源搜索完成: '${wd}' → ${results.size} 条结果")
+                log.i("多源搜索完成: '$wd' → ${results.size} 条结果")
             } catch (e: Exception) {
                 log.e("多源搜索失败: ${e.message}", e)
                 response.send("""{"list":[],"pagecount":0}""")
