@@ -226,7 +226,7 @@ fun VodDetailScreen(
                     // 竖屏适配: 尺寸和间距随方向变化
                     val btnH = if (isPortraitMode) 104.dp else 40.dp
                     val btnFs = if (isPortraitMode) 36.sp else 14.sp
-                    val epOffset = if (isPortraitMode) 200.dp else 220.dp
+                    val epOffset = if (isPortraitMode) 300.dp else 220.dp
                     val epFs = if (isPortraitMode) 32.sp else 13.sp
                     val epPadV = if (isPortraitMode) 20.dp else 6.dp
                     val epPadH = if (isPortraitMode) 28.dp else 10.dp
