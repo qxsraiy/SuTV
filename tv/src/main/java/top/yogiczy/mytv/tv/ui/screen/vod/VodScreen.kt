@@ -186,7 +186,7 @@ fun VodScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("加载中...", color = Color.White, fontSize = 18.sp)
+                            Text("搜索中...", color = Color.White, fontSize = 18.sp)
                         }
                     } else if (displayItems.isNotEmpty()) {
                         LazyVerticalGrid(
@@ -214,6 +214,20 @@ fun VodScreen(
                                     }
                                 }
                             }
+                        }
+                    } else if (state.error != null && displayItems.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(state.error ?: "", color = Color(0xFFAAAAAA), fontSize = 16.sp)
+                        }
+                    } else if (displayItems.isEmpty() && !state.loading) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("暂无数据", color = Color(0xFFAAAAAA), fontSize = 16.sp)
                         }
                     }
                 }

@@ -3,8 +3,10 @@ package top.yogiczy.mytv.tv.ui.screen.vod
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -56,10 +58,6 @@ class VodViewModel : ViewModel() {
         .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
         .readTimeout(12, java.util.concurrent.TimeUnit.SECONDS)
         .build()
-
-    init {
-        loadSources()
-    }
 
     fun loadSources() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -125,11 +123,14 @@ class VodViewModel : ViewModel() {
     }
 
     // 并发搜索 — 直接调CMS API, 绕过HttpServer
-    // 快速搜索专用client: 3.5秒超时
+    // 快速搜索专用client: 5秒超时
     private val fastClient = okhttp3.OkHttpClient.Builder()
-        .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
+        .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
         .build()
+
+    // 当前搜索Job — 新搜索前取消旧Job, 防止状态竞态
+    private var searchJob: Job? = null
 
     // 当前搜索批次偏移 (每次刷新+5, 循环)
     private var searchBatchOffset = 0
@@ -152,29 +153,44 @@ class VodViewModel : ViewModel() {
     }
 
     fun searchMulti(wd: String) {
+        // 取消上一次搜索, 防止并发状态竞态
+        searchJob?.cancel()
         lastSearchWd = wd
-        viewModelScope.launch(Dispatchers.IO) {
-            _state.value = _state.value.copy(loading = true)
+        searchJob = viewModelScope.launch(Dispatchers.IO) {
+            _state.value = _state.value.copy(loading = true, error = null)
             val encoded = java.net.URLEncoder.encode(wd, "UTF-8")
             val batch = currentBatch()
+            if (batch.isEmpty()) {
+                _state.value = _state.value.copy(loading = false, error = "无可用搜索源")
+                return@launch
+            }
             val jobs = batch.map { (key, name, api) ->
                 async(Dispatchers.IO) {
                     try {
-                        withTimeoutOrNull(3500) {
+                        withTimeoutOrNull(6000) {
                             val url = "$api?wd=$encoded&pg=1"
                             val req = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build()
                             fastClient.newCall(req).execute().use { resp ->
-                                if (!resp.isSuccessful) return@withTimeoutOrNull emptyList()
+                                if (!resp.isSuccessful) return@withTimeoutOrNull emptyList<VodItem>()
                                 val body = resp.body?.string() ?: return@withTimeoutOrNull emptyList()
+                                // 防止非JSON响应(HTML错误页等)
+                                if (!body.trimStart().startsWith("{")) return@withTimeoutOrNull emptyList()
                                 val cms = Globals.json.decodeFromString(VodItemList.serializer(), body)
                                 cms.list.map { it.copy(sourceKey = key, sourceName = name) }
                             }
                         } ?: emptyList()
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e  // 协程取消必须重新抛出, 不能吞掉
                     } catch (_: Exception) { emptyList() }
                 }
             }
             val allResults = jobs.awaitAll().flatten().distinctBy { it.vod_name }
-            _state.value = _state.value.copy(searchResults = allResults, loading = false)
+            ensureActive()  // 如果被取消, 不更新状态
+            _state.value = _state.value.copy(
+                searchResults = allResults,
+                loading = false,
+                error = if (allResults.isEmpty()) "未找到结果, 点刷新换源重试" else null,
+            )
         }
     }
 
@@ -229,14 +245,13 @@ class VodViewModel : ViewModel() {
         val req = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build()
         httpClient.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}")
-            resp.body?.string() ?: throw Exception("空响应")
+            val body = resp.body?.string() ?: throw Exception("空响应")
+            if (!body.trimStart().startsWith("{")) throw Exception("非JSON响应")
+            body
         }
     }
 
     override fun onCleared() {
-        httpClient.dispatcher.executorService.shutdown()
-        httpClient.connectionPool.evictAll()
-        fastClient.dispatcher.executorService.shutdown()
-        fastClient.connectionPool.evictAll()
+        searchJob?.cancel()
     }
 }
