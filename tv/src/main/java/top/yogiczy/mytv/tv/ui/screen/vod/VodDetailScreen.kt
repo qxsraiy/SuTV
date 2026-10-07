@@ -224,12 +224,12 @@ fun VodDetailScreen(
                 // 覆盖层
                 if (controllerVisible) {
                     // 竖屏适配: 尺寸和间距随方向变化
-                    val btnH = if (isPortraitMode) 52.dp else 40.dp
-                    val btnFs = if (isPortraitMode) 18.sp else 14.sp
-                    val epOffset = if (isPortraitMode) 100.dp else 220.dp
-                    val epFs = if (isPortraitMode) 16.sp else 13.sp
-                    val epPadV = if (isPortraitMode) 10.dp else 6.dp
-                    val epPadH = if (isPortraitMode) 14.dp else 10.dp
+                    val btnH = if (isPortraitMode) 104.dp else 40.dp
+                    val btnFs = if (isPortraitMode) 36.sp else 14.sp
+                    val epOffset = if (isPortraitMode) 200.dp else 220.dp
+                    val epFs = if (isPortraitMode) 32.sp else 13.sp
+                    val epPadV = if (isPortraitMode) 20.dp else 6.dp
+                    val epPadH = if (isPortraitMode) 28.dp else 10.dp
 
                     // 仅当剧集列表打开时: 点击外部关闭列表+隐藏控件
                     if (showEpList) {
@@ -381,8 +381,8 @@ fun VodDetailScreen(
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
-                            .fillMaxHeight(if (isPortraitMode) 0.65f else 0.75f)
-                            .width(if (isPortraitMode) 160.dp else 200.dp)
+                            .fillMaxHeight(if (isPortraitMode) 0.6f else 0.75f)
+                            .width(if (isPortraitMode) 240.dp else 200.dp)
                             .padding(8.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(Color(0xDD000000)),
@@ -417,7 +417,7 @@ fun VodDetailScreen(
                                     Text(
                                         ep.name,
                                         color = if (isCurrent) Color(0xFFFF6666) else Color.White,
-                                        fontSize = if (isPortraitMode) 15.sp else 13.sp,
+                                        fontSize = if (isPortraitMode) 28.sp else 13.sp,
                                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                                     )
                                 }
