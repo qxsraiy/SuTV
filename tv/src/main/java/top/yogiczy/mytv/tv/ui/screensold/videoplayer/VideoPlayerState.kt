@@ -130,8 +130,7 @@ class VideoPlayerState(
         }
         instance.onError { ex ->
             error = ex?.let { "${it.errorCodeName}(${it.errorCode})" }
-                ?.apply { onErrorListeners.forEach { it.invoke() } }
-
+            onErrorListeners.forEach { it.invoke() }
         }
         instance.onReady {
             onReadyListeners.forEach { it.invoke() }

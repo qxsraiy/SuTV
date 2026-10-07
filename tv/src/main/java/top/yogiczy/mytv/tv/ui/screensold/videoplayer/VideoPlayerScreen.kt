@@ -75,9 +75,10 @@ fun VideoPlayerScreen(
 
         if (state.instance is Media3VideoPlayer) {
             AndroidView(
-                factory = { SubtitleView(context) },
-                update = {
-                    state.instance.onCues { cues -> it.setCues(cues) }
+                factory = {
+                    SubtitleView(context).also { subtitleView ->
+                        state.instance.onCues { cues -> subtitleView.setCues(cues) }
+                    }
                 },
             )
         }

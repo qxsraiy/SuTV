@@ -41,6 +41,22 @@ object HttpServer : Loggable("HttpServer") {
     private const val SERVER_PORT = 10481
     val serverUrl by lazy { "http://${getLocalIpAddress()}:${SERVER_PORT}" }
 
+    private val sharedClient by lazy {
+        okhttp3.OkHttpClient.Builder()
+            .followRedirects(true)
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+    }
+
+    private val noRedirectClient by lazy {
+        okhttp3.OkHttpClient.Builder()
+            .followRedirects(false)
+            .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+    }
+
     fun start(context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -171,7 +187,7 @@ object HttpServer : Loggable("HttpServer") {
     ) {
         wrapResponse(response).apply {
             setContentType(contentType)
-            send(context.resources.openRawResource(id).readBytes().decodeToString())
+            send(context.resources.openRawResource(id).use { it.readBytes().decodeToString() })
         }
     }
 
@@ -401,14 +417,8 @@ object HttpServer : Loggable("HttpServer") {
                 
                 log.i("代理请求: ${targetUrl.take(80)}...")
                 
-                val client = okhttp3.OkHttpClient.Builder()
-                    .followRedirects(true)
-                    .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-                    .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                    .build()
-                
                 val req = Request.Builder().url(targetUrl).get().build()
-                client.newCall(req).execute().use { resp ->
+                sharedClient.newCall(req).execute().use { resp ->
                     val contentType = resp.header("Content-Type") ?: ""
                     val bodyBytes = resp.body?.bytes() ?: ByteArray(0)
                     val bodyStr = String(bodyBytes, Charsets.UTF_8)
@@ -484,14 +494,8 @@ object HttpServer : Loggable("HttpServer") {
      */
     private fun proxyM3u8(remoteUrl: String, response: AsyncHttpServerResponse) {
         try {
-            val client = okhttp3.OkHttpClient.Builder()
-                .followRedirects(true)
-                .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-                .build()
-            
             val req = Request.Builder().url(remoteUrl).get().build()
-            client.newCall(req).execute().use { resp ->
+            sharedClient.newCall(req).execute().use { resp ->
                 val body = resp.body?.string() ?: ""
                 val baseUrl = resp.request.url.toString()
                 
@@ -549,14 +553,8 @@ object HttpServer : Loggable("HttpServer") {
      */
     private fun resolveMiguRedirect(streamUrl: String): String {
         return try {
-            val client = okhttp3.OkHttpClient.Builder()
-                .followRedirects(false)
-                .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                .build()
-            
             val req = Request.Builder().url(streamUrl).get().build()
-            client.newCall(req).execute().use { resp ->
+            noRedirectClient.newCall(req).execute().use { resp ->
                 val location = resp.header("Location")
                 if (location != null && location.isNotEmpty() && location.startsWith("http")) {
                     log.i("migu 重定向解析: ${location.take(80)}...")
@@ -737,14 +735,10 @@ object HttpServer : Loggable("HttpServer") {
 
     /** HTTP GET 抓取 */
     private fun fetchUrl(url: String): String {
-        val client = okhttp3.OkHttpClient.Builder()
-            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-            .build()
         val req = okhttp3.Request.Builder().url(url)
             .header("User-Agent", "Mozilla/5.0")
             .build()
-        client.newCall(req).execute().use { resp ->
+        sharedClient.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}")
             return resp.body?.string() ?: throw Exception("空响应")
         }

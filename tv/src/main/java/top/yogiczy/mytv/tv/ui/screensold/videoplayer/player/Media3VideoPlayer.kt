@@ -384,16 +384,16 @@ class Media3VideoPlayer(
         }
     }
 
-    private fun Int.fromIndexFindTrack(type: @C.TrackType Int): Pair<TrackGroup, Int> {
+    private fun Int.fromIndexFindTrack(type: @C.TrackType Int): Pair<TrackGroup, Int>? {
         val groups = videoPlayer.currentTracks.groups
             .filter { group -> group.mediaTrackGroup.type == type }
             .map { it.mediaTrackGroup }
 
         var trackCount = 0
-        val group = groups.first { group ->
+        val group = groups.firstOrNull { group ->
             trackCount += group.length
             this < trackCount
-        }
+        } ?: return null
 
         val trackIndex = this - (trackCount - group.length)
 
@@ -487,6 +487,8 @@ class Media3VideoPlayer(
     }
 
     override fun release() {
+        updatePositionJob?.cancel()
+        updatePositionJob = null
         onCuesListeners.clear()
         videoPlayer.removeListener(playerListener)
         videoPlayer.removeAnalyticsListener(metadataListener)
@@ -541,7 +543,7 @@ class Media3VideoPlayer(
             return
         }
 
-        val (group, trackIndex) = track.index.fromIndexFindTrack(C.TRACK_TYPE_VIDEO)
+        val (group, trackIndex) = track.index.fromIndexFindTrack(C.TRACK_TYPE_VIDEO) ?: return
 
         videoPlayer.trackSelectionParameters = videoPlayer.trackSelectionParameters
             .buildUpon()
@@ -560,7 +562,7 @@ class Media3VideoPlayer(
             return
         }
 
-        val (group, trackIndex) = track.index.fromIndexFindTrack(C.TRACK_TYPE_AUDIO)
+        val (group, trackIndex) = track.index.fromIndexFindTrack(C.TRACK_TYPE_AUDIO) ?: return
 
         videoPlayer.trackSelectionParameters = videoPlayer.trackSelectionParameters
             .buildUpon()

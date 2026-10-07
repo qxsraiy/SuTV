@@ -8,7 +8,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.serialization.json.Json
 import okhttp3.Request
 import top.yogiczy.mytv.core.data.entities.vod.Episode
 import top.yogiczy.mytv.core.data.entities.vod.PlaySource
@@ -18,14 +17,14 @@ import top.yogiczy.mytv.core.data.entities.vod.VodItem
 import top.yogiczy.mytv.core.data.entities.vod.VodItemList
 import top.yogiczy.mytv.core.data.entities.vod.VodSource
 import top.yogiczy.mytv.core.data.entities.vod.VodSourceList
-
-private val vodJson = Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true }
+import top.yogiczy.mytv.core.data.utils.Globals
 
 data class VodUiState(
     val sources: VodSourceList = VodSourceList(),
     val currentSource: VodSource = VodSource(),
     val categories: List<VodCategory> = emptyList(),
     val items: List<VodItem> = emptyList(),
+    val currentTypeId: String = "",
     val detail: VodDetail? = null,
     val mergedSources: List<MergedPlaySource> = emptyList(),
     val loading: Boolean = false,
@@ -67,7 +66,7 @@ class VodViewModel : ViewModel() {
             _state.value = _state.value.copy(loading = true)
             try {
                 val json = apiGet("$serverUrl/vod/sources")
-                val sources = vodJson.decodeFromString(
+                val sources = Globals.json.decodeFromString(
                     kotlinx.serialization.builtins.ListSerializer(VodSource.serializer()), json
                 )
                 val sourceList = VodSourceList(sources)
@@ -91,7 +90,7 @@ class VodViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val json = apiGet("$serverUrl/vod/categories?source=$sourceKey")
-                val cats = vodJson.decodeFromString(
+                val cats = Globals.json.decodeFromString(
                     kotlinx.serialization.builtins.ListSerializer(VodCategory.serializer()), json
                 )
                 // 只显示子分类(有视频)，父分类不直接返回结果
@@ -110,12 +109,13 @@ class VodViewModel : ViewModel() {
             _state.value = _state.value.copy(loading = true)
             try {
                 val url = "$serverUrl/vod/list?source=$sourceKey" +
-                    if (typeId.isNotEmpty()) "&t=$typeId" else "" +
+                    (if (typeId.isNotEmpty()) "&t=$typeId" else "") +
                     "&page=$page"
                 val json = apiGet(url)
-                val resp = vodJson.decodeFromString(VodItemList.serializer(), json)
+                val resp = Globals.json.decodeFromString(VodItemList.serializer(), json)
                 _state.value = _state.value.copy(
                     items = if (page == 1) resp.list else _state.value.items + resp.list,
+                    currentTypeId = typeId,
                     page = resp.page, pageCount = resp.pagecount, loading = false
                 )
             } catch (e: Exception) {
@@ -166,7 +166,7 @@ class VodViewModel : ViewModel() {
                             fastClient.newCall(req).execute().use { resp ->
                                 if (!resp.isSuccessful) return@withTimeoutOrNull emptyList()
                                 val body = resp.body?.string() ?: return@withTimeoutOrNull emptyList()
-                                val cms = vodJson.decodeFromString(VodItemList.serializer(), body)
+                                val cms = Globals.json.decodeFromString(VodItemList.serializer(), body)
                                 cms.list.map { it.copy(sourceKey = key, sourceName = name) }
                             }
                         } ?: emptyList()
@@ -191,7 +191,7 @@ class VodViewModel : ViewModel() {
             _state.value = _state.value.copy(loading = true)
             try {
                 val json = apiGet("$serverUrl/vod/search?source=$sourceKey&wd=${java.net.URLEncoder.encode(wd, "UTF-8")}")
-                val resp = vodJson.decodeFromString(VodItemList.serializer(), json)
+                val resp = Globals.json.decodeFromString(VodItemList.serializer(), json)
                 _state.value = _state.value.copy(
                     searchResults = resp.list, loading = false
                 )
@@ -210,7 +210,7 @@ class VodViewModel : ViewModel() {
             _state.value = _state.value.copy(loading = true, detail = null, mergedSources = emptyList())
             try {
                 val json = apiGet("$serverUrl/vod/detail?source=$sourceKey&id=$id")
-                val detail = vodJson.decodeFromString(VodDetail.serializer(), json)
+                val detail = Globals.json.decodeFromString(VodDetail.serializer(), json)
                 val merged = detail.play_sources.map { ps ->
                     MergedPlaySource(sourceKey, detail.source, id, ps.name, ps.episodes)
                 }
@@ -231,5 +231,12 @@ class VodViewModel : ViewModel() {
             if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}")
             resp.body?.string() ?: throw Exception("空响应")
         }
+    }
+
+    override fun onCleared() {
+        httpClient.dispatcher.executorService.shutdown()
+        httpClient.connectionPool.evictAll()
+        fastClient.dispatcher.executorService.shutdown()
+        fastClient.connectionPool.evictAll()
     }
 }

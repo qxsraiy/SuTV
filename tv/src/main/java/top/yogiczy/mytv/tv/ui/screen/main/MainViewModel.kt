@@ -281,6 +281,11 @@ class MainViewModel : ViewModel() {
         needRefresh()
     }
 
+    override fun onCleared() {
+        super.onCleared()
+        instance = null
+    }
+
     companion object {
         var instance: MainViewModel? = null
     }

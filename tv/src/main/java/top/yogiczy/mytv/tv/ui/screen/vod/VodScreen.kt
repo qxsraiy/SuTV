@@ -67,7 +67,7 @@ fun VodScreen(
     onPlayVod: (sourceKey: String, vodId: String, vodName: String, vodPic: String, epIdx: Int) -> Unit,
     onBack: () -> Unit,
 ) {
-    val vm = remember { VodViewModel() }
+    val vm = androidx.lifecycle.viewmodel.compose.viewModel<VodViewModel>()
     val state by vm.state
     val context = LocalContext.current
 
@@ -210,7 +210,7 @@ fun VodScreen(
                             if (state.searchResults.isEmpty() && state.page < state.pageCount) {
                                 item {
                                     LaunchedEffect(Unit) {
-                                        vm.loadList(state.currentSource.key, "", state.page + 1)
+                                        vm.loadList(state.currentSource.key, state.currentTypeId, state.page + 1)
                                     }
                                 }
                             }

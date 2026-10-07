@@ -58,7 +58,7 @@ class MainContentState(
     private var _currentChannelLineIdx by mutableIntStateOf(0)
     val currentChannelLineIdx get() = _currentChannelLineIdx
 
-    val currentChannelLine get() = _currentChannel.lineList[_currentChannelLineIdx]
+    val currentChannelLine get() = _currentChannel.lineList.getOrNull(_currentChannelLineIdx) ?: ChannelLine()
 
     private var _currentPlaybackEpgProgramme by mutableStateOf<EpgProgramme?>(null)
     val currentPlaybackEpgProgramme get() = _currentPlaybackEpgProgramme
@@ -268,6 +268,7 @@ class MainContentState(
     }
 
     private fun getLineIdx(lineList: ChannelLineList, lineIdx: Int? = null): Int {
+        if (lineList.isEmpty()) return 0
         val idx = if (lineIdx == null) {
             val idx = lineList.indexOfFirst { line ->
                 settingsViewModel.iptvChannelLinePlayableUrlList.contains(line.url)
