@@ -56,6 +56,10 @@ class VodViewModel : ViewModel() {
         .readTimeout(12, java.util.concurrent.TimeUnit.SECONDS)
         .build()
 
+    init {
+        loadSources()
+    }
+
     fun loadSources() {
         viewModelScope.launch(Dispatchers.IO) {
             _state.value = _state.value.copy(loading = true)
