@@ -748,7 +748,7 @@ object HttpServer : Loggable("HttpServer") {
                 suspend fun searchOne(key: String, name: String, api: String, keyword: String): List<top.yogiczy.mytv.core.data.entities.vod.VodItem> {
                     val encoded = java.net.URLEncoder.encode(keyword, "UTF-8")
                     return try {
-                        withTimeoutOrNull(6000) {
+                        withTimeoutOrNull(4000) {
                             val url = "$api?wd=$encoded&pg=1"
                             val req = okhttp3.Request.Builder().url(url)
                                 .header("User-Agent", "Mozilla/5.0").build()

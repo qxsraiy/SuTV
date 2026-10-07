@@ -53,7 +53,7 @@ class VodViewModel : ViewModel() {
     // 共享OkHttpClient, 避免每次创建
     private val httpClient = okhttp3.OkHttpClient.Builder()
         .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(12, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
         .build()
 
     init {

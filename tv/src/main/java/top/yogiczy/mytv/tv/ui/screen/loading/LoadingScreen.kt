@@ -64,9 +64,6 @@ fun LoadingScreen(
                 onLongSelect = toSettingsScreen,
                 onSettings = toSettingsScreen,
             ),
-        header = {
-            Text(settingsVM.iptvSourceCurrent.name)
-        },
         onBackPressed = onBackPressed,
     ) {
         when (mainUiState) {
