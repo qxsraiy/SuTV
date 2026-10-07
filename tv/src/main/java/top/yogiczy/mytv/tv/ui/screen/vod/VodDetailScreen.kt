@@ -46,8 +46,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -108,7 +106,20 @@ fun VodDetailScreen(
 
     // 创建 ExoPlayer
     val player = remember { ExoPlayer.Builder(context).build() }
-    DisposableEffect(Unit) { onDispose { player.release() } }
+    val activity = remember {
+        var ctx = context
+        while (ctx is android.content.ContextWrapper) {
+            if (ctx is android.app.Activity) break
+            ctx = ctx.baseContext
+        }
+        ctx as? android.app.Activity
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            player.release()
+            activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -159,8 +170,6 @@ fun VodDetailScreen(
             var controllerVisible by remember { mutableStateOf(true) }
             var showEpList by remember { mutableStateOf(false) }
             var isPortraitMode by remember { mutableStateOf(false) }
-            val configuration = LocalConfiguration.current
-            val screenAspect = configuration.screenWidthDp.toFloat() / configuration.screenHeightDp.toFloat()
             val epListState = androidx.compose.foundation.lazy.rememberLazyListState(epIdx)
             val playerViewRef = remember { mutableStateOf<PlayerView?>(null) }
 
@@ -188,19 +197,11 @@ fun VodDetailScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 // PlayerView (内置控制器: 快退/暂停/快进/进度条)
                 AndroidView(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            if (isPortraitMode) {
-                                rotationZ = 90f
-                                scaleX = screenAspect
-                                scaleY = screenAspect
-                            }
-                        },
+                    modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->
                         PlayerView(ctx).apply {
                             this.player = player
-                            useController = !isPortraitMode
+                            useController = true
                             setControllerAutoShow(true)
                             setControllerHideOnTouch(false)
                             setControllerShowTimeoutMs(0)
@@ -208,9 +209,6 @@ fun VodDetailScreen(
                             setShowNextButton(false)
                             playerViewRef.value = this
                         }
-                    },
-                    update = { pv ->
-                        pv.useController = !isPortraitMode
                     },
                 )
 
@@ -263,11 +261,40 @@ fun VodDetailScreen(
                             Text("← 返回", color = Color.White, fontSize = 14.sp)
                         }
 
-                        // 右: 收藏 + 剧集
+                        // 右: 竖屏 + 收藏 + 剧集
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            // 竖屏/横屏切换
+                            var rotFocused by remember { mutableStateOf(false) }
+                            Box(
+                                modifier = Modifier
+                                    .height(40.dp)
+                                    .onFocusChanged { rotFocused = it.isFocused }
+                                    .focusable()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (rotFocused) Color(0xAA000000) else Color(0x80000000))
+                                    .border(if (rotFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        isPortraitMode = !isPortraitMode
+                                        activity?.let { act ->
+                                            act.requestedOrientation = if (isPortraitMode)
+                                                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                            else
+                                                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                                        }
+                                    }
+                                    .padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    if (isPortraitMode) "横屏" else "竖屏",
+                                    color = if (isPortraitMode) Color(0xFFFFD700) else Color.White,
+                                    fontSize = 14.sp,
+                                )
+                            }
+
                             // 收藏
                             var favState by remember { mutableStateOf(VodFavoriteManager.isFavorite(context, sourceKey, vodId)) }
                             var favFocused by remember { mutableStateOf(false) }
@@ -308,27 +335,6 @@ fun VodDetailScreen(
                                     "${detail.vod_name} · ${currentEp?.name ?: ""} ▾",
                                     color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium,
                                     maxLines = 1,
-                                )
-                            }
-
-                            // 竖屏全屏切换
-                            var rotFocused by remember { mutableStateOf(false) }
-                            Box(
-                                modifier = Modifier
-                                    .height(40.dp)
-                                    .onFocusChanged { rotFocused = it.isFocused }
-                                    .focusable()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (rotFocused) Color(0xAA000000) else Color(0x80000000))
-                                    .border(if (rotFocused) 2.dp else 0.dp, Color(0xFF8888FF), RoundedCornerShape(8.dp))
-                                    .clickable { isPortraitMode = !isPortraitMode }
-                                    .padding(horizontal = 12.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    if (isPortraitMode) "横屏" else "竖屏",
-                                    color = if (isPortraitMode) Color(0xFFFFD700) else Color.White,
-                                    fontSize = 14.sp,
                                 )
                             }
                         }
