@@ -60,6 +60,9 @@ object HttpServer : Loggable("HttpServer") {
     fun start(context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                // Clean up old TS proxy temp files
+                Globals.cacheDir.listFiles()?.filter { it.name.startsWith("tsproxy_") }?.forEach { it.delete() }
+
                 val server = AsyncHttpServer()
 
                 server.addAction("OPTIONS", ".+") { _, response ->
@@ -437,7 +440,7 @@ object HttpServer : Loggable("HttpServer") {
                         response.setContentType("video/mp2t")
                         response.sendFile(tempFile)
                         log.i("代理 TS 片段: ${bodyBytes.size} 字节 -> ${tempFile.name}")
-                        tempFile.deleteOnExit()
+                        tempFile.delete()
                     }
                 }
             } catch (e: Exception) {
@@ -640,7 +643,7 @@ object HttpServer : Loggable("HttpServer") {
                 ?: throw Exception("采集源不存在: $sourceKey")
             val url = "${source.api}?ac=list"
             val body = fetchUrl(url)
-            val cmsResp = jsonIgnorant.decodeFromString(VodCmsListResponse.serializer(), body)
+            val cmsResp = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
             val cats = cmsResp.`class`.map {
                 top.yogiczy.mytv.core.data.entities.vod.VodCategory(
                     type_id = it.type_id,
@@ -671,7 +674,7 @@ object HttpServer : Loggable("HttpServer") {
                 if (typeId.isNotEmpty()) append("&t=").append(typeId)
             }
             val body = fetchUrl(url)
-            val cmsResp = jsonIgnorant.decodeFromString(VodCmsListResponse.serializer(), body)
+            val cmsResp = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
             val items = cmsResp.list.map { it.toVodItem() }
             val result = top.yogiczy.mytv.core.data.entities.vod.VodItemList(
                 list = items, page = cmsResp.page,
@@ -696,7 +699,7 @@ object HttpServer : Loggable("HttpServer") {
                 ?: throw Exception("采集源不存在: $sourceKey")
             val url = "${source.api}?wd=${java.net.URLEncoder.encode(wd, "UTF-8")}&pg=$page"
             val body = fetchUrl(url)
-            val cmsResp = jsonIgnorant.decodeFromString(VodCmsListResponse.serializer(), body)
+            val cmsResp = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
             val items = cmsResp.list.map { it.toVodItem() }
             val result = top.yogiczy.mytv.core.data.entities.vod.VodItemList(
                 list = items, page = cmsResp.page,
@@ -721,7 +724,7 @@ object HttpServer : Loggable("HttpServer") {
                 ?: throw Exception("采集源不存在: $sourceKey")
             val url = "${source.api}?ac=detail&ids=$id"
             val body = fetchUrl(url)
-            val cmsResp = jsonIgnorant.decodeFromString(VodCmsListResponse.serializer(), body)
+            val cmsResp = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
             val item = cmsResp.list.firstOrNull() ?: throw Exception("未找到影片")
             val detail = item.toVodDetail(sourceKey)
             response.send(Globals.json.encodeToString(
@@ -848,9 +851,3 @@ private data class VodCmsCategory(
     val type_name: String = "",
     val type_pid: Int = 0,
 )
-
-private val jsonIgnorant = kotlinx.serialization.json.Json {
-    ignoreUnknownKeys = true
-    isLenient = true
-    coerceInputValues = true
-}

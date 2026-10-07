@@ -4,6 +4,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
@@ -42,7 +44,8 @@ object MiguApi {
     }
     
     suspend fun fetchCategories(): List<MiguCategory> {
-        return try {
+        return withContext(Dispatchers.IO) {
+        try {
             val request = Request.Builder()
                 .url(CATEGORY_LIST_URL)
                 .header("User-Agent", "okhttp/4.12.0")
@@ -69,10 +72,12 @@ object MiguApi {
             logger.severe("获取频道列表失败: ${e.message}")
             emptyList()
         }
+        }
     }
     
     suspend fun fetchChannels(categoryId: String): List<MiguChannel> {
-        return try {
+        return withContext(Dispatchers.IO) {
+        try {
             val request = Request.Builder()
                 .url("$CATEGORY_URL$categoryId")
                 .header("User-Agent", "okhttp/4.12.0")
@@ -97,6 +102,7 @@ object MiguApi {
         } catch (e: Exception) {
             logger.severe("获取频道列表失败: ${e.message}")
             emptyList()
+        }
         }
     }
     
