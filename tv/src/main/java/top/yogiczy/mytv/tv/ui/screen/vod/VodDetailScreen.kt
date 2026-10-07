@@ -223,8 +223,15 @@ fun VodDetailScreen(
 
                 // 覆盖层
                 if (controllerVisible) {
+                    // 竖屏适配: 尺寸和间距随方向变化
+                    val btnH = if (isPortraitMode) 52.dp else 40.dp
+                    val btnFs = if (isPortraitMode) 18.sp else 14.sp
+                    val epOffset = if (isPortraitMode) 100.dp else 220.dp
+                    val epFs = if (isPortraitMode) 16.sp else 13.sp
+                    val epPadV = if (isPortraitMode) 10.dp else 6.dp
+                    val epPadH = if (isPortraitMode) 14.dp else 10.dp
+
                     // 仅当剧集列表打开时: 点击外部关闭列表+隐藏控件
-                    // 列表关闭时不加全屏层, 让PlayerView内置控件正常响应
                     if (showEpList) {
                         Box(
                             modifier = Modifier
@@ -236,19 +243,19 @@ fun VodDetailScreen(
                         )
                     }
 
-                    // 顶部按钮栏: 返回 ——— 收藏 + 剧集 (统一高度)
+                    // 顶部按钮栏: 返回 ——— 竖屏 + 收藏 + 剧集
                     Row(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .fillMaxWidth()
-                            .padding(8.dp),
+                            .padding(if (isPortraitMode) 12.dp else 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         // 左: 返回
                         var backFocused by remember { mutableStateOf(false) }
                         Box(
                             modifier = Modifier
-                                .height(40.dp)
+                                .height(btnH)
                                 .onFocusChanged { backFocused = it.isFocused }
                                 .focusable()
                                 .clip(RoundedCornerShape(8.dp))
@@ -258,7 +265,7 @@ fun VodDetailScreen(
                                 .padding(horizontal = 16.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("← 返回", color = Color.White, fontSize = 14.sp)
+                            Text("← 返回", color = Color.White, fontSize = btnFs)
                         }
 
                         // 右: 竖屏 + 收藏 + 剧集
@@ -270,7 +277,7 @@ fun VodDetailScreen(
                             var rotFocused by remember { mutableStateOf(false) }
                             Box(
                                 modifier = Modifier
-                                    .height(40.dp)
+                                    .height(btnH)
                                     .onFocusChanged { rotFocused = it.isFocused }
                                     .focusable()
                                     .clip(RoundedCornerShape(8.dp))
@@ -291,7 +298,7 @@ fun VodDetailScreen(
                                 Text(
                                     if (isPortraitMode) "横屏" else "竖屏",
                                     color = if (isPortraitMode) Color(0xFFFFD700) else Color.White,
-                                    fontSize = 14.sp,
+                                    fontSize = btnFs,
                                 )
                             }
 
@@ -300,7 +307,7 @@ fun VodDetailScreen(
                             var favFocused by remember { mutableStateOf(false) }
                             Box(
                                 modifier = Modifier
-                                    .height(40.dp)
+                                    .height(btnH)
                                     .onFocusChanged { favFocused = it.isFocused }
                                     .focusable()
                                     .clip(RoundedCornerShape(8.dp))
@@ -314,14 +321,14 @@ fun VodDetailScreen(
                                     .padding(horizontal = 12.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text(if (favState) "★已收藏" else "☆收藏", color = if (favState) Color(0xFFFFD700) else Color.White, fontSize = 14.sp)
+                                Text(if (favState) "★已收藏" else "☆收藏", color = if (favState) Color(0xFFFFD700) else Color.White, fontSize = btnFs)
                             }
 
                             // 剧集列表
                             var infoFocused by remember { mutableStateOf(false) }
                             Box(
                                 modifier = Modifier
-                                    .height(40.dp)
+                                    .height(btnH)
                                     .onFocusChanged { infoFocused = it.isFocused }
                                     .focusable()
                                     .clip(RoundedCornerShape(8.dp))
@@ -332,8 +339,8 @@ fun VodDetailScreen(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    "${detail.vod_name} · ${currentEp?.name ?: ""} ▾",
-                                    color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium,
+                                    if (isPortraitMode) "剧集▾" else "${detail.vod_name} · ${currentEp?.name ?: ""} ▾",
+                                    color = Color.White, fontSize = btnFs, fontWeight = FontWeight.Medium,
                                     maxLines = 1,
                                 )
                             }
@@ -345,28 +352,28 @@ fun VodDetailScreen(
                     Box(
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .offset(x = (-220).dp)
+                            .offset(x = -epOffset)
                             .onFocusChanged { prevFocused = it.isFocused }
                             .focusable()
                             .clip(RoundedCornerShape(6.dp))
                             .background(if (prevFocused) Color(0xFF4466AA) else Color(0x80000000))
                             .clickable { if (epIdx > 0) epIdx-- }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                    ) { Text("◀上一集", color = if (epIdx > 0) Color.White else Color(0xFF666666), fontSize = 13.sp) }
+                            .padding(horizontal = epPadH, vertical = epPadV),
+                    ) { Text("◀上一集", color = if (epIdx > 0) Color.White else Color(0xFF666666), fontSize = epFs) }
 
                     // 屏幕正中间偏右: 下一集
                     var nextFocused by remember { mutableStateOf(false) }
                     Box(
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .offset(x = 220.dp)
+                            .offset(x = epOffset)
                             .onFocusChanged { nextFocused = it.isFocused }
                             .focusable()
                             .clip(RoundedCornerShape(6.dp))
                             .background(if (nextFocused) Color(0xFF4466AA) else Color(0x80000000))
                             .clickable { if (epIdx < epCount - 1) epIdx++ }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                    ) { Text("下一集▶", color = if (epIdx < epCount - 1) Color.White else Color(0xFF666666), fontSize = 13.sp) }
+                            .padding(horizontal = epPadH, vertical = epPadV),
+                    ) { Text("下一集▶", color = if (epIdx < epCount - 1) Color.White else Color(0xFF666666), fontSize = epFs) }
                 }
 
                 // 右侧剧集列表
@@ -374,8 +381,8 @@ fun VodDetailScreen(
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
-                            .fillMaxHeight(0.75f)
-                            .width(200.dp)
+                            .fillMaxHeight(if (isPortraitMode) 0.65f else 0.75f)
+                            .width(if (isPortraitMode) 160.dp else 200.dp)
                             .padding(8.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(Color(0xDD000000)),
@@ -410,7 +417,8 @@ fun VodDetailScreen(
                                     Text(
                                         ep.name,
                                         color = if (isCurrent) Color(0xFFFF6666) else Color.White,
-                                        fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                        fontSize = if (isPortraitMode) 15.sp else 13.sp,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis,
                                     )
                                 }
                             }
