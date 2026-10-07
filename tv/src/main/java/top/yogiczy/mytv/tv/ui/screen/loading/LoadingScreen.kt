@@ -1,17 +1,22 @@
 package top.yogiczy.mytv.tv.ui.screen.loading
 
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,22 +25,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.LocalContentColor
-import androidx.tv.material3.LocalTextStyle
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import top.yogiczy.mytv.tv.ui.material.CircularProgressIndicator
-import top.yogiczy.mytv.tv.ui.rememberChildPadding
-import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
 import top.yogiczy.mytv.tv.ui.screen.main.MainUiState
-import top.yogiczy.mytv.tv.ui.screen.settings.settingsVM
-import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
-import top.yogiczy.mytv.tv.ui.utils.focusOnLaunched
-import top.yogiczy.mytv.tv.ui.utils.gridColumns
-import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
 
 @Composable
 fun LoadingScreen(
@@ -45,136 +42,95 @@ fun LoadingScreen(
     toSettingsScreen: () -> Unit = {},
     onBackPressed: () -> Unit = {},
 ) {
-    var hasReady by remember { mutableStateOf(false) }
+    var visible by remember { mutableStateOf(false) }
+    var leaving by remember { mutableStateOf(false) }
 
+    // 渐显
+    LaunchedEffect(Unit) {
+        visible = true
+    }
+
+    // 加载完成 → 渐隐 → 跳转
     LaunchedEffect(mainUiState) {
-        if (hasReady) return@LaunchedEffect
-
         if (mainUiState is MainUiState.Ready) {
-            hasReady = true
+            leaving = true
+            kotlinx.coroutines.delay(600)
             toDashboardScreen()
         }
     }
 
-    AppScreen(
+    Box(
         modifier = modifier
-            .focusable()
-            .focusOnLaunched()
-            .handleKeyEvents(
-                onLongSelect = toSettingsScreen,
-                onSettings = toSettingsScreen,
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFF0D1117), Color(0xFF161B22), Color(0xFF0D1117))
+                )
             ),
-        onBackPressed = onBackPressed,
+        contentAlignment = Alignment.Center,
     ) {
-        when (mainUiState) {
-            is MainUiState.Ready -> LoadingStateLoading()
-            is MainUiState.Loading -> LoadingStateLoading(messageProvider = { mainUiState.message })
-            is MainUiState.Error -> LoadingStateError(messageProvider = { mainUiState.message })
-        }
-    }
-}
-
-@Composable
-private fun LoadingState(
-    modifier: Modifier = Modifier,
-    title: @Composable () -> Unit,
-    messageProvider: () -> String? = { null },
-) {
-    val childPadding = rememberChildPadding()
-
-    Box(modifier = modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .padding(childPadding.paddingValues),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom,
+        AnimatedVisibility(
+            visible = visible && !leaving,
+            enter = fadeIn(tween(800)),
+            exit = fadeOut(tween(500)),
         ) {
-            Column {
-                CompositionLocalProvider(
-                    LocalTextStyle provides MaterialTheme.typography.titleLarge
-                ) { title() }
-
-                val message = messageProvider()
-                if (message != null) {
-                    Text(
-                        text = message,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = LocalContentColor.current.copy(0.8f),
-                        modifier = Modifier.sizeIn(maxWidth = 8.gridColumns()),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // 呼吸动画的标题
+                val breathe by rememberInfiniteTransition(label = "breathe").animateFloat(
+                    initialValue = 0.4f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(tween(1800, easing = LinearEasing), RepeatMode.Reverse),
+                    label = "breatheAlpha",
+                )
+                Text(
+                    "天光云影",
+                    color = Color.White,
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.alpha(breathe),
+                )
+                Spacer(Modifier.height(24.dp))
+                // 细线加载条
+                val progress by rememberInfiniteTransition(label = "progress").animateFloat(
+                    initialValue = 0f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing)),
+                    label = "progressBar",
+                )
+                Box(
+                    modifier = Modifier
+                        .size(width = 120.dp, height = 2.dp)
+                        .background(Color(0xFF333333)),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(width = 120.dp * progress, height = 2.dp)
+                            .background(Color(0xFF6E9CFF)),
                     )
                 }
             }
-
-            Text("长按OK键或短按菜单键进入设置页面", modifier = Modifier.alpha(0.6f))
         }
-    }
-}
 
-@Composable
-private fun LoadingStateLoading(
-    modifier: Modifier = Modifier,
-    messageProvider: () -> String? = { null }
-) {
-    LoadingState(
-        modifier = modifier,
-        title = {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+        // 错误状态
+        if (mainUiState is MainUiState.Error) {
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(tween(400)),
             ) {
-                Text("加载中")
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    color = LocalContentColor.current,
-                    trackColor = MaterialTheme.colorScheme.surface.copy(0.1f),
-                    strokeWidth = 3.dp,
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "加载失败",
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 20.sp,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        mainUiState.message ?: "",
+                        color = Color(0xFF888888),
+                        fontSize = 14.sp,
+                    )
+                }
             }
-        },
-        messageProvider = messageProvider
-    )
-}
-
-@Composable
-private fun LoadingStateError(
-    modifier: Modifier = Modifier,
-    messageProvider: () -> String? = { null },
-) {
-    CompositionLocalProvider(
-        LocalContentColor provides MaterialTheme.colorScheme.error
-    ) {
-        LoadingState(
-            modifier = modifier,
-            title = { Text("加载失败") },
-            messageProvider = messageProvider
-        )
-    }
-}
-
-@Preview(device = "id:Android TV (720p)")
-@Composable
-private fun LoadingStateLoadingPreview() {
-    MyTvTheme {
-        AppScreen {
-            LoadingStateLoading(
-                messageProvider = { "获取远程直播源(4/10)".repeat(10) }
-            )
-        }
-    }
-}
-
-@Preview(device = "id:Android TV (720p)")
-@Composable
-private fun LoadingStateErrorPreview() {
-    MyTvTheme {
-        AppScreen {
-            LoadingStateError(
-                messageProvider = { "获取远程直播源(4/10)".repeat(10) }
-            )
         }
     }
 }

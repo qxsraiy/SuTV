@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -123,9 +124,8 @@ class VodViewModel : ViewModel() {
         }
     }
 
-    // 并发搜索 — 直接调CMS API, 绕过HttpServer
     // 当前搜索Job — 新搜索前取消旧Job, 防止状态竞态
-    private var searchJob: Job? = null
+    private var searchJob: kotlinx.coroutines.Job? = null
 
     // 当前搜索批次偏移 (每次刷新+5, 循环)
     private var searchBatchOffset = 0
@@ -133,27 +133,63 @@ class VodViewModel : ViewModel() {
     private var lastSearchWd = ""
 
     fun searchMulti(wd: String) {
-        // 取消上一次搜索, 防止并发状态竞态
         searchJob?.cancel()
         lastSearchWd = wd
         searchJob = viewModelScope.launch(Dispatchers.IO) {
-            _state.value = _state.value.copy(loading = true, error = null)
-            try {
-                val encoded = java.net.URLEncoder.encode(wd, "UTF-8")
-                val url = "$serverUrl/vod/search-multi?wd=$encoded&offset=$searchBatchOffset"
-                val json = apiGet(url)
-                val resp = Globals.json.decodeFromString(VodItemList.serializer(), json)
-                ensureActive()
-                _state.value = _state.value.copy(
-                    searchResults = resp.list,
-                    loading = false,
-                    error = if (resp.list.isEmpty()) "未找到结果, 点刷新换源重试" else null,
-                )
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(loading = false, error = "搜索失败: ${e.message}")
+            // 清空旧结果, 开始搜索
+            _state.value = _state.value.copy(loading = true, error = null, searchResults = emptyList())
+
+            val all = top.yogiczy.mytv.core.data.utils.Constants.VOD_SOURCE_LIST +
+                top.yogiczy.mytv.tv.ui.utils.Configs.vodSourceList
+            if (all.isEmpty()) {
+                _state.value = _state.value.copy(loading = false, error = "无可用搜索源")
+                return@launch
             }
+
+            val size = all.size
+            val batch = (0 until 5).map { i -> all[(searchBatchOffset + i) % size] }
+            val encoded = java.net.URLEncoder.encode(wd, "UTF-8")
+
+            // 并发搜索5个源, 每完成一个就追加结果到UI
+            val jobs = batch.map { source ->
+                async(Dispatchers.IO) {
+                    try {
+                        // 通过HttpServer的单源搜索路由(正确处理CMS格式)
+                        val url = "$serverUrl/vod/search?source=${source.key}&wd=$encoded"
+                        val json = apiGet(url)
+                        val resp = Globals.json.decodeFromString(VodItemList.serializer(), json)
+                        resp.list.map { it.copy(sourceKey = source.key, sourceName = source.name) }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (_: Exception) { emptyList() }
+                }
+            }
+
+            // 逐个等待完成, 每完成一个就更新UI
+            val seenNames = mutableSetOf<String>()
+            for (job in jobs) {
+                try {
+                    val results = job.await()
+                    val newItems = results.filter { seenNames.add(it.vod_name) }
+                    if (newItems.isNotEmpty()) {
+                        ensureActive()
+                        val current = _state.value.searchResults
+                        _state.value = _state.value.copy(
+                            searchResults = current + newItems,
+                            error = null,
+                        )
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (_: Exception) { }
+            }
+
+            ensureActive()
+            val final = _state.value.searchResults
+            _state.value = _state.value.copy(
+                loading = false,
+                error = if (final.isEmpty()) "未找到结果, 点刷新换源重试" else null,
+            )
         }
     }
 
