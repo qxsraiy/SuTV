@@ -4,13 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
-import okhttp3.Request
 import top.yogiczy.mytv.core.data.entities.vod.Episode
 import top.yogiczy.mytv.core.data.entities.vod.PlaySource
 import top.yogiczy.mytv.core.data.entities.vod.VodCategory
@@ -20,6 +16,7 @@ import top.yogiczy.mytv.core.data.entities.vod.VodItemList
 import top.yogiczy.mytv.core.data.entities.vod.VodSource
 import top.yogiczy.mytv.core.data.entities.vod.VodSourceList
 import top.yogiczy.mytv.core.data.utils.Globals
+import okhttp3.Request
 
 data class VodUiState(
     val sources: VodSourceList = VodSourceList(),
@@ -123,12 +120,6 @@ class VodViewModel : ViewModel() {
     }
 
     // 并发搜索 — 直接调CMS API, 绕过HttpServer
-    // 快速搜索专用client: 5秒超时
-    private val fastClient = okhttp3.OkHttpClient.Builder()
-        .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
-        .build()
-
     // 当前搜索Job — 新搜索前取消旧Job, 防止状态竞态
     private var searchJob: Job? = null
 
@@ -137,60 +128,28 @@ class VodViewModel : ViewModel() {
     // 上次搜索关键词
     private var lastSearchWd = ""
 
-    // 从全部源中取5个 (批次轮换)
-    private fun currentBatch(): List<Triple<String, String, String>> {
-        val all = top.yogiczy.mytv.core.data.utils.Constants.VOD_SOURCE_LIST +
-            top.yogiczy.mytv.tv.ui.utils.Configs.vodSourceList
-        if (all.isEmpty()) return emptyList()
-        val size = all.size
-        val result = mutableListOf<Triple<String, String, String>>()
-        for (i in 0 until 5) {
-            val idx = (searchBatchOffset + i) % size
-            val s = all[idx]
-            result.add(Triple(s.key, s.name, s.api))
-        }
-        return result
-    }
-
     fun searchMulti(wd: String) {
         // 取消上一次搜索, 防止并发状态竞态
         searchJob?.cancel()
         lastSearchWd = wd
         searchJob = viewModelScope.launch(Dispatchers.IO) {
             _state.value = _state.value.copy(loading = true, error = null)
-            val encoded = java.net.URLEncoder.encode(wd, "UTF-8")
-            val batch = currentBatch()
-            if (batch.isEmpty()) {
-                _state.value = _state.value.copy(loading = false, error = "无可用搜索源")
-                return@launch
+            try {
+                val encoded = java.net.URLEncoder.encode(wd, "UTF-8")
+                val url = "$serverUrl/vod/search-multi?wd=$encoded&offset=$searchBatchOffset"
+                val json = apiGet(url)
+                val resp = Globals.json.decodeFromString(VodItemList.serializer(), json)
+                ensureActive()
+                _state.value = _state.value.copy(
+                    searchResults = resp.list,
+                    loading = false,
+                    error = if (resp.list.isEmpty()) "未找到结果, 点刷新换源重试" else null,
+                )
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(loading = false, error = "搜索失败: ${e.message}")
             }
-            val jobs = batch.map { (key, name, api) ->
-                async(Dispatchers.IO) {
-                    try {
-                        withTimeoutOrNull(6000) {
-                            val url = "$api?wd=$encoded&pg=1"
-                            val req = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build()
-                            fastClient.newCall(req).execute().use { resp ->
-                                if (!resp.isSuccessful) return@withTimeoutOrNull emptyList<VodItem>()
-                                val body = resp.body?.string() ?: return@withTimeoutOrNull emptyList()
-                                // 防止非JSON响应(HTML错误页等)
-                                if (!body.trimStart().startsWith("{")) return@withTimeoutOrNull emptyList()
-                                val cms = Globals.json.decodeFromString(VodItemList.serializer(), body)
-                                cms.list.map { it.copy(sourceKey = key, sourceName = name) }
-                            }
-                        } ?: emptyList()
-                    } catch (e: kotlinx.coroutines.CancellationException) {
-                        throw e  // 协程取消必须重新抛出, 不能吞掉
-                    } catch (_: Exception) { emptyList() }
-                }
-            }
-            val allResults = jobs.awaitAll().flatten().distinctBy { it.vod_name }
-            ensureActive()  // 如果被取消, 不更新状态
-            _state.value = _state.value.copy(
-                searchResults = allResults,
-                loading = false,
-                error = if (allResults.isEmpty()) "未找到结果, 点刷新换源重试" else null,
-            )
         }
     }
 

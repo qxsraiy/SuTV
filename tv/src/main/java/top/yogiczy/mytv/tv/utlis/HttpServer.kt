@@ -9,7 +9,10 @@ import com.koushikdutta.async.http.server.AsyncHttpServerRequest
 import com.koushikdutta.async.http.server.AsyncHttpServerResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import okhttp3.Request
@@ -154,6 +157,9 @@ object HttpServer : Loggable("HttpServer") {
                 }
                 server.get("/vod/search") { request, response ->
                     handleVodSearch(request, response)
+                }
+                server.get("/vod/search-multi") { request, response ->
+                    handleVodSearchMulti(request, response)
                 }
                 server.get("/vod/detail") { request, response ->
                     handleVodDetail(request, response)
@@ -711,6 +717,64 @@ object HttpServer : Loggable("HttpServer") {
         } catch (e: Exception) {
             log.e("VOD 搜索失败: ${e.message}", e)
             response.send("""{"list":[],"pagecount":0}""")
+        }
+    }
+
+    /**
+     * 多源并发搜索: 取5个源同时搜索, 聚合去重后返回
+     * 参数: wd=关键词, offset=批次偏移(每次+5换源)
+     */
+    private fun handleVodSearchMulti(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                wrapResponse(response)
+                val wd = request.query.getString("wd") ?: ""
+                val offset = (request.query.getString("offset") ?: "0").toIntOrNull() ?: 0
+                val encoded = java.net.URLEncoder.encode(wd, "UTF-8")
+
+                val all = Constants.VOD_SOURCE_LIST + Configs.vodSourceList
+                if (all.isEmpty()) {
+                    response.send("""{"list":[],"pagecount":0}""")
+                    return@launch
+                }
+
+                val size = all.size
+                val batch = (0 until 5).map { i ->
+                    val s = all[(offset + i) % size]
+                    Triple(s.key, s.name, s.api)
+                }
+
+                // 并发搜索5个源, 每个最多6秒
+                val results = batch.map { (key, name, api) ->
+                    async(Dispatchers.IO) {
+                        try {
+                            withTimeoutOrNull(6000) {
+                                val url = "$api?wd=$encoded&pg=1"
+                                val req = okhttp3.Request.Builder().url(url)
+                                    .header("User-Agent", "Mozilla/5.0").build()
+                                sharedClient.newCall(req).execute().use { resp ->
+                                    if (!resp.isSuccessful) return@withTimeoutOrNull emptyList()
+                                    val body = resp.body?.string() ?: return@withTimeoutOrNull emptyList()
+                                    if (!body.trimStart().startsWith("{")) return@withTimeoutOrNull emptyList()
+                                    val cms = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
+                                    cms.list.map { it.toVodItem().copy(sourceKey = key, sourceName = name) }
+                                }
+                            } ?: emptyList()
+                        } catch (_: Exception) { emptyList() }
+                    }
+                }.awaitAll().flatten().distinctBy { it.vod_name }
+
+                val result = top.yogiczy.mytv.core.data.entities.vod.VodItemList(
+                    list = results, page = 1, pagecount = 1, total = results.size
+                )
+                response.send(Globals.json.encodeToString(
+                    top.yogiczy.mytv.core.data.entities.vod.VodItemList.serializer(), result
+                ))
+                log.i("多源搜索完成: '${wd}' → ${results.size} 条结果")
+            } catch (e: Exception) {
+                log.e("多源搜索失败: ${e.message}", e)
+                response.send("""{"list":[],"pagecount":0}""")
+            }
         }
     }
 
