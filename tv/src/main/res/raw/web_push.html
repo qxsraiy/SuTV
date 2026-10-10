@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>数据推送</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vant@4/lib/index.css" />
+    <style>
+        body {
+            margin: 0;
+            background-color: var(--van-background);
+        }
+
+        .w-full {
+            width: 100% !important;
+        }
+
+        .!pl-0 .van-field__label {
+            padding-left: 0;
+        }
+
+        .!p-0 .van-cell {
+            padding: 0;
+        }
+
+        .justify-end {
+            justify-content: flex-end;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .gap-1 {
+            gap: 4px;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .flex-col {
+            flex-direction: column;
+        }
+    </style>
+    <script src="./web_push_js.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <van-config-provider :theme-vars="{ cellVerticalPadding: '8px' }" :theme="isDark ? 'dark' : 'light'">
+            <template v-if="info">
+                <template v-if="tabActive === 'config'">
+                    <van-cell-group inset title="直播源">
+                        <van-cell title="自定义直播源">
+                            <template #label>
+                                <van-space class="w-full" direction="vertical" size="small">
+                                    <span>支持m3u、txt格式</span>
+
+                                    <van-field class="!pl-0" input-align="right" label="类型">
+                                        <template #input>
+                                            <van-radio-group direction="horizontal" v-model="iptvSource.type">
+                                                <van-radio name="url">远程</van-radio>
+                                                <van-radio name="file">文件</van-radio>
+                                                <van-radio name="content">静态</van-radio>
+                                            </van-radio-group>
+                                        </template>
+                                    </van-field>
+
+                                    <van-field class="!pl-0" input-align="right" label="名称" placeholder="直播源名称"
+                                        v-model="iptvSource.name"></van-field>
+
+                                    <van-field class="!pl-0" input-align="right" label="链接" placeholder="直播源链接"
+                                        v-if="iptvSource.type === 'url'" v-model="iptvSource.url"></van-field>
+
+                                    <van-field class="!pl-0" input-align="right" label="文件路径" placeholder="直播源文件路径"
+                                        v-else-if="iptvSource.type === 'file'"
+                                        v-model="iptvSource.filePath"></van-field>
+
+                                    <template v-else-if="iptvSource.type === 'content'">
+                                        <van-field :input-align="iptvSource.content ? 'left' : 'right'" class="!pl-0"
+                                            label="内容" placeholder="直播源内容" rows="5" type="textarea"
+                                            v-model="iptvSource.content"></van-field>
+
+                                        <van-field class="!pl-0" input-align="right" label="上传">
+                                            <template #input>
+                                                <van-uploader :after-read="uploadIptvSourceContentAfterRead"
+                                                    accept=".txt,.m3u" />
+                                            </template>
+                                        </van-field>
+                                    </template>
+
+                                    <div class="flex justify-end">
+                                        <van-button @click="pushIptvSource" size="small" type="primary">
+                                            推送直播源
+                                        </van-button>
+                                    </div>
+                                </van-space>
+                            </template>
+                        </van-cell>
+                    </van-cell-group>
+
+                    <van-cell-group inset title="点播源">
+                        <van-cell title="自定义点播源">
+                            <template #label>
+                                <van-space class="w-full" direction="vertical" size="small">
+                                    <span>苹果CMS API格式，如 https://站点/api.php/provide/vod</span>
+
+                                    <van-field class="!pl-0" input-align="right" label="名称" placeholder="点播源名称"
+                                        v-model="vodSource.name"></van-field>
+
+                                    <van-field class="!pl-0" input-align="right" label="Key" placeholder="英文ID(留空自动生成)"
+                                        v-model="vodSource.key"></van-field>
+
+                                    <van-field class="!pl-0" input-align="right" label="接口" placeholder="CMS API地址"
+                                        v-model="vodSource.api"></van-field>
+
+                                    <div class="flex justify-end">
+                                        <van-button @click="pushVodSource" size="small" type="primary">
+                                            推送点播源
+                                        </van-button>
+                                    </div>
+                                </van-space>
+                            </template>
+                        </van-cell>
+
+                        <van-cell title="已有点播源" is-link @click="refreshVodSourceList">
+                            <template #label>
+                                <span v-if="vodSourceList.length === 0">点击查看全部点播源</span>
+                                <span v-else>共 {{ vodSourceList.length }} 个源</span>
+                            </template>
+                        </van-cell>
+
+                        <van-cell v-for="src in vodSourceList" :key="src.key" :title="src.name"
+                            :label="src.api">
+                            <template #value>
+                                <van-tag v-if="src.default" type="primary">默认</van-tag>
+                            </template>
+                        </van-cell>
+                    </van-cell-group>
+                </template>
+
+                <template v-else-if="tabActive === 'log'">
+                    <van-list>
+                        <van-cell :key="item.time" :label="item.cause" v-for="item in info.logHistory">
+                            <template #title>
+                                <div class="flex flex-col gap-1">
+                                    <div class="flex gap-1 items-center">
+                                        <van-tag plain>{{ item.tag }}</van-tag>
+                                        <van-tag plain>{{ item.level }}</van-tag>
+                                    </div>
+                                    <span>{{ item.message }}</span>
+                                </div>
+                            </template>
+
+                            <template #extra>
+                                <span text="gray">{{ dayjs(item.time).format('HH:mm:ss') }}</span>
+                            </template>
+                        </van-cell>
+                    </van-list>
+                </template>
+
+                <van-tabbar v-model="tabActive">
+                    <van-tabbar-item icon="tv-o" name="config">配置</van-tabbar-item>
+                    <van-tabbar-item icon="list-switch" name="log">日志</van-tabbar-item>
+                </van-tabbar>
+            </template>
+
+            <van-empty image="network" v-else />
+        </van-config-provider>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, watch, nextTick } = Vue
+
+        const baseUrl = ""
+
+        async function requestApi(url, config) {
+            const resp = await fetch(`${baseUrl}${url}`, config)
+            if (resp.status !== 200) {
+                throw new Error(`请求失败：${resp.status}`)
+            }
+
+            return resp
+        }
+
+        dayjs.locale('zh-cn')
+        dayjs.extend(dayjs_plugin_relativeTime)
+
+        createApp({
+            setup() {
+                const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+
+                const tabActive = ref('config')
+
+                const info = ref()
+                async function refreshInfo() {
+                    try {
+                        vant.showLoadingToast({ message: '加载中...', forbidClick: true, duration: 0 })
+                        info.value = await (await requestApi('/api/info')).json()
+                        info.value.logHistory = info.value.logHistory.reverse()
+                        vant.closeToast()
+                    } catch (e) {
+                        vant.showFailToast('无法获取信息')
+                        console.error(e)
+                    }
+                }
+
+                const iptvSource = ref({
+                    name: `添加于${dayjs().format('YYYY-MM-DD HH:mm:ss')}`,
+                    type: 'url',
+                    url: '',
+                    filePath: '',
+                    content: '',
+                })
+                async function pushIptvSource() {
+                    if (!iptvSource.value.name) {
+                        vant.showFailToast('请填写直播源名称')
+                        return
+                    }
+
+                    if (!iptvSource.value.type === 'url' && !iptvSource.value.url) {
+                        vant.showFailToast('请填写直播源链接')
+                        return
+                    }
+
+                    if (iptvSource.value.type === 'file' && !iptvSource.value.filePath) {
+                        vant.showFailToast('请填写直播源文件路径')
+                        return
+                    }
+
+                    if (iptvSource.value.type === 'content' && !iptvSource.value.content) {
+                        vant.showFailToast('请填写直播源内容')
+                        return
+                    }
+
+                    try {
+                        vant.showLoadingToast({ message: '加载中...', forbidClick: true, duration: 0 })
+                        await requestApi('/api/iptv-source/push', {
+                            method: "POST",
+                            body: JSON.stringify({ ...iptvSource.value }),
+                            headers: { 'Content-Type': 'application/json' }
+                        })
+                        vant.showSuccessToast("推送直播源成功")
+                    } catch (e) {
+                        vant.showFailToast('推送直播源失败')
+                        console.error(e)
+                    }
+                }
+                async function uploadIptvSourceContentAfterRead(file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const content = e.target.result;
+                        iptvSource.value.content = content;
+                    };
+                    reader.readAsText(file.file);
+                }
+
+                const vodSource = ref({ name: '', key: '', api: '' })
+                const vodSourceList = ref([])
+                async function pushVodSource() {
+                    if (!vodSource.value.name) {
+                        vant.showFailToast('请填写点播源名称')
+                        return
+                    }
+                    if (!vodSource.value.api) {
+                        vant.showFailToast('请填写点播源接口')
+                        return
+                    }
+                    try {
+                        vant.showLoadingToast({ message: '加载中...', forbidClick: true, duration: 0 })
+                        await requestApi('/api/vod-source/push', {
+                            method: "POST",
+                            body: JSON.stringify({ ...vodSource.value }),
+                            headers: { 'Content-Type': 'application/json' }
+                        })
+                        vant.showSuccessToast("推送点播源成功")
+                        await refreshVodSourceList()
+                    } catch (e) {
+                        vant.showFailToast('推送点播源失败')
+                        console.error(e)
+                    }
+                }
+                async function refreshVodSourceList() {
+                    try {
+                        vodSourceList.value = await (await requestApi('/api/vod-source/list')).json()
+                    } catch (e) {
+                        vant.showFailToast('获取点播源列表失败')
+                        console.error(e)
+                    }
+                }
+
+                onMounted(async () => {
+                    await refreshInfo()
+                    await refreshVodSourceList()
+                })
+
+                return {
+                    dayjs,
+                    isDark,
+                    tabActive,
+                    info,
+                    iptvSource,
+                    pushIptvSource,
+                    uploadIptvSourceContentAfterRead,
+                    vodSource,
+                    pushVodSource,
+                    vodSourceList,
+                    refreshVodSourceList,
+                }
+            }
+        })
+            .use(vant)
+            .mount('#app')
+    </script>
+</body>
+
+</html>
