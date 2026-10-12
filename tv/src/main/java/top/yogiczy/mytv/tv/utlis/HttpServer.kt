@@ -1,0 +1,1000 @@
+package top.yogiczy.mytv.tv.utlis
+
+import android.content.Context
+import android.content.Intent
+import com.koushikdutta.async.AsyncServer
+import com.koushikdutta.async.http.body.JSONObjectBody
+import com.koushikdutta.async.http.server.AsyncHttpServer
+import com.koushikdutta.async.http.server.AsyncHttpServerRequest
+import com.koushikdutta.async.http.server.AsyncHttpServerResponse
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import okhttp3.Request
+import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
+import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSourceList
+import top.yogiczy.mytv.core.data.entities.vod.VodSource
+import top.yogiczy.mytv.core.data.entities.vod.VodSourceList
+import top.yogiczy.mytv.core.data.repositories.iptv.IptvRepository
+import top.yogiczy.mytv.core.data.utils.Constants
+import top.yogiczy.mytv.core.data.utils.Globals
+import top.yogiczy.mytv.core.data.utils.Loggable
+import top.yogiczy.mytv.core.data.utils.Logger
+import top.yogiczy.mytv.tv.BuildConfig
+import top.yogiczy.mytv.tv.HttpServerService
+import top.yogiczy.mytv.tv.R
+import top.yogiczy.mytv.tv.migu.MiguApi
+import top.yogiczy.mytv.tv.migu.MiguBackendManager
+import top.yogiczy.mytv.tv.migu.MiguM3uGenerator
+import top.yogiczy.mytv.tv.ui.material.Snackbar
+import top.yogiczy.mytv.tv.ui.material.SnackbarType
+import top.yogiczy.mytv.tv.ui.utils.Configs
+import java.io.File
+import java.net.Inet4Address
+import java.net.NetworkInterface
+import java.net.SocketException
+
+
+object HttpServer : Loggable("HttpServer") {
+    private const val SERVER_PORT = 10481
+    val serverUrl by lazy { "http://${getLocalIpAddress()}:${SERVER_PORT}" }
+
+    // 同频道请求去重: 缓存 pid → 结果 (5s TTL, 同一频道5秒内只请求一次API)
+    private val miguResultCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, String>>() // pid → (timestamp, url)
+    // M3U8 内容短时缓存 (30s TTL)
+    private val m3u8Cache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, String>>()
+    private const val M3U8_CACHE_TTL = 30_000L
+
+    private val sharedClient by lazy {
+        val builder = okhttp3.OkHttpClient.Builder()
+            .followRedirects(true)
+            .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+        val client = builder.build()
+        top.yogiczy.mytv.tv.utlis.NetworkMonitor.trackPool(client.connectionPool)
+        client
+    }
+
+    private val noRedirectClient by lazy {
+        val builder = okhttp3.OkHttpClient.Builder()
+            .followRedirects(false)
+            .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+        val client = builder.build()
+        top.yogiczy.mytv.tv.utlis.NetworkMonitor.trackPool(client.connectionPool)
+        client
+    }
+
+    private val proxyClient by lazy {
+        val builder = okhttp3.OkHttpClient.Builder()
+            .followRedirects(true)
+            .connectTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
+        val client = builder.build()
+        top.yogiczy.mytv.tv.utlis.NetworkMonitor.trackPool(client.connectionPool)
+        client
+    }
+
+    fun start(context: Context) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Clean up old TS proxy temp files
+                Globals.cacheDir.listFiles()?.filter { it.name.startsWith("tsproxy_") }?.forEach { it.delete() }
+
+                val server = AsyncHttpServer()
+
+                server.addAction("OPTIONS", ".+") { _, response ->
+                    wrapResponse(response)
+                    response.send("ok")
+                }
+
+                server.listen(AsyncServer.getDefault(), SERVER_PORT)
+
+                server.get("/") { _, response ->
+                    handleRawResource(response, context, "text/html", R.raw.web_push)
+                }
+                server.get("/web_push_css.css") { _, response ->
+                    handleRawResource(response, context, "text/css", R.raw.web_push_css)
+                }
+                server.get("/web_push_js.js") { _, response ->
+                    handleRawResource(response, context, "text/javascript", R.raw.web_push_js)
+                }
+
+                server.get("/api/info") { _, response ->
+                    handleGetInfo(response)
+                }
+
+                server.post("/api/iptv-source/push") { request, response ->
+                    handleIptvSourcePush(request, response)
+                }
+
+                server.post("/api/vod-source/push") { request, response ->
+                    handleVodSourcePush(request, response)
+                }
+
+                server.get("/api/vod-source/list") { _, response ->
+                    handleVodSourceList(response)
+                }
+
+                server.get("/api/about") { _, response ->
+                    handleAboutGet(response)
+                }
+
+                server.get("/api/logs") { _, response ->
+                    handleLogsGet(response)
+                }
+
+                server.get("/api/file/content") { request, response ->
+                    handleFileContentGet(request, response)
+                }
+
+                server.post("/api/file/content") { request, response ->
+                    handleFileContentPost(request, response)
+                }
+
+                server.post("/api/file/content-with-dir") { request, response ->
+                    handleFileContentWithDirPost(request, response)
+                }
+
+                // 咪咕直播源 - 内置后端
+                server.get("/migu.m3u") { request, response ->
+                    handleMiguM3u(request, response, context)
+                }
+
+                server.get("/migu.txt") { request, response ->
+                    handleMiguTxt(request, response, context)
+                }
+
+                // 咪咕频道播放地址 - 返回 302 重定向到实际流地址
+                server.get("/migu/(.+)") { request, response ->
+                    handleMiguChannel(request, response, context, isFallback = false)
+                }
+
+                // 兜底播放专用端点（WebView 用）
+                server.get("/migufb/(.+)") { request, response ->
+                    handleMiguChannel(request, response, context, isFallback = true)
+                }
+
+                // M3U8 代理端点 - 代理 TS 片段和子 M3U8
+                server.get("/miguprox/(.+)") { request, response ->
+                    handleMiguProxy(request, response)
+                }
+
+                // === 点播 (VOD) 代理 ===
+                server.get("/vod/sources") { _, response ->
+                    handleVodSources(response)
+                }
+                server.get("/vod/categories") { request, response ->
+                    handleVodCategories(request, response)
+                }
+                server.get("/vod/list") { request, response ->
+                    handleVodList(request, response)
+                }
+                server.get("/vod/search") { request, response ->
+                    handleVodSearch(request, response)
+                }
+                server.get("/vod/search-multi") { request, response ->
+                    handleVodSearchMulti(request, response)
+                }
+                server.get("/vod/detail") { request, response ->
+                    handleVodDetail(request, response)
+                }
+
+                log.i("设置服务已启动: $serverUrl")
+            } catch (ex: Exception) {
+                log.e("设置服务启动失败: ${ex.message}", ex)
+                launch(Dispatchers.Main) {
+                    Snackbar.show("设置服务启动失败", type = SnackbarType.ERROR)
+                }
+            }
+        }
+    }
+
+    private fun wrapResponse(response: AsyncHttpServerResponse) = response.apply {
+        headers.set("Access-Control-Allow-Methods", "POST, GET, DELETE, PUT, OPTIONS")
+        headers.set("Access-Control-Allow-Origin", "*")
+        headers.set("Access-Control-Allow-Headers", "Origin, Content-Type, X-Auth-Token")
+    }
+
+    private fun responseSuccess(response: AsyncHttpServerResponse) {
+        wrapResponse(response).apply {
+            setContentType("application/json")
+            send("{\"code\": 0}")
+        }
+    }
+
+    private fun handleRawResource(
+        response: AsyncHttpServerResponse,
+        context: Context,
+        contentType: String,
+        id: Int,
+    ) {
+        wrapResponse(response).apply {
+            setContentType(contentType)
+            send(context.resources.openRawResource(id).use { it.readBytes().decodeToString() })
+        }
+    }
+
+    private fun handleGetInfo(response: AsyncHttpServerResponse) {
+        wrapResponse(response).apply {
+            setContentType("application/json")
+            send(
+                Globals.json.encodeToString(
+                    AppInfo(
+                        appTitle = Constants.APP_TITLE,
+                        appRepo = Constants.APP_REPO,
+                        logHistory = Logger.history,
+                    )
+                )
+            )
+        }
+    }
+
+    private fun handleIptvSourcePush(
+        request: AsyncHttpServerRequest,
+        response: AsyncHttpServerResponse,
+    ) {
+        val body = request.getBody<JSONObjectBody>().get()
+        val name = body.get("name").toString()
+        val type = body.get("type").toString()
+        val url = body.get("url").toString()
+        val filePath = body.get("filePath").toString()
+        val content = body.get("content").toString()
+
+        var newIptvSource: IptvSource? = null
+
+        when (type) {
+            "url" -> {
+                newIptvSource = IptvSource(name, url)
+            }
+
+            "file" -> {
+                newIptvSource = IptvSource(name, filePath, true)
+            }
+
+            "content" -> {
+                val file =
+                    File(Globals.fileDir, "iptv_source_local_${System.currentTimeMillis()}.txt")
+                file.writeText(content)
+                newIptvSource = IptvSource(name, file.path, true)
+            }
+        }
+
+        newIptvSource?.let {
+            Configs.iptvSourceList = IptvSourceList(Configs.iptvSourceList + it)
+            Configs.iptvSourceCurrent = it
+        }
+
+        responseSuccess(response)
+    }
+
+    private fun handleVodSourcePush(
+        request: AsyncHttpServerRequest,
+        response: AsyncHttpServerResponse,
+    ) {
+        val body = request.getBody<JSONObjectBody>().get()
+        val key = body.get("key").toString().ifBlank { "custom_${System.currentTimeMillis()}" }
+        val name = body.get("name").toString()
+        val api = body.get("api").toString()
+
+        if (name.isBlank() || api.isBlank()) {
+            wrapResponse(response).apply { send("名称和接口不能为空") }
+            return
+        }
+
+        val newSource = VodSource(key = key, name = name, api = api, ad = "clean")
+        Configs.vodSourceList = VodSourceList(Configs.vodSourceList + newSource)
+
+        responseSuccess(response)
+    }
+
+    private fun handleVodSourceList(response: AsyncHttpServerResponse) {
+        val allSources = Constants.VOD_SOURCE_LIST + Configs.vodSourceList
+        val json = Globals.json.encodeToString(allSources)
+        wrapResponse(response).apply { send(json) }
+    }
+
+    private fun handleAboutGet(response: AsyncHttpServerResponse) {
+        wrapResponse(response).apply {
+            setContentType("application/json")
+            send(
+                Globals.json.encodeToString(
+                    AppAbout(
+                        applicationId = BuildConfig.APPLICATION_ID,
+                        flavor = BuildConfig.FLAVOR,
+                        buildType = BuildConfig.BUILD_TYPE,
+                        versionCode = BuildConfig.VERSION_CODE,
+                        versionName = BuildConfig.VERSION_NAME,
+                        deviceName = Globals.deviceName,
+                        deviceId = Globals.deviceId,
+                    )
+                )
+            )
+        }
+    }
+
+    private fun handleLogsGet(response: AsyncHttpServerResponse) {
+        wrapResponse(response).apply {
+            setContentType("application/json")
+            send(Globals.json.encodeToString(Logger.history))
+        }
+    }
+
+    private fun handleFileContentGet(
+        request: AsyncHttpServerRequest,
+        response: AsyncHttpServerResponse
+    ) {
+        val path = request.query.getString("path")
+
+        val file = File(path).takeIf { it.exists() } ?: run {
+            return response.code(404).send("File not found")
+        }
+
+        wrapResponse(response).send(file.readText())
+    }
+
+    private fun handleFileContentPost(
+        request: AsyncHttpServerRequest,
+        response: AsyncHttpServerResponse
+    ) {
+        val body = request.getBody<JSONObjectBody>().get()
+        val path = body.get("path").toString()
+        val content = body.get("content").toString()
+
+        val file = File(path)
+
+        if (file.exists()) {
+            file.writeText(content)
+        } else {
+            file.parentFile?.mkdirs()
+            file.writeText(content)
+        }
+
+        responseSuccess(response)
+    }
+
+    private fun handleFileContentWithDirPost(
+        request: AsyncHttpServerRequest,
+        response: AsyncHttpServerResponse
+    ) {
+        val body = request.getBody<JSONObjectBody>().get()
+        val dir = body.get("dir").toString()
+        val filename = body.get("filename").toString()
+        val content = body.get("content").toString()
+
+        val file = when (dir) {
+            "cache" -> File(Globals.cacheDir, filename)
+            "file" -> File(Globals.fileDir, filename)
+            else -> return response.code(400).send("Invalid dir")
+        }
+
+        if (file.exists()) {
+            file.writeText(content)
+        } else {
+            file.parentFile?.mkdirs()
+            file.writeText(content)
+        }
+
+        wrapResponse(response).send(file.path)
+    }
+
+    private fun getLocalIpAddress(): String {
+        val defaultIp = "127.0.0.1"
+
+        try {
+            val en = NetworkInterface.getNetworkInterfaces()
+            while (en.hasMoreElements()) {
+                val intf = en.nextElement()
+                val enumIpAddr = intf.inetAddresses
+                while (enumIpAddr.hasMoreElements()) {
+                    val inetAddress = enumIpAddr.nextElement()
+                    if (!inetAddress.isLoopbackAddress && inetAddress is Inet4Address) {
+                        val ip = inetAddress.hostAddress ?: defaultIp
+                        val isValid = when {
+                            ip.startsWith("192.168.") -> true
+                            ip.startsWith("10.") -> true
+                            ip.startsWith("172.") -> {
+                                val parts = ip.split(".")
+                                val secondOctet = parts.getOrNull(1)?.toIntOrNull()
+                                secondOctet in 16..31
+                            }
+
+                            else -> false
+                        }
+
+                        if (isValid)
+                            return ip
+                    }
+                }
+            }
+            return defaultIp
+        } catch (ex: SocketException) {
+            log.e("IP Address: ${ex.message}", ex)
+            return defaultIp
+        }
+    }
+
+    fun startService(context: Context) {
+        runCatching {
+            context.startService(Intent(context, HttpServerService::class.java))
+        }.onFailure { it.printStackTrace() }
+    }
+
+    fun stopService(context: Context) {
+        runCatching {
+            context.stopService(Intent(context, HttpServerService::class.java))
+        }.onFailure { it.printStackTrace() }
+    }
+
+    /**
+     * 处理咪咕频道播放地址请求 - 返回 302 重定向
+     */
+    /**
+     * 处理 M3U8 代理请求 - 代理 TS 片段和子 M3U8 文件
+     */
+    private fun handleMiguProxy(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                wrapResponse(response)
+                val encodedUrl = request.path.substringAfter("/miguprox/")
+                val targetUrl = java.net.URLDecoder.decode(encodedUrl, "UTF-8")
+                
+                log.i("代理请求: ${targetUrl.take(80)}...")
+                
+                val req = Request.Builder().url(targetUrl).get().build()
+                proxyClient.newCall(req).execute().use { resp ->
+                    val contentType = resp.header("Content-Type") ?: ""
+                    val bodyBytes = resp.body?.bytes() ?: ByteArray(0)
+                    val bodyStr = String(bodyBytes, Charsets.UTF_8)
+                    
+                    if (bodyStr.startsWith("#EXTM3U") || contentType.contains("mpegurl") || targetUrl.contains(".m3u8")) {
+                        // M3U8 文件，重写 URL
+                        val baseUrl = resp.request.url.toString()
+                        val rewritten = rewriteM3u8Urls(bodyStr, baseUrl)
+                        response.setContentType("application/vnd.apple.mpegurl")
+                        response.send(rewritten)
+                        log.i("代理 M3U8 子文件: ${rewritten.length} 字节, 前200字: ${rewritten.take(200)}")
+                    } else {
+                        // TS 片段，写入临时文件再发送，确保二进制完整
+                        val tempFile = java.io.File(Globals.cacheDir, "tsproxy_${System.currentTimeMillis()}.ts")
+                        tempFile.writeBytes(bodyBytes)
+                        response.setContentType("video/mp2t")
+                        response.sendFile(tempFile)
+                        log.i("代理 TS 片段: ${bodyBytes.size} 字节 -> ${tempFile.name}")
+                        tempFile.delete()
+                    }
+                }
+            } catch (e: Exception) {
+                log.e("代理请求失败: ${e.message}", e)
+                response.send("代理失败")
+            }
+        }
+    }
+
+    private fun handleMiguChannel(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse, context: Context, isFallback: Boolean = false) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                wrapResponse(response)
+                val pid = request.path.substringAfterLast("/")
+                
+                // 去重: 5秒内同一 pid 复用缓存的播放地址
+                val cached = miguResultCache[pid]
+                val result = if (cached != null && System.currentTimeMillis() - cached.first < 5000) {
+                    // 复用缓存的 URL, 构造一个成功结果
+                    val r = MiguApi.getStreamUrl720p(pid) // 缓存只用于减少API调用, 仍需获取最新
+                    r
+                } else {
+                    val r = MiguApi.getStreamUrl720p(pid)
+                    if (r.isSuccess) {
+                        miguResultCache[pid] = System.currentTimeMillis() to r.url
+                    }
+                    r
+                }
+                
+                if (!result.isSuccess) {
+                    response.send("获取播放地址失败: ${result.error}")
+                    log.e("获取播放地址失败: ${result.error}")
+                    return@launch
+                }
+                
+                if (!isFallback) {
+                    // 正常模式（ExoPlayer）：302 重定向到流地址
+                    val finalUrl = resolveMiguRedirect(result.url)
+                    if (finalUrl.isNotEmpty()) {
+                        response.redirect(finalUrl)
+                        log.i("重定向到: ${finalUrl.take(80)}...")
+                    } else {
+                        response.redirect(result.url)
+                        log.i("直接重定向到: ${result.url.take(80)}...")
+                    }
+                    return@launch
+                }
+
+                // 兜底模式：直接代理 M3U8 内容，避免 CORS
+                val finalUrl = resolveMiguRedirect(result.url)
+                if (finalUrl.isNotEmpty()) {
+                    proxyM3u8(finalUrl, response)
+                } else {
+                    proxyM3u8(result.url, response)
+                }
+            } catch (e: Exception) {
+                log.e("处理咪咕频道请求失败: ${e.message}", e)
+                response.send("错误: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * 代理 M3U8 内容 - 获取远程 M3U8，重写 URL 指向本地代理
+     */
+    private fun proxyM3u8(remoteUrl: String, response: AsyncHttpServerResponse) {
+        try {
+            // 检查 M3U8 缓存 (30s TTL)
+            val cached = m3u8Cache[remoteUrl]
+            if (cached != null && System.currentTimeMillis() - cached.first < M3U8_CACHE_TTL) {
+                response.send(cached.second)
+                return
+            }
+
+            val req = Request.Builder().url(remoteUrl).get().build()
+            proxyClient.newCall(req).execute().use { resp ->
+                val body = resp.body?.string() ?: ""
+                val baseUrl = resp.request.url.toString()
+                
+                // 重写 M3U8 中的相对 URL 为本地代理 URL
+                val rewritten = rewriteM3u8Urls(body, baseUrl)
+                
+                response.setContentType("application/vnd.apple.mpegurl")
+                response.send(rewritten)
+                // 缓存 M3U8 内容 (30s TTL)
+                m3u8Cache[remoteUrl] = System.currentTimeMillis() to rewritten
+                // 清理过期缓存
+                if (m3u8Cache.size > 20) {
+                    val now = System.currentTimeMillis()
+                    m3u8Cache.entries.removeAll { now - it.value.first > M3U8_CACHE_TTL }
+                }
+                log.i("代理 M3U8 成功, ${body.length} -> ${rewritten.length} 字节")
+            }
+        } catch (e: Exception) {
+            log.e("代理 M3U8 失败: ${e.message}", e)
+            response.send("#EXTM3U\n# 代理失败: ${e.message}\n")
+        }
+    }
+    
+    /**
+     * 重写 M3U8 中的 URL，将相对 URL 转为本地代理 URL
+     */
+    private fun rewriteM3u8Urls(m3u8Content: String, baseUrl: String): String {
+        val serverBase = serverUrl + "/miguprox/"
+        val lines = m3u8Content.split("\n", "\r\n")
+        val result = StringBuilder()
+        
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+                result.append(line).append("\n")
+            } else {
+                // 这是一个 URL 行，将相对 URL 转为绝对 URL，再转为代理 URL
+                val absoluteUrl = resolveRelativeUrl(trimmed, baseUrl)
+                val encoded = java.net.URLEncoder.encode(absoluteUrl, "UTF-8")
+                result.append(serverBase).append(encoded).append("\n")
+            }
+        }
+        
+        return result.toString()
+    }
+    
+    /**
+     * 将相对 URL 解析为绝对 URL
+     */
+    private fun resolveRelativeUrl(relativeUrl: String, baseUrl: String): String {
+        return try {
+            val base = java.net.URL(baseUrl)
+            java.net.URL(base, relativeUrl).toString()
+        } catch (e: Exception) {
+            relativeUrl
+        }
+    }
+    
+    /**
+     * 请求 migu 流地址，解析重定向获取最终播放 URL
+     * migu CDN 会对带 ddCalcu 的 URL 做重定向到最终 CDN 节点
+     */
+    private fun resolveMiguRedirect(streamUrl: String): String {
+        return try {
+            val req = Request.Builder().url(streamUrl).get().build()
+            noRedirectClient.newCall(req).execute().use { resp ->
+                val location = resp.header("Location")
+                if (location != null && location.isNotEmpty() && location.startsWith("http")) {
+                    log.i("migu 重定向解析: ${location.take(80)}...")
+                    location
+                } else {
+                    // 没有重定向，可能流地址本身就是最终地址
+                    ""
+                }
+            }
+        } catch (e: Exception) {
+            log.e("migu 重定向解析失败: ${e.message}", e)
+            ""
+        }
+    }
+
+    /**
+     * 处理咪咕 M3U 请求
+     */
+    private fun handleMiguM3u(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse, context: Context) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                wrapResponse(response)
+                response.setContentType("audio/x-mpegurl")
+                
+                val manager = MiguBackendManager.getInstance(context)
+                val categories = manager.loadAllChannels()
+                val hostUrl = serverUrl
+                
+                val m3uContent = MiguM3uGenerator.generateM3u(categories, hostUrl)
+                response.send(m3uContent)
+                
+                log.i("咪咕 M3U 生成成功: ${categories.sumOf { it.dataList.size }} 个频道")
+            } catch (e: Exception) {
+                log.e("咪咕 M3U 生成失败: ${e.message}", e)
+                response.send("#EXTM3U\n# 生成失败: ${e.message}\n")
+            }
+        }
+    }
+
+    /**
+     * 处理咪咕 TXT 请求 (TVAuto 格式)
+     */
+    private fun handleMiguTxt(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse, context: Context) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                wrapResponse(response)
+                response.setContentType("text/plain")
+                
+                val manager = MiguBackendManager.getInstance(context)
+                val categories = manager.loadAllChannels()
+                val hostUrl = serverUrl
+                
+                val txtContent = MiguM3uGenerator.generateTxt(categories, hostUrl)
+                response.send(txtContent)
+                
+                log.i("咪咕 TXT 生成成功")
+            } catch (e: Exception) {
+                log.e("咪咕 TXT 生成失败: ${e.message}", e)
+                response.send("# 生成失败: ${e.message}")
+            }
+        }
+    }
+
+    // === VOD 代理处理函数 ===
+
+    private fun handleVodSources(response: AsyncHttpServerResponse) {
+        try {
+            wrapResponse(response)
+            val sources = Constants.VOD_SOURCE_LIST + Configs.vodSourceList
+            val json = Globals.json.encodeToString(sources)
+            response.send(json)
+        } catch (e: Exception) {
+            log.e("VOD 源列表失败: ${e.message}", e)
+            response.send("[]")
+        }
+    }
+
+    private fun handleVodCategories(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse) {
+        try {
+            wrapResponse(response)
+            val sourceKey = request.query.getString("source") ?: ""
+            val source = (Constants.VOD_SOURCE_LIST + Configs.vodSourceList).find { it.key == sourceKey }
+                ?: throw Exception("采集源不存在: $sourceKey")
+            val url = "${source.api}?ac=list"
+            val body = fetchUrl(url)
+            val cmsResp = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
+            val cats = cmsResp.`class`.map {
+                top.yogiczy.mytv.core.data.entities.vod.VodCategory(
+                    type_id = it.type_id,
+                    type_name = it.type_name,
+                    type_pid = it.type_pid,
+                )
+            }
+            response.send(Globals.json.encodeToString(
+                kotlinx.serialization.builtins.ListSerializer(top.yogiczy.mytv.core.data.entities.vod.VodCategory.serializer()),
+                cats
+            ))
+        } catch (e: Exception) {
+            log.e("VOD 分类失败: ${e.message}", e)
+            response.send("[]")
+        }
+    }
+
+    private fun handleVodList(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse) {
+        try {
+            wrapResponse(response)
+            val sourceKey = request.query.getString("source") ?: ""
+            val typeId = request.query.getString("t") ?: ""
+            val page = request.query.getString("page") ?: "1"
+            val source = (Constants.VOD_SOURCE_LIST + Configs.vodSourceList).find { it.key == sourceKey }
+                ?: throw Exception("采集源不存在: $sourceKey")
+            val url = buildString {
+                append(source.api).append("?ac=videolist&pg=").append(page)
+                if (typeId.isNotEmpty()) append("&t=").append(typeId)
+            }
+            val body = fetchUrl(url)
+            val cmsResp = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
+            val items = cmsResp.list.map { it.toVodItem() }
+            val result = top.yogiczy.mytv.core.data.entities.vod.VodItemList(
+                list = items, page = cmsResp.page,
+                pagecount = cmsResp.pagecount, total = cmsResp.total
+            )
+            response.send(Globals.json.encodeToString(
+                top.yogiczy.mytv.core.data.entities.vod.VodItemList.serializer(), result
+            ))
+        } catch (e: Exception) {
+            log.e("VOD 列表失败: ${e.message}", e)
+            response.send("""{"list":[],"pagecount":0}""")
+        }
+    }
+
+    private fun handleVodSearch(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse) {
+        try {
+            wrapResponse(response)
+            val sourceKey = request.query.getString("source") ?: ""
+            val wd = request.query.getString("wd") ?: ""
+            val page = request.query.getString("page") ?: "1"
+            val source = (Constants.VOD_SOURCE_LIST + Configs.vodSourceList).find { it.key == sourceKey }
+                ?: throw Exception("采集源不存在: $sourceKey")
+            val url = "${source.api}?wd=${java.net.URLEncoder.encode(wd, "UTF-8")}&pg=$page"
+            val body = fetchUrl(url)
+            val cmsResp = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
+            val items = cmsResp.list.map { it.toVodItem() }
+            val result = top.yogiczy.mytv.core.data.entities.vod.VodItemList(
+                list = items, page = cmsResp.page,
+                pagecount = cmsResp.pagecount, total = cmsResp.total
+            )
+            response.send(Globals.json.encodeToString(
+                top.yogiczy.mytv.core.data.entities.vod.VodItemList.serializer(), result
+            ))
+        } catch (e: Exception) {
+            log.e("VOD 搜索失败: ${e.message}", e)
+            response.send("""{"list":[],"pagecount":0}""")
+        }
+    }
+
+    /**
+     * 多源并发搜索: 取5个源同时搜索, 聚合去重后返回
+     * 参数: wd=关键词, offset=批次偏移(每次+5换源)
+     * 智能回退: 全词搜不到时, 逐步缩短关键词重试, 最后用原始关键词过滤结果
+     */
+    private fun handleVodSearchMulti(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                wrapResponse(response)
+                val wd = request.query.getString("wd") ?: ""
+                val offset = (request.query.getString("offset") ?: "0").toIntOrNull() ?: 0
+
+                val all = Constants.VOD_SOURCE_LIST + Configs.vodSourceList
+                if (all.isEmpty()) {
+                    response.send("""{"list":[],"pagecount":0}""")
+                    return@launch
+                }
+
+                val size = all.size
+                val batch = (0 until 5).map { i ->
+                    val s = all[(offset + i) % size]
+                    Triple(s.key, s.name, s.api)
+                }
+
+                // 搜索单个源, 返回结果列表
+                suspend fun searchOne(key: String, name: String, api: String, keyword: String): List<top.yogiczy.mytv.core.data.entities.vod.VodItem> {
+                    val encoded = java.net.URLEncoder.encode(keyword, "UTF-8")
+                    return try {
+                        withTimeoutOrNull(4000) {
+                            val url = "$api?wd=$encoded&pg=1"
+                            val req = okhttp3.Request.Builder().url(url)
+                                .header("User-Agent", "Mozilla/5.0").build()
+                            sharedClient.newCall(req).execute().use { resp ->
+                                if (!resp.isSuccessful) return@withTimeoutOrNull emptyList()
+                                val body = resp.body?.string() ?: return@withTimeoutOrNull emptyList()
+                                if (!body.trimStart().startsWith("{")) return@withTimeoutOrNull emptyList()
+                                val cms = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
+                                cms.list.map { it.toVodItem().copy(sourceKey = key, sourceName = name) }
+                            }
+                        } ?: emptyList()
+                    } catch (_: Exception) { emptyList() }
+                }
+
+                // 第一轮: 用原始关键词搜索
+                var results = batch.map { (key, name, api) ->
+                    async(Dispatchers.IO) { searchOne(key, name, api, wd) }
+                }.awaitAll().flatten().distinctBy { it.vod_name }
+
+                // 智能回退: 如果全词搜不到, 逐步缩短关键词
+                if (results.isEmpty() && wd.length > 2) {
+                    // 生成缩短的关键词候选: 去掉末尾的非中文字符, 再逐步去掉末尾字符
+                    val chinesePart = wd.takeWhile { it.code in 0x4E00..0x9FFF }
+                    val candidates = mutableListOf<String>()
+                    if (chinesePart.isNotEmpty() && chinesePart != wd) {
+                        candidates.add(chinesePart)  // "大明1566" → "大明"
+                    }
+                    // 逐步去掉末尾字符 (至少保留2个字符)
+                    var shortened = wd
+                    while (shortened.length > 2) {
+                        shortened = shortened.dropLast(1)
+                        if (shortened != chinesePart) candidates.add(shortened)
+                    }
+
+                    for (kw in candidates.distinct()) {
+                        results = batch.map { (key, name, api) ->
+                            async(Dispatchers.IO) { searchOne(key, name, api, kw) }
+                        }.awaitAll().flatten().distinctBy { it.vod_name }
+                        if (results.isNotEmpty()) {
+                            // 用原始关键词过滤结果 (模糊匹配: 原始关键词的数字部分需在标题中)
+                            val filtered = results.filter { item ->
+                                wd.all { ch ->
+                                    if (ch.isDigit()) item.vod_name.contains(ch) || item.vod_name.any { it == ch }
+                                    else true  // 中文字符已在搜索中匹配
+                                }
+                            }
+                            results = if (filtered.isNotEmpty()) filtered else results
+                            log.i("多源搜索回退: '$wd' → 用'$kw'搜索, ${results.size}条结果")
+                            break
+                        }
+                    }
+                }
+
+                val result = top.yogiczy.mytv.core.data.entities.vod.VodItemList(
+                    list = results, page = 1, pagecount = 1, total = results.size
+                )
+                response.send(Globals.json.encodeToString(
+                    top.yogiczy.mytv.core.data.entities.vod.VodItemList.serializer(), result
+                ))
+                log.i("多源搜索完成: '$wd' → ${results.size} 条结果")
+            } catch (e: Exception) {
+                log.e("多源搜索失败: ${e.message}", e)
+                response.send("""{"list":[],"pagecount":0}""")
+            }
+        }
+    }
+
+    /** 从拼音字符串提取首字母 (如 "zhanlang" → "zl") */
+    private fun handleVodDetail(request: AsyncHttpServerRequest, response: AsyncHttpServerResponse) {
+        try {
+            wrapResponse(response)
+            val sourceKey = request.query.getString("source") ?: ""
+            val id = request.query.getString("id") ?: ""
+            val source = (Constants.VOD_SOURCE_LIST + Configs.vodSourceList).find { it.key == sourceKey }
+                ?: throw Exception("采集源不存在: $sourceKey")
+            val url = "${source.api}?ac=detail&ids=$id"
+            val body = fetchUrl(url)
+            val cmsResp = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
+            val item = cmsResp.list.firstOrNull() ?: throw Exception("未找到影片")
+            val detail = item.toVodDetail(sourceKey)
+            response.send(Globals.json.encodeToString(
+                top.yogiczy.mytv.core.data.entities.vod.VodDetail.serializer(), detail
+            ))
+        } catch (e: Exception) {
+            log.e("VOD 详情失败: ${e.message}", e)
+            response.send("""{"vod_name":"","play_sources":[]}""")
+        }
+    }
+
+    /** HTTP GET 抓取 */
+    private fun fetchUrl(url: String): String {
+        val req = okhttp3.Request.Builder().url(url)
+            .header("User-Agent", "Mozilla/5.0")
+            .build()
+        sharedClient.newCall(req).execute().use { resp ->
+            if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}")
+            return resp.body?.string() ?: throw Exception("空响应")
+        }
+    }
+}
+
+/** CMS 条目转 VodItem */
+private fun VodCmsItem.toVodItem() = top.yogiczy.mytv.core.data.entities.vod.VodItem(
+    vod_id = vod_id.toString(),
+    vod_name = vod_name,
+    vod_pic = vod_pic,
+    vod_remarks = vod_remarks,
+    type_name = type_name,
+    vod_year = vod_year,
+    vod_area = vod_area,
+    vod_score = vod_score,
+)
+
+/** CMS 条目转 VodDetail (解析 play_from / play_url) */
+private fun VodCmsItem.toVodDetail(sourceKey: String): top.yogiczy.mytv.core.data.entities.vod.VodDetail {
+    val lineNames = vod_play_from.split("$$$")
+    val lineUrls = vod_play_url.split("$$$")
+    val playSources = lineNames.mapIndexed { i, lineName ->
+        val eps = (lineUrls.getOrNull(i) ?: "").split("#")
+            .filter { it.isNotBlank() }
+            .map { ep ->
+                val parts = ep.split("$", limit = 2)
+                top.yogiczy.mytv.core.data.entities.vod.Episode(
+                    name = if (parts.size > 1) parts[0] else "第${ep}集",
+                    url = if (parts.size > 1) parts[1] else parts[0],
+                )
+            }
+        top.yogiczy.mytv.core.data.entities.vod.PlaySource(name = lineName.trim(), episodes = eps)
+    }.filter { it.episodes.isNotEmpty() }
+
+    return top.yogiczy.mytv.core.data.entities.vod.VodDetail(
+        vod_id = vod_id.toString(),
+        vod_name = vod_name,
+        vod_pic = vod_pic,
+        vod_content = vod_content,
+        vod_actor = vod_actor,
+        vod_director = vod_director,
+        vod_area = vod_area,
+        vod_year = vod_year,
+        type_name = type_name,
+        vod_remarks = vod_remarks,
+        vod_score = vod_score,
+        play_sources = playSources,
+        source = sourceKey,
+    )
+}
+
+@Serializable
+private data class AppInfo(
+    val appTitle: String,
+    val appRepo: String,
+    val logHistory: List<Logger.HistoryItem>,
+)
+
+@Serializable
+private data class AppAbout(
+    val applicationId: String,
+    val flavor: String,
+    val buildType: String,
+    val versionCode: Int,
+    val versionName: String,
+    val deviceName: String,
+    val deviceId: String,
+)
+
+// === VOD 代理实现 ===
+
+@Serializable
+private data class VodCmsItem(
+    val vod_id: Int = 0,
+    val vod_name: String = "",
+    val vod_pic: String = "",
+    val vod_remarks: String = "",
+    val type_name: String = "",
+    val vod_year: String = "",
+    val vod_area: String = "",
+    val vod_score: String = "",
+    val vod_content: String = "",
+    val vod_actor: String = "",
+    val vod_director: String = "",
+    val vod_play_from: String = "",
+    val vod_play_url: String = "",
+    val vod_en: String = "",
+    val vod_letter: String = "",
+)
+
+@Serializable
+private data class VodCmsListResponse(
+    val code: Int = 0,
+    val msg: String = "",
+    val list: List<VodCmsItem> = emptyList(),
+    val page: Int = 1,
+    val pagecount: Int = 1,
+    val total: Int = 0,
+    val limit: Int = 0,
+    val `class`: List<VodCmsCategory> = emptyList(),
+)
+
+@Serializable
+private data class VodCmsCategory(
+    val type_id: Int = 0,
+    val type_name: String = "",
+    val type_pid: Int = 0,
+)
