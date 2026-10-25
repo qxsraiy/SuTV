@@ -8,12 +8,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,6 +25,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -28,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource
+import top.yogiczy.mytv.tv.ui.material.SimplePopup
 import top.yogiczy.mytv.tv.ui.rememberChildPadding
 import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
@@ -56,12 +63,15 @@ fun SettingsIptvSourcePriorityScreen(
 ) {
     val childPadding = rememberChildPadding()
     var refreshKey by remember { mutableStateOf(0) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     val sources = remember(refreshKey) { sourcesProvider() }
-    val defaultUrl = remember(refreshKey) { defaultUrlProvider() }
+    // 仅按「用户显式设置」判断，未设置时不算有默认源
+    val explicitDefaultUrl = remember(refreshKey) { Configs.iptvSourceDefaultUrl }
     val backupUrls = remember(refreshKey) { backupUrlsProvider() }
 
-    val effectiveDefault = remember(defaultUrl) {
-        sources.firstOrNull { it.url == defaultUrl } ?: IptvSourcePriority.builtinMigu()
+    val displayDefault = remember(explicitDefaultUrl, sources) {
+        sources.firstOrNull { it.url == explicitDefaultUrl }
     }
 
     AppScreen(
@@ -77,7 +87,8 @@ fun SettingsIptvSourcePriorityScreen(
         ) {
             item {
                 Text(
-                    "默认源：${effectiveDefault.name}",
+                    if (displayDefault != null) "默认源：${displayDefault.name}"
+                    else "默认源：未设置（播放时使用内置咪咕）",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(vertical = 4.dp),
@@ -86,7 +97,9 @@ fun SettingsIptvSourcePriorityScreen(
             item {
                 Text(
                     "备用源 ${backupUrls.size}/3（默认源失败时并发探测，取最快）\n" +
-                        "按 OK / 点击 循环切换：停用 → 默认 → 备用 → 停用",
+                        "· 已设默认源时，其他源只能设为备用或停用\n" +
+                        "· 备用已满 3 个时，默认源只能改为停用\n" +
+                        "· 想换默认源：先把当前默认源改为停用/备用",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(0.6f),
                     modifier = Modifier.padding(bottom = 6.dp),
@@ -95,7 +108,7 @@ fun SettingsIptvSourcePriorityScreen(
 
             items(sources) { source ->
                 val role = when {
-                    source.url == effectiveDefault.url -> SourceRole.DEFAULT
+                    displayDefault?.url == source.url -> SourceRole.DEFAULT
                     backupUrls.contains(source.url) -> SourceRole.BACKUP
                     else -> SourceRole.DISABLED
                 }
@@ -104,28 +117,26 @@ fun SettingsIptvSourcePriorityScreen(
                     role = role,
                     onCycle = {
                         when (role) {
+                            // 停用：只能设默认；若已有默认源则报错
                             SourceRole.DISABLED -> {
-                                // → 默认：旧默认源降级为备用（有位置时）
-                                val old = effectiveDefault
-                                if (old.url != source.url && backupUrls.size < 3) {
-                                    onBackupUrlsChange((backupUrls + old.url) - source.url)
+                                if (displayDefault != null) {
+                                    errorMessage = "已有默认源「${displayDefault.name}」\n" +
+                                        "请先将它改为停用或备用，再设置新的默认源"
                                 } else {
+                                    onDefaultUrlChange(source.url)
                                     onBackupUrlsChange(backupUrls - source.url)
                                 }
-                                onDefaultUrlChange(source.url)
                             }
+
+                            // 默认：备用有空位 → 备用；已满 → 只能停用
                             SourceRole.DEFAULT -> {
-                                // → 备用：必须有一个别的源接任默认，否则不动作
-                                val replacement =
-                                    sources.firstOrNull { it.url in backupUrls && it.url != source.url }
-                                        ?: sources.firstOrNull { it.url != source.url && it.url !in backupUrls }
-                                if (replacement != null) {
-                                    onDefaultUrlChange(replacement.url)
-                                    onBackupUrlsChange(
-                                        (backupUrls + source.url).take(3).toSet()
-                                    )
+                                onDefaultUrlChange("")
+                                if (backupUrls.size < 3) {
+                                    onBackupUrlsChange(backupUrls + source.url)
                                 }
                             }
+
+                            // 备用：只能停用
                             SourceRole.BACKUP -> {
                                 onBackupUrlsChange(backupUrls - source.url)
                             }
@@ -135,6 +146,70 @@ fun SettingsIptvSourcePriorityScreen(
                 )
             }
         }
+    }
+
+    // 操作不被允许时的提示弹窗
+    SimplePopup(
+        visibleProvider = { errorMessage != null },
+        onDismissRequest = { errorMessage = null },
+    ) {
+        ErrorHintDialog(
+            message = errorMessage ?: "",
+            onConfirm = { errorMessage = null },
+        )
+    }
+}
+
+@Composable
+private fun ErrorHintDialog(message: String, onConfirm: () -> Unit) {
+    val btnFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    var focused by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .width(620.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(2.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(16.dp))
+            .padding(28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            "无法设置",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.error,
+        )
+        Spacer(Modifier.height(14.dp))
+        Text(
+            message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(22.dp))
+        Box(
+            modifier = Modifier
+                .focusRequester(btnFocus)
+                .onFocusChanged { focused = it.isFocused }
+                .focusable()
+                .handleKeyEvents(onSelect = onConfirm)
+                .clickable { onConfirm() }
+                .clip(RoundedCornerShape(50))
+                .background(
+                    if (focused) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.error.copy(0.85f)
+                )
+                .padding(horizontal = 32.dp, vertical = 12.dp),
+        ) {
+            Text(
+                "知道了",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.surface,
+            )
+        }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        runCatching { btnFocus.requestFocus() }
     }
 }
 

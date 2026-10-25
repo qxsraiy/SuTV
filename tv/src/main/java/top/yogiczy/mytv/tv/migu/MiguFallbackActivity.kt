@@ -53,6 +53,9 @@ class MiguFallbackActivity : Activity() {
             context.startActivity(intent)
         }
 
+        /** 滑动换台的最小速度（像素/秒） */
+        private const val SWIPE_MIN_VELOCITY = 600f
+
         /** 注入的探测脚本：上报 playing / error / stalled */
         private val JS_STATE_PROBE = """
             (function() {
@@ -198,12 +201,38 @@ class MiguFallbackActivity : Activity() {
 
     /**
      * Activity 级别拦截所有触摸事件，WebView 收不到触摸
-     * 单击/长按 → 回主app弹频道列表
+     * - 单击 / 长按 → 回主 app 弹频道列表
+     * - 上滑 → 下一个频道；下滑 → 上一个频道
      */
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                touchDownX = ev.x
+                touchDownY = ev.y
+                touchDownAt = System.currentTimeMillis()
+            }
+            MotionEvent.ACTION_UP -> {
+                val dx = ev.x - touchDownX
+                val dy = ev.y - touchDownY
+                val dt = System.currentTimeMillis() - touchDownAt
+                val minDist = 70f * resources.displayMetrics.density
+                if (dt in 1..800 &&
+                    kotlin.math.abs(dy) > minDist &&
+                    kotlin.math.abs(dy) > kotlin.math.abs(dx) * 1.5f
+                ) {
+                    // 上滑(dy<0)=下一个频道；下滑(dy>0)=上一个频道
+                    switchChannel(prev = dy > 0)
+                    return true
+                }
+            }
+        }
         gestureDetector.onTouchEvent(ev)
         return true
     }
+
+    private var touchDownX = 0f
+    private var touchDownY = 0f
+    private var touchDownAt = 0L
 
     /**
      * 拦截按键，在 WebView 之前处理

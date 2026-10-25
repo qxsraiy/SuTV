@@ -36,19 +36,31 @@ class UpdateViewModel(
     val latestRelease get() = _latestRelease
 
 
+    /** 重置状态，允许重复检查（手动点击检查更新） */
+    fun resetForCheck() {
+        _isChecking = false
+        _isUpdateAvailable = false
+        _updateDownloaded = false
+        _latestRelease = GitRelease()
+    }
+
     suspend fun checkUpdate(currentVersion: String, channel: String) {
         if (_isChecking) return
-        if (_isUpdateAvailable) return
 
         try {
             log.i("开始检查更新（${channel}）...")
 
             _isChecking = true
-            val releaseUrl = Constants.GIT_RELEASE_LATEST_URL[channel] ?: return
+            val releaseUrl = Constants.GIT_RELEASE_LATEST_URL[channel]
+            if (releaseUrl.isNullOrBlank()) {
+                log.e("未配置更新地址: $channel")
+                _latestRelease = _latestRelease.copy(description = "未配置更新地址")
+                return
+            }
             _latestRelease = GitRepository().latestRelease(releaseUrl)
             _isUpdateAvailable = _latestRelease.version.compareVersion(currentVersion) > 0
 
-            log.i("最新版本: ${_latestRelease.version}")
+            log.i("最新版本: ${_latestRelease.version}, 当前: $currentVersion, 有更新: $_isUpdateAvailable")
         } catch (ex: Exception) {
             log.e("检查更新失败", ex)
             _latestRelease = _latestRelease.copy(description = ex.message ?: "检查更新失败")

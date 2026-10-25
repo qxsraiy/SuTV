@@ -50,6 +50,7 @@ fun SettingsScreen(
     channelGroupListProvider: () -> ChannelGroupList = { ChannelGroupList() },
     settingsViewModel: SettingsViewModel = settingsVM,
     onCheckUpdate: () -> Unit = {},
+    toUpdateScreen: () -> Unit = {},
     onReload: () -> Unit = {},
     onBackPressed: () -> Unit = {},
 ) {
@@ -121,6 +122,7 @@ fun SettingsScreen(
                         toUpdateChannelScreen = {
                             navController.navigateSingleTop(SettingsSubCategories.UPDATE_CHANNEL.name)
                         },
+                        toUpdateScreen = toUpdateScreen,
                         onBackPressed = { navController.navigateUp() },
                     )
                 }

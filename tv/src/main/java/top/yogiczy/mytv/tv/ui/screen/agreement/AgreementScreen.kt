@@ -43,11 +43,39 @@ fun AgreementScreen(
 
     val messages = listOf(
         "欢迎使用${Constants.APP_TITLE}，请在使用前仔细阅读以下内容：",
-        "1. 本软件为开源软件，仅供学习交流使用，禁止用于任何商业用途。",
-        "2. 本软件不提供任何直播内容，所有直播内容均来自网络。",
-        "3. 本软件完全基于您个人意愿使用，您应该对自己的使用行为和所有结果承担全部责任。",
-        "4. 如果本软件存在侵犯您的合法权益的情况，请及时与作者联系，作者将会及时删除有关内容。",
-        "如您继续使用本软件即代表您已完全理解并同意上述内容。",
+
+        "【一、软件性质】",
+        "1. 本软件为开源播放器工具，仅提供播放能力与界面聚合。",
+        "2. 本软件不提供、不制作、不存储、不分发、不托管任何音视频内容、直播信号或节目源。",
+
+        "【二、内容来源】",
+        "3. 本软件不自带任何可用的直播或点播内容。",
+        "4. 所有直播源、点播源、节目单均来自第三方公开网络，或由用户自行添加与配置。",
+        "5. 内置示例源仅用于演示“如何配置”，其可用性、合法性、安全性均与本软件作者无关。",
+        "6. 本软件与咪咕视频、各 IPTV 运营商、各内容版权方无任何隶属、合作或授权关系。",
+
+        "【三、使用限制】",
+        "7. 仅限个人学习、研究与技术交流，禁止任何商业用途、经营活动或盈利目的。",
+        "8. 不得利用本软件获取或传播违法、侵权、色情、暴力等违反当地法律法规的内容。",
+        "9. 不得用于破解、绕过任何付费墙、数字版权管理（DRM）或访问控制措施。",
+        "10. 不得用于侵犯他人知识产权、商业秘密或其他合法权益。",
+
+        "【四、责任承担】",
+        "11. 您应自行确认所在地区法律法规的允许范围，并自行承担全部使用后果。",
+        "12. 因违反法律法规或本须知导致的任何损失、行政处罚、民事或刑事责任，均由您自行承担，与本软件作者无关。",
+
+        "【五、无担保与责任限制】",
+        "13. 本软件按“现状”（AS IS）提供，不附带任何明示或暗示的担保。",
+        "14. 使用本软件可能导致的设备损坏、数据丢失、服务中断、账号封禁等风险，由您自行承担。",
+        "15. 在法律允许的最大范围内，作者与贡献者对因使用或无法使用本软件产生的任何直接、间接、附带或后果性损害不承担责任。",
+
+        "【六、版权投诉】",
+        "16. 若您认为本软件中的示例配置侵犯了您的合法权益，请通过 GitHub Issues 联系，核实后将于合理时间内移除。",
+
+        "【七、条款变更】",
+        "17. 本须知可能随时更新，继续使用即视为接受更新后的内容。",
+
+        "如您继续使用本软件，即代表您已完整阅读、理解并同意上述全部内容。若不同意，请立即退出并卸载本软件。",
     )
 
     AppScreen(modifier = modifier) {
@@ -56,56 +84,57 @@ fun AgreementScreen(
                 .fillMaxSize()
                 .padding(top = childPadding.top),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
         ) {
             Text("使用须知", style = MaterialTheme.typography.headlineMedium)
 
             CompositionLocalProvider(
                 LocalTextStyle provides MaterialTheme.typography.bodyLarge
             ) {
+                // 正文可滚动，按钮固定在底部，避免内容变长后按钮被挤出屏幕
                 LazyColumn(
-                    modifier = Modifier.width(8.gridColumns()),
-                    contentPadding = PaddingValues(top = 16.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .width(8.gridColumns()),
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     items(messages) { Text(it) }
+                }
 
-                    item {
-                        val btnColors = ButtonDefaults.colors(
-                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-                        )
+                val btnColors = ButtonDefaults.colors(
+                    containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                )
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 48.dp, bottom = childPadding.bottom),
-                            horizontalArrangement = Arrangement.Center,
-                        ) {
-                            Button(
-                                modifier = Modifier
-                                    .focusOnLaunched()
-                                    .handleKeyEvents(onSelect = onAgree)
-                                    .clickableNoIndication {
-                                        onTouchTested()
-                                        onAgree()
-                                    },
-                                colors = btnColors,
-                                onClick = { },
-                            ) {
-                                Text("已阅读并同意")
-                            }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp, bottom = childPadding.bottom),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Button(
+                        modifier = Modifier
+                            .focusOnLaunched()
+                            .handleKeyEvents(onSelect = onAgree)
+                            .clickableNoIndication {
+                                onTouchTested()
+                                onAgree()
+                            },
+                        colors = btnColors,
+                        onClick = { },
+                    ) {
+                        Text("已阅读并同意")
+                    }
 
-                            Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                            Button(
-                                modifier = Modifier
-                                    .handleKeyEvents(onSelect = onDisagree),
-                                colors = btnColors,
-                                onClick = { },
-                            ) {
-                                Text("退出应用")
-                            }
-                        }
+                    Button(
+                        modifier = Modifier
+                            .handleKeyEvents(onSelect = onDisagree)
+                            .clickableNoIndication { onDisagree() },
+                        colors = btnColors,
+                        onClick = { },
+                    ) {
+                        Text("退出应用")
                     }
                 }
             }

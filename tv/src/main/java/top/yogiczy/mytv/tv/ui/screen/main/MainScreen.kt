@@ -267,6 +267,7 @@ fun MainScreen(
                     },
                     channelGroupListProvider = channelGroupListProvider,
                     onCheckUpdate = { checkUpdate(false) },
+                    toUpdateScreen = { navController.navigateSingleTop(Screens.Update()) },
                     onReload = { reload() },
                     onBackPressed = { navController.navigateUp() },
                 )

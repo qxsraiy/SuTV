@@ -95,12 +95,21 @@ object Constants {
     /**
      * GitHub加速代理地址
      */
-    const val GITHUB_PROXY = "https://ghp.ci/"
+    /** GitHub 更新代理（留空=直连） */
+    const val GITHUB_PROXY = ""
 
-    /**
-     * Git最新版本信息
-     */
-    val GIT_RELEASE_LATEST_URL = mapOf<String, String>()
+    /** 更新仓库 owner */
+    const val GITHUB_REPO_OWNER = "qxsraiy"
+
+    /** 更新仓库 name */
+    const val GITHUB_REPO_NAME = "SuTV"
+
+    /** 更新检查地址（对应 设置 → 更新 → 更新通道） */
+    val GIT_RELEASE_LATEST_URL = mapOf(
+        "stable" to "https://api.github.com/repos/$GITHUB_REPO_OWNER/$GITHUB_REPO_NAME/releases/latest",
+        "beta" to "https://api.github.com/repos/$GITHUB_REPO_OWNER/$GITHUB_REPO_NAME/releases/latest",
+        "dev" to "https://api.github.com/repos/$GITHUB_REPO_OWNER/$GITHUB_REPO_NAME/releases/latest",
+    )
 
     /**
      * 网络请求重试次数
