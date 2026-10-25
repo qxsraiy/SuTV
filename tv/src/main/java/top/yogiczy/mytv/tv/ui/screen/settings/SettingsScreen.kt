@@ -119,10 +119,6 @@ fun SettingsScreen(
 
                 composable(SettingsCategories.UPDATE.name) {
                     SettingsUpdateScreen(
-                        toUpdateChannelScreen = {
-                            navController.navigateSingleTop(SettingsSubCategories.UPDATE_CHANNEL.name)
-                        },
-                        toUpdateScreen = toUpdateScreen,
                         onBackPressed = { navController.navigateUp() },
                     )
                 }
@@ -232,18 +228,6 @@ fun SettingsScreen(
                         onHybridModeChanged = {
                             settingsViewModel.iptvHybridMode = it
                             navController.navigateUp()
-                        },
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
-                composable(SettingsSubCategories.UPDATE_CHANNEL.name) {
-                    SettingsUpdateChannelScreen(
-                        updateChannelProvider = { settingsViewModel.updateChannel },
-                        onUpdateChannelChanged = {
-                            settingsViewModel.updateChannel = it
-                            navController.navigateUp()
-                            onCheckUpdate()
                         },
                         onBackPressed = { navController.navigateUp() },
                     )

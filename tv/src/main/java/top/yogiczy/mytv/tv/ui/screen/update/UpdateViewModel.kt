@@ -35,6 +35,21 @@ class UpdateViewModel(
     private var _latestRelease by mutableStateOf(debugLatestRelease ?: GitRelease())
     val latestRelease get() = _latestRelease
 
+    /** 全局「发现新版本」弹窗是否可见 */
+    private var _popupVisible by mutableStateOf(false)
+    val popupVisible get() = _popupVisible
+
+    fun showUpdatePopup() {
+        _popupVisible = true
+    }
+
+    fun dismissUpdatePopup() {
+        _popupVisible = false
+    }
+
+    /** 当前安装版本（用于弹窗展示） */
+    var currentVersion: String = ""
+
 
     /** 重置状态，允许重复检查（手动点击检查更新） */
     fun resetForCheck() {
@@ -42,6 +57,7 @@ class UpdateViewModel(
         _isUpdateAvailable = false
         _updateDownloaded = false
         _latestRelease = GitRelease()
+        _popupVisible = false
     }
 
     suspend fun checkUpdate(currentVersion: String, channel: String) {

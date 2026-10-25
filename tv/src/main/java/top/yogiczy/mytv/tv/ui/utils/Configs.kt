@@ -407,7 +407,7 @@ object Configs {
     /** ==================== 更新 ==================== */
     /** 更新强提醒 */
     var updateForceRemind: Boolean
-        get() = SP.getBoolean(KEY.UPDATE_FORCE_REMIND.name, false)
+        get() = SP.getBoolean(KEY.UPDATE_FORCE_REMIND.name, true)
         set(value) = SP.putBoolean(KEY.UPDATE_FORCE_REMIND.name, value)
 
     /** 更新通道 */

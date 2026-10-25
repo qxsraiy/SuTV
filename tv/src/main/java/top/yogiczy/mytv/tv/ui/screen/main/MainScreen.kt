@@ -5,7 +5,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -14,6 +17,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import java.io.File
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -28,6 +33,8 @@ import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.chanelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelList
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
+import top.yogiczy.mytv.core.data.utils.Globals
+import top.yogiczy.mytv.core.util.utils.ApkInstaller
 import top.yogiczy.mytv.tv.BuildConfig
 import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.rememberDoubleBackPressedExitState
@@ -44,9 +51,11 @@ import top.yogiczy.mytv.tv.ui.screen.settings.SettingsScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.SettingsViewModel
 import top.yogiczy.mytv.tv.ui.screen.settings.settingsVM
 import top.yogiczy.mytv.tv.ui.screen.update.UpdateScreen
+import top.yogiczy.mytv.tv.ui.screen.update.UpdateAvailableDialog
 import top.yogiczy.mytv.tv.ui.screen.update.UpdateViewModel
 import top.yogiczy.mytv.tv.ui.screen.update.updateVM
 import top.yogiczy.mytv.tv.ui.utils.navigateSingleTop
+import top.yogiczy.mytv.tv.ui.utils.rememberCanRequestPackageInstallsPermission
 
 @Composable
 fun MainScreen(
@@ -57,6 +66,7 @@ fun MainScreen(
     onBackPressed: () -> Unit = {},
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
     val uiState by mainViewModel.uiState.collectAsState()
 
     // 点播
@@ -118,23 +128,18 @@ fun MainScreen(
     fun checkUpdate(quiet: Boolean = true) {
         coroutineScope.launch {
             if (!quiet) Snackbar.show("正在检查更新...", leadingLoading = true, duration = 5000)
-
-            delay(3000)
+            updateViewModel.currentVersion = BuildConfig.VERSION_NAME
             updateViewModel.checkUpdate(BuildConfig.VERSION_NAME, settingsViewModel.updateChannel)
 
-            if (!quiet) {
-                if (updateViewModel.isUpdateAvailable) Snackbar.show("发现新版本: v${updateViewModel.latestRelease.version}")
-                else Snackbar.show("当前已是最新版本")
-            }
-
-            if (!updateViewModel.isUpdateAvailable) return@launch
-            if (settingsViewModel.appLastLatestVersion == updateViewModel.latestRelease.version) return@launch
-
-            settingsViewModel.appLastLatestVersion = updateViewModel.latestRelease.version
-            if (settingsViewModel.updateForceRemind) {
-                navController.navigateSingleTop(Screens.Update())
-            } else {
-                if (quiet) Snackbar.show("发现新版本: v${updateViewModel.latestRelease.version}")
+            if (updateViewModel.isUpdateAvailable) {
+                // 有新版本：强提醒开启 → 弹窗；否则仅消息提示
+                if (!quiet || settingsViewModel.updateForceRemind) {
+                    updateViewModel.showUpdatePopup()
+                } else {
+                    Snackbar.show("发现新版本: v${updateViewModel.latestRelease.version}")
+                }
+            } else if (!quiet) {
+                Snackbar.show("当前已是最新版本")
             }
         }
     }
@@ -146,8 +151,8 @@ fun MainScreen(
         navController.navigateSingleTop(Screens.Loading())
     }
 
+    Box(modifier = modifier.fillMaxSize()) {
     NavHost(
-        modifier = modifier,
         navController = navController,
         startDestination = if (settingsViewModel.appAgreementAgreed) Screens.Loading() else Screens.Agreement(),
         builder = {
@@ -314,6 +319,49 @@ fun MainScreen(
             }
         },
     )
+
+        // ===== 全局「发现新版本」弹窗 =====
+        if (updateViewModel.popupVisible) {
+            val latestFile = remember { File(Globals.cacheDir, "latest.apk") }
+            var downloading by remember { mutableStateOf(false) }
+            var pendingInstall by remember { mutableStateOf(false) }
+            val (hasInstallPermission, requestInstallPermission) =
+                rememberCanRequestPackageInstallsPermission()
+
+            // 授予安装权限后补装
+            LaunchedEffect(hasInstallPermission) {
+                if (hasInstallPermission && pendingInstall) {
+                    pendingInstall = false
+                    ApkInstaller.installApk(context, latestFile.path)
+                }
+            }
+
+            UpdateAvailableDialog(
+                latestVersion = updateViewModel.latestRelease.version,
+                currentVersion = BuildConfig.VERSION_NAME,
+                downloading = downloading,
+                onConfirm = {
+                    if (!downloading) {
+                        coroutineScope.launch {
+                            downloading = true
+                            updateViewModel.downloadAndUpdate(latestFile)
+                            downloading = false
+                            if (updateViewModel.updateDownloaded) {
+                                updateViewModel.dismissUpdatePopup()
+                                if (hasInstallPermission) {
+                                    ApkInstaller.installApk(context, latestFile.path)
+                                } else {
+                                    pendingInstall = true
+                                    requestInstallPermission()
+                                }
+                            }
+                        }
+                    }
+                },
+                onCancel = { updateViewModel.dismissUpdatePopup() },
+            )
+        }
+    }
 }
 
 private data class VodPlayData(
