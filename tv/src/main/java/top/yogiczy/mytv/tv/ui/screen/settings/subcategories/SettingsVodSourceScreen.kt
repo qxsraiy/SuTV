@@ -1,6 +1,7 @@
 package top.yogiczy.mytv.tv.ui.screen.settings.subcategories
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -196,6 +197,7 @@ private fun VodSourceItem(
                 .onFocusChanged { setFocused = it.isFocused }
                 .focusable()
                 .handleKeyEvents(onSelect = { if (!isDefault) onSetDefault() })
+                .clickable { if (!isDefault) onSetDefault() }
                 .clip(RoundedCornerShape(50))
                 .background(
                     when {
@@ -222,6 +224,7 @@ private fun VodSourceItem(
                     .onFocusChanged { delFocused = it.isFocused }
                     .focusable()
                     .handleKeyEvents(onSelect = onDelete)
+                    .clickable { onDelete() }
                     .clip(RoundedCornerShape(50))
                     .background(
                         if (delFocused) MaterialTheme.colorScheme.error

@@ -50,7 +50,14 @@ fun SettingsListItem(
 
     ListItem(
         selected = false,
-        onClick = {},
+        // 触控支持：手指点击等同遥控确认
+        onClick = {
+            if (onSelect != null) onSelect()
+            else if (remoteConfig) {
+                popupManager.push(focusRequester, true)
+                showPush = true
+            }
+        },
         headlineContent = { Text(text = headlineContent) },
         trailingContent = {
             Row(

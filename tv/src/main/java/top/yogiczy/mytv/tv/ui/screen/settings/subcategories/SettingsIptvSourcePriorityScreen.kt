@@ -2,6 +2,7 @@ package top.yogiczy.mytv.tv.ui.screen.settings.subcategories
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,8 +46,10 @@ import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
 fun SettingsIptvSourcePriorityScreen(
     modifier: Modifier = Modifier,
     sourcesProvider: () -> List<IptvSource> = { IptvSourcePriority.allSources() },
-    defaultUrlProvider: () -> String = { Configs.iptvSourceDefaultUrl },
-    backupUrlsProvider: () -> Set<String> = { Configs.iptvSourceBackupUrls },
+    defaultUrlProvider: () -> String = { IptvSourcePriority.effectiveDefault().url },
+    backupUrlsProvider: () -> Set<String> = {
+        IptvSourcePriority.effectiveBackups().map { it.url }.toSet()
+    },
     onDefaultUrlChange: (String) -> Unit = {},
     onBackupUrlsChange: (Set<String>) -> Unit = {},
     onBackPressed: () -> Unit = {},
@@ -83,7 +86,7 @@ fun SettingsIptvSourcePriorityScreen(
             item {
                 Text(
                     "备用源 ${backupUrls.size}/3（默认源失败时并发探测，取最快）\n" +
-                        "按 OK 循环切换：停用 → 默认 → 备用 → 停用",
+                        "按 OK / 点击 循环切换：停用 → 默认 → 备用 → 停用",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(0.6f),
                     modifier = Modifier.padding(bottom = 6.dp),
@@ -102,17 +105,26 @@ fun SettingsIptvSourcePriorityScreen(
                     onCycle = {
                         when (role) {
                             SourceRole.DISABLED -> {
-                                // 升级为默认：清掉新的默认原本的默认身份
+                                // → 默认：旧默认源降级为备用（有位置时）
+                                val old = effectiveDefault
+                                if (old.url != source.url && backupUrls.size < 3) {
+                                    onBackupUrlsChange((backupUrls + old.url) - source.url)
+                                } else {
+                                    onBackupUrlsChange(backupUrls - source.url)
+                                }
                                 onDefaultUrlChange(source.url)
-                                onBackupUrlsChange(backupUrls - source.url)
                             }
                             SourceRole.DEFAULT -> {
-                                // 默认 → 备用（若备用已满则变停用）
-                                onDefaultUrlChange("")
-                                onBackupUrlsChange(
-                                    if (backupUrls.size >= 3) backupUrls
-                                    else backupUrls + source.url
-                                )
+                                // → 备用：必须有一个别的源接任默认，否则不动作
+                                val replacement =
+                                    sources.firstOrNull { it.url in backupUrls && it.url != source.url }
+                                        ?: sources.firstOrNull { it.url != source.url && it.url !in backupUrls }
+                                if (replacement != null) {
+                                    onDefaultUrlChange(replacement.url)
+                                    onBackupUrlsChange(
+                                        (backupUrls + source.url).take(3).toSet()
+                                    )
+                                }
                             }
                             SourceRole.BACKUP -> {
                                 onBackupUrlsChange(backupUrls - source.url)
@@ -142,6 +154,8 @@ private fun IptvSourceRoleItem(
             .onFocusChanged { isFocused = it.isFocused || it.hasFocus }
             .focusable()
             .handleKeyEvents(onSelect = onCycle)
+            // 触控：整行可点，点一次切换一次角色
+            .clickable { onCycle() }
             .clip(RoundedCornerShape(10.dp))
             .background(
                 if (isFocused) MaterialTheme.colorScheme.onSurface.copy(0.14f)

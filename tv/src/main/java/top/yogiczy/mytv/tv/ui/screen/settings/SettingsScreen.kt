@@ -198,6 +198,12 @@ fun SettingsScreen(
 
                 composable(SettingsSubCategories.IPTV_SOURCE_PRIORITY.name) {
                     SettingsIptvSourcePriorityScreen(
+                        onDefaultUrlChange = {
+                            settingsViewModel.iptvSourceDefaultUrl = it
+                        },
+                        onBackupUrlsChange = {
+                            settingsViewModel.iptvSourceBackupUrls = it
+                        },
                         onBackPressed = { navController.navigateUp() },
                     )
                 }

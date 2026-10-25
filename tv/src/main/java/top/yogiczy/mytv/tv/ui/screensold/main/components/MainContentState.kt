@@ -564,6 +564,13 @@ class MainContentState(
         MiguFallbackActivity.onPlaybackFailed = {
             showNetworkError()
         }
+        // WebView 里按方向键换台 → 回到主 app 的直播源播放器（不再停留在 WebView）
+        MiguFallbackActivity.onSwitchChannel = { prev ->
+            _isSourceSwitching = false
+            _isNetworkError = false
+            isChannelScreenVisible = false
+            if (prev) changeCurrentChannelToPrev() else changeCurrentChannelToNext()
+        }
         MiguFallbackActivity.startActivity(Globals.appContext, fallbackUrl, channelName)
     }
 

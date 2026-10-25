@@ -139,6 +139,7 @@ private fun ChannelGroupTab(
             .onFocusChanged { isFocused = it.isFocused }
             .focusable()
             .handleKeyEvents(onSelect = onSelect)
+            .clickable { onSelect() }
             .scale(if (isFocused) 1.05f else 1f)
             .clip(RoundedCornerShape(8.dp))
             .background(
@@ -180,6 +181,7 @@ private fun ChannelVisibilityItem(
             .onFocusChanged { isFocused = it.isFocused || it.hasFocus }
             .handleKeyEvents(onSelect = onVisibilityToggle)
             .focusable()
+            .clickable { onVisibilityToggle() }
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.onSurface.copy(if (visible) 0.10f else 0.03f))
             .border(

@@ -41,6 +41,10 @@ class MiguFallbackActivity : Activity() {
         @Volatile
         var onPlaybackFailed: (() -> Unit)? = null
 
+        /** 方向键换台回调：true=上一个频道，false=下一个频道 */
+        @Volatile
+        var onSwitchChannel: ((prev: Boolean) -> Unit)? = null
+
         fun startActivity(context: Context, url: String, channelName: String = "") {
             val intent = Intent(context, MiguFallbackActivity::class.java)
             intent.putExtra(EXTRA_URL, url)
@@ -202,18 +206,38 @@ class MiguFallbackActivity : Activity() {
     }
 
     /**
-     * 拦截 OK 键，在 WebView 之前处理
+     * 拦截按键，在 WebView 之前处理
+     * - OK / 确认 → 关闭兜底，回主 app 弹频道列表
+     * - 上/左 → 上一个频道
+     * - 下/右 → 下一个频道
+     * 换台一律回到主 app 的直播源播放器，不再停留在 WebView
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN) {
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_CENTER -> {
                     requestChannelList()
                     return true
                 }
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    switchChannel(prev = true)
+                    return true
+                }
+                KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    switchChannel(prev = false)
+                    return true
+                }
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    /** 换台：通知主 app 切到相邻频道，然后关闭 WebView 回到直播画面 */
+    private fun switchChannel(prev: Boolean) {
+        handler.removeCallbacks(watchdogRunnable)
+        val callback = onSwitchChannel
+        finish()
+        callback?.invoke(prev)
     }
 
     private fun requestChannelList() {
