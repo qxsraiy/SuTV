@@ -37,6 +37,10 @@ class MiguFallbackActivity : Activity() {
         @Volatile
         var onRequestChannelList: (() -> Unit)? = null
 
+        /** WebView 兜底播放失败回调（触发蓝屏） */
+        @Volatile
+        var onPlaybackFailed: (() -> Unit)? = null
+
         fun startActivity(context: Context, url: String, channelName: String = "") {
             val intent = Intent(context, MiguFallbackActivity::class.java)
             intent.putExtra(EXTRA_URL, url)
@@ -44,6 +48,29 @@ class MiguFallbackActivity : Activity() {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
         }
+
+        /** 注入的探测脚本：上报 playing / error / stalled */
+        private val JS_STATE_PROBE = """
+            (function() {
+              try {
+                var v = document.getElementById('video');
+                if (!v) { AndroidBridge.onState('error'); return; }
+                v.addEventListener('playing', function(){ AndroidBridge.onState('playing'); });
+                v.addEventListener('error', function(){ AndroidBridge.onState('error'); });
+                var t = 0;
+                var timer = setInterval(function() {
+                  t += 500;
+                  if (!v.paused && v.readyState >= 3) {
+                    AndroidBridge.onState('playing');
+                    clearInterval(timer);
+                  } else if (t >= ${top.yogiczy.mytv.core.data.utils.Constants.WEBVIEW_FALLBACK_TIMEOUT}) {
+                    AndroidBridge.onState('stalled');
+                    clearInterval(timer);
+                  }
+                }, 500);
+              } catch (e) { AndroidBridge.onState('error'); }
+            })();
+        """.trimIndent()
     }
 
     private lateinit var webView: WebView
@@ -90,7 +117,38 @@ class MiguFallbackActivity : Activity() {
             allowFileAccessFromFileURLs = true
         }
         webView.webChromeClient = WebChromeClient()
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                pageFinished = true
+                // 注入播放状态探测
+                view?.evaluateJavascript(JS_STATE_PROBE, null)
+            }
+
+            override fun onReceivedError(
+                view: WebView?,
+                request: android.webkit.WebResourceRequest?,
+                error: android.webkit.WebResourceError?,
+            ) {
+                super.onReceivedError(view, request, error)
+                // 只关心主框架失败
+                if (request?.isForMainFrame == true) {
+                    reportFailure("主框架加载失败")
+                }
+            }
+
+            @Deprecated("兼容旧 API")
+            override fun onReceivedError(
+                view: WebView?,
+                errorCode: Int,
+                description: String?,
+                failingUrl: String?,
+            ) {
+                super.onReceivedError(view, errorCode, description, failingUrl)
+                reportFailure("加载失败: $description")
+            }
+        }
+        webView.addJavascriptInterface(Bridge(), "AndroidBridge")
         webView.setBackgroundColor(Color.BLACK)
 
         overlayText = TextView(this).apply {
@@ -163,9 +221,49 @@ class MiguFallbackActivity : Activity() {
         finish()
     }
 
+    // ==================== 播放失败检测 ====================
+
+    private var pageFinished = false
+    private var playStarted = false
+    private var failureReported = false
+
+    /** JS 桥：页面内上报播放状态 */
+    inner class Bridge {
+        @android.webkit.JavascriptInterface
+        fun onState(state: String) {
+            handler.post {
+                when (state) {
+                    "playing" -> {
+                        playStarted = true
+                        watchdogRunnable.let { handler.removeCallbacks(it) }
+                    }
+                    "error" -> reportFailure("播放器报错")
+                    "stalled" -> reportFailure("无数据")
+                }
+            }
+        }
+    }
+
+    /** 兜底超时看门狗：超时仍未出画面即判失败 */
+    private val watchdogRunnable = Runnable {
+        if (!playStarted) reportFailure("超时未出画面")
+    }
+
+    private fun reportFailure(reason: String) {
+        if (failureReported || playStarted) return
+        failureReported = true
+        handler.removeCallbacks(watchdogRunnable)
+        android.util.Log.e("MiguFallback", "WebView 兜底失败: $reason")
+        onPlaybackFailed?.invoke()
+        finish()
+    }
+
     private fun loadStream(url: String) {
         val encodedUrl = Uri.encode(url)
         webView.loadUrl("file:///android_asset/hls_player.html#$encodedUrl")
+        // 启动看门狗
+        handler.removeCallbacks(watchdogRunnable)
+        handler.postDelayed(watchdogRunnable, top.yogiczy.mytv.core.data.utils.Constants.WEBVIEW_FALLBACK_TIMEOUT)
     }
 
     private var overlayHideRunnable = Runnable { overlayText.visibility = View.GONE }
@@ -179,6 +277,7 @@ class MiguFallbackActivity : Activity() {
 
     override fun onDestroy() {
         handler.removeCallbacks(overlayHideRunnable)
+        handler.removeCallbacks(watchdogRunnable)
         webView.destroy()
         super.onDestroy()
     }

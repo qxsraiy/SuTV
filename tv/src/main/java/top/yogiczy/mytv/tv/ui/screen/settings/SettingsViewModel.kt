@@ -106,6 +106,22 @@ class SettingsViewModel : ViewModel() {
             Configs.iptvChannelHiddenList = value
         }
 
+    private var _iptvSourceDefaultUrl by mutableStateOf("")
+    var iptvSourceDefaultUrl: String
+        get() = _iptvSourceDefaultUrl
+        set(value) {
+            _iptvSourceDefaultUrl = value
+            Configs.iptvSourceDefaultUrl = value
+        }
+
+    private var _iptvSourceBackupUrls by mutableStateOf(emptySet<String>())
+    var iptvSourceBackupUrls: Set<String>
+        get() = _iptvSourceBackupUrls
+        set(value) {
+            _iptvSourceBackupUrls = value
+            Configs.iptvSourceBackupUrls = value
+        }
+
     private var _iptvHybridMode by mutableStateOf(Configs.IptvHybridMode.DISABLE)
     var iptvHybridMode: Configs.IptvHybridMode
         get() = _iptvHybridMode
@@ -359,8 +375,14 @@ class SettingsViewModel : ViewModel() {
         _iptvSourceCacheTime = Configs.iptvSourceCacheTime
         _iptvSourceCurrent = Configs.iptvSourceCurrent
         _iptvSourceList = Configs.iptvSourceList
+        // 清理已被删除的自定义源在优先级配置中的残留
+        runCatching { top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority.pruneInvalid() }
+        _iptvSourceDefaultUrl = Configs.iptvSourceDefaultUrl
+        _iptvSourceBackupUrls = Configs.iptvSourceBackupUrls
         _iptvChannelGroupHiddenList = Configs.iptvChannelGroupHiddenList
         _iptvChannelHiddenList = Configs.iptvChannelHiddenList
+        _iptvSourceDefaultUrl = Configs.iptvSourceDefaultUrl
+        _iptvSourceBackupUrls = Configs.iptvSourceBackupUrls
         _iptvHybridMode = Configs.iptvHybridMode
         _iptvSimilarChannelMerge = Configs.iptvSimilarChannelMerge
         _iptvChannelLogoProvider = Configs.iptvChannelLogoProvider

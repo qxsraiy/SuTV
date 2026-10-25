@@ -60,6 +60,12 @@ object Configs {
         /** 直播源缓存时间（毫秒） */
         IPTV_SOURCE_CACHE_TIME,
 
+        /** 直播源 默认源 URL */
+        IPTV_SOURCE_DEFAULT_URL,
+
+        /** 直播源 备用源 URL 列表 */
+        IPTV_SOURCE_BACKUP_URLS,
+
         /** 直播源分组隐藏列表 */
         IPTV_CHANNEL_GROUP_HIDDEN_LIST,
 
@@ -251,6 +257,16 @@ object Configs {
     var iptvSourceCacheTime: Long
         get() = SP.getLong(KEY.IPTV_SOURCE_CACHE_TIME.name, Constants.IPTV_SOURCE_CACHE_TIME)
         set(value) = SP.putLong(KEY.IPTV_SOURCE_CACHE_TIME.name, value)
+
+    /** 直播源 默认源 URL（空=使用内置咪咕） */
+    var iptvSourceDefaultUrl: String
+        get() = SP.getString(KEY.IPTV_SOURCE_DEFAULT_URL.name, "") ?: ""
+        set(value) = SP.putString(KEY.IPTV_SOURCE_DEFAULT_URL.name, value)
+
+    /** 直播源 备用源 URL 列表（≤3，空=使用默认的3个内置源） */
+    var iptvSourceBackupUrls: Set<String>
+        get() = SP.getStringSet(KEY.IPTV_SOURCE_BACKUP_URLS.name, emptySet()) ?: emptySet()
+        set(value) = SP.putStringSet(KEY.IPTV_SOURCE_BACKUP_URLS.name, value)
 
     /** 直播源分组隐藏列表 */
     var iptvChannelGroupHiddenList: Set<String>
@@ -535,6 +551,8 @@ object Configs {
             debugShowVideoPlayerMetadata = debugShowVideoPlayerMetadata,
             debugShowLayoutGrids = debugShowLayoutGrids,
             iptvSourceCacheTime = iptvSourceCacheTime,
+            iptvSourceDefaultUrl = iptvSourceDefaultUrl,
+            iptvSourceBackupUrls = iptvSourceBackupUrls,
             iptvSourceCurrent = iptvSourceCurrent,
             iptvSourceList = iptvSourceList,
             iptvChannelGroupHiddenList = iptvChannelGroupHiddenList,
@@ -584,6 +602,8 @@ object Configs {
         configs.appAgreementAgreed?.let { appAgreementAgreed = it }
         configs.appStartupScreen?.let { appStartupScreen = it }
         configs.iptvSourceCacheTime?.let { iptvSourceCacheTime = it }
+        configs.iptvSourceDefaultUrl?.let { iptvSourceDefaultUrl = it }
+        configs.iptvSourceBackupUrls?.let { iptvSourceBackupUrls = it }
         configs.iptvSourceCurrent?.let { iptvSourceCurrent = it }
         configs.iptvSourceList?.let { iptvSourceList = it }
         configs.iptvChannelGroupHiddenList?.let { iptvChannelGroupHiddenList = it }
@@ -630,6 +650,8 @@ object Configs {
         val debugShowVideoPlayerMetadata: Boolean? = null,
         val debugShowLayoutGrids: Boolean? = null,
         val iptvSourceCacheTime: Long? = null,
+        val iptvSourceDefaultUrl: String? = null,
+        val iptvSourceBackupUrls: Set<String>? = null,
         val iptvSourceCurrent: IptvSource? = null,
         val iptvSourceList: IptvSourceList? = null,
         val iptvChannelGroupHiddenList: Set<String>? = null,

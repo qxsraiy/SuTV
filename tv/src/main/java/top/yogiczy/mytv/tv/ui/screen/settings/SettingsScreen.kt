@@ -34,6 +34,7 @@ import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsChannelVisib
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvHybridModeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourceCacheTimeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourceScreen
+import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourcePriorityScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsUpdateChannelScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsVodSourceScreen
 import top.yogiczy.mytv.tv.ui.utils.navigateSingleTop
@@ -95,6 +96,9 @@ fun SettingsScreen(
                         },
                         toChannelVisibilityScreen = {
                             navController.navigateSingleTop(SettingsSubCategories.CHANNEL_VISIBILITY.name)
+                        },
+                        toIptvSourcePriorityScreen = {
+                            navController.navigateSingleTop(SettingsSubCategories.IPTV_SOURCE_PRIORITY.name)
                         },
                         toIptvHybridModeScreen = {
                             navController.navigateSingleTop(SettingsSubCategories.IPTV_HYBRID_MODE.name)
@@ -189,6 +193,12 @@ fun SettingsScreen(
                             if (hasChanged) onReload()
                             else navController.navigateUp()
                         },
+                    )
+                }
+
+                composable(SettingsSubCategories.IPTV_SOURCE_PRIORITY.name) {
+                    SettingsIptvSourcePriorityScreen(
+                        onBackPressed = { navController.navigateUp() },
                     )
                 }
 

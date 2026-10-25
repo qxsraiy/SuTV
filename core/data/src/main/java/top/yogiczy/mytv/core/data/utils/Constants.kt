@@ -122,6 +122,27 @@ object Constants {
      */
     const val VIDEO_PLAYER_LOAD_TIMEOUT = 1000L * 15 // 15秒
 
+    // ==================== 直播源容灾 ====================
+
+    /** 频道所有线路失败后，静默重试的时长 */
+    const val IPTV_SOURCE_FAIL_SILENT_DELAY = 1000L * 5 // 5秒
+
+    /** 备用源并发探测超时 */
+    const val IPTV_SOURCE_PROBE_TIMEOUT = 1000L * 3 // 3秒
+
+    /** 换源整体看门狗（从首次失败计时） */
+    const val IPTV_SOURCE_SWITCH_TOTAL_TIMEOUT = 1000L * 60 // 60秒
+
+    /** 切换源后等待频道列表加载的超时 */
+    const val IPTV_SOURCE_LOAD_TIMEOUT = 1000L * 20 // 20秒
+
+    /** WebView 兜底播放失败判定超时 */
+    const val WEBVIEW_FALLBACK_TIMEOUT = 1000L * 15 // 15秒
+
+    /** 网络故障蓝屏自动退出倒计时 */
+    const val NETWORK_ERROR_EXIT_DELAY = 1000L * 30 // 30秒
+
+
     /**
      * 日志历史最大保留条数
      */

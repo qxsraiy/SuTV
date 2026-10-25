@@ -212,6 +212,7 @@ fun MainScreen(
                         toDashboardScreen  ={
                             navController.navigateSingleTop(Screens.Dashboard())
                         },
+                        onReloadChannelList = { mainViewModel.needRefresh() },
                         onBackPressed = {
                             if (settingsViewModel.appStartupScreen == Screens.Live.name) {
                                 navController.navigate(Screens.Dashboard()) {

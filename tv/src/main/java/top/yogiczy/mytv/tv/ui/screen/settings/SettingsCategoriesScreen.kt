@@ -200,6 +200,7 @@ enum class SettingsCategories(
 enum class SettingsSubCategories {
     IPTV_SOURCE,
     IPTV_SOURCE_CACHE_TIME,
+    IPTV_SOURCE_PRIORITY,
     CHANNEL_GROUP_VISIBILITY,
     CHANNEL_VISIBILITY,
     IPTV_HYBRID_MODE,

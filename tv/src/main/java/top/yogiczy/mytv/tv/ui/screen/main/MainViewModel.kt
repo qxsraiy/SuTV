@@ -48,6 +48,9 @@ class MainViewModel : ViewModel() {
 
     var needRefresh: () -> Unit = {}
 
+    /** 是否已尝试过「降级到内置咪咕」 */
+    private var builtinFallbackTried = false
+
     init {
         viewModelScope.launch {
             init()
@@ -58,6 +61,7 @@ class MainViewModel : ViewModel() {
 
     fun init() {
         _lastJob?.cancel()
+        builtinFallbackTried = false
         _lastJob = viewModelScope.launch {
             ChannelAlias.refresh()
             refreshChannel()
@@ -67,6 +71,14 @@ class MainViewModel : ViewModel() {
     }
 
     private suspend fun refreshChannel() {
+        // 启动时切到用户配置的默认源（未配置则内置咪咕）
+        if (!builtinFallbackTried) {
+            val target = top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority.effectiveDefault()
+            if (Configs.iptvSourceCurrent.url != target.url) {
+                Configs.iptvSourceCurrent = target
+            }
+        }
+
         _uiState.value = MainUiState.Loading("加载直播源")
 
         flow {
@@ -84,8 +96,20 @@ class MainViewModel : ViewModel() {
                 delay(Constants.NETWORK_RETRY_INTERVAL)
                 true
             }
-            .catch {
-                _uiState.value = MainUiState.Error(it.message)
+            .catch { e ->
+                // 默认源加载失败 → 降级到内置咪咕重试一次
+                val migu = top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority.builtinMigu()
+                if (!builtinFallbackTried &&
+                    !top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority.isBuiltinMigu(Configs.iptvSourceCurrent)
+                ) {
+                    builtinFallbackTried = true
+                    log.w("默认源加载失败(${e.message})，降级到内置咪咕源")
+                    Configs.iptvSourceCurrent = migu
+                    _uiState.value = MainUiState.Loading("切换内置源")
+                    refreshChannel()
+                    return@catch
+                }
+                _uiState.value = MainUiState.Error(e.message)
             }
             .map { mergeSimilarChannel(it) }
             .map { hybridChannel(it) }

@@ -29,6 +29,7 @@ fun SettingsIptvScreen(
     settingsViewModel: SettingsViewModel = settingsVM,
     toIptvSourceScreen: () -> Unit = {},
     toIptvSourceCacheTimeScreen: () -> Unit = {},
+    toIptvSourcePriorityScreen: () -> Unit = {},
     toChannelGroupVisibilityScreen: () -> Unit = {},
     toChannelVisibilityScreen: () -> Unit = {},
     toIptvHybridModeScreen: () -> Unit = {},
@@ -93,6 +94,21 @@ fun SettingsIptvScreen(
                     }
                 },
                 onSelect = toChannelGroupVisibilityScreen,
+                link = true,
+            )
+        }
+
+        item {
+            val def = top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority.effectiveDefault()
+            val backups = top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority.effectiveBackups()
+
+            SettingsListItem(
+                headlineContent = "源优先级",
+                supportingContent = "默认源失败时并发探测备用源，取最快的；全部失败切内置咪咕",
+                trailingContent = {
+                    Text("默认：${def.name} / 备用${backups.size}个")
+                },
+                onSelect = toIptvSourcePriorityScreen,
                 link = true,
             )
         }
