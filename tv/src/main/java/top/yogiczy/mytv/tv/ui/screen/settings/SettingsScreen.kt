@@ -31,6 +31,7 @@ import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsUpdateScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsVodScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsChannelGroupVisibilityScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsChannelVisibilityScreen
+import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourceScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsVodSourceScreen
 import top.yogiczy.mytv.tv.ui.utils.navigateSingleTop
 
@@ -83,6 +84,9 @@ fun SettingsScreen(
                 composable(SettingsCategories.IPTV.name) {
                     SettingsIptvScreen(
                         channelGroupListProvider = channelGroupListProvider,
+                        toIptvSourceScreen = {
+                            navController.navigateSingleTop(SettingsSubCategories.IPTV_SOURCE.name)
+                        },
                         toChannelGroupVisibilityScreen = {
                             navController.navigateSingleTop(SettingsSubCategories.CHANNEL_GROUP_VISIBILITY.name)
                         },
@@ -104,7 +108,6 @@ fun SettingsScreen(
 
                 composable(SettingsCategories.UPDATE.name) {
                     SettingsUpdateScreen(
-                        onCheckUpdate = onCheckUpdate,
                         onBackPressed = { navController.navigateUp() },
                     )
                 }
@@ -124,6 +127,54 @@ fun SettingsScreen(
                 composable(SettingsCategories.ADVANCED.name) {
                     SettingsAdvancedScreen(
                         onBackPressed = { navController.navigateUp() },
+                    )
+                }
+
+                composable(SettingsSubCategories.IPTV_SOURCE.name) {
+                    SettingsIptvSourceScreen(
+                        currentIptvSourceProvider = { settingsViewModel.iptvSourceCurrent },
+                        iptvSourceListProvider = { settingsViewModel.iptvSourceList },
+                        defaultUrlProvider = { settingsViewModel.iptvSourceDefaultUrl },
+                        backupUrlsProvider = { settingsViewModel.iptvSourceBackupUrls },
+                        onSetCurrent = {
+                            settingsViewModel.iptvSourceCurrent = it
+                            settingsViewModel.iptvChannelGroupHiddenList = emptySet()
+                            settingsViewModel.iptvChannelLastPlay = Channel.EMPTY
+                            onReload()
+                        },
+                        onSetDefault = {
+                            settingsViewModel.iptvSourceDefaultUrl = it.url
+                            settingsViewModel.iptvSourceBackupUrls =
+                                settingsViewModel.iptvSourceBackupUrls - it.url
+                            settingsViewModel.iptvSourceCurrent = it
+                            settingsViewModel.iptvChannelGroupHiddenList = emptySet()
+                            settingsViewModel.iptvChannelLastPlay = Channel.EMPTY
+                            Snackbar.show("已设为默认源：" + it.name)
+                            onReload()
+                        },
+                        onSetBackup = { source, enable ->
+                            settingsViewModel.iptvSourceBackupUrls =
+                                if (enable) settingsViewModel.iptvSourceBackupUrls + source.url
+                                else settingsViewModel.iptvSourceBackupUrls - source.url
+                            Snackbar.show(
+                                if (enable) "已设为备用源：" + source.name
+                                else "已取消备用源：" + source.name
+                            )
+                        },
+                        onDelete = {
+                            settingsViewModel.iptvSourceList =
+                                IptvSourceList(settingsViewModel.iptvSourceList - it)
+                        },
+                        onClearCache = {
+                            coroutineScope.launch {
+                                IptvRepository(it).clearCache()
+                                Snackbar.show("缓存已清除")
+                            }
+                        },
+                        onError = { msg -> Snackbar.show(msg) },
+                        onBackPressed = {
+                            if (!navController.navigateUp()) onBackPressed()
+                        },
                     )
                 }
 

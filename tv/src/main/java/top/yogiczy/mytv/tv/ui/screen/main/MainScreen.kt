@@ -5,10 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -17,8 +14,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import java.io.File
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -33,8 +28,6 @@ import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList
 import top.yogiczy.mytv.core.data.entities.channel.ChannelGroupList.Companion.chanelGroup
 import top.yogiczy.mytv.core.data.entities.channel.ChannelList
 import top.yogiczy.mytv.core.data.entities.epg.EpgList
-import top.yogiczy.mytv.core.data.utils.Globals
-import top.yogiczy.mytv.core.util.utils.ApkInstaller
 import top.yogiczy.mytv.tv.BuildConfig
 import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.rememberDoubleBackPressedExitState
@@ -54,7 +47,6 @@ import top.yogiczy.mytv.tv.ui.screen.update.UpdateScreen
 import top.yogiczy.mytv.tv.ui.screen.update.UpdateViewModel
 import top.yogiczy.mytv.tv.ui.screen.update.updateVM
 import top.yogiczy.mytv.tv.ui.utils.navigateSingleTop
-import top.yogiczy.mytv.tv.ui.utils.rememberCanRequestPackageInstallsPermission
 
 @Composable
 fun MainScreen(
@@ -65,7 +57,6 @@ fun MainScreen(
     onBackPressed: () -> Unit = {},
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
     val uiState by mainViewModel.uiState.collectAsState()
 
     // 点播
@@ -133,15 +124,14 @@ fun MainScreen(
             if (updateViewModel.isUpdateAvailable) {
                 val latest = updateViewModel.latestRelease.version
                 when {
-                    // 手动检查：直接进入更新界面
+                    // 手动检查：直接进入更新界面（全屏主题页面）
                     !quiet -> navController.navigateSingleTop(Screens.Update())
-                    // 启动自动检查：强提醒开启且该版本未提醒过 → 进入更新界面
+                    // 启动自动检查：强提醒开启且该版本未提示过 → 进入更新界面
                     settingsViewModel.updateForceRemind &&
                         settingsViewModel.appLastLatestVersion != latest -> {
                         settingsViewModel.appLastLatestVersion = latest
                         navController.navigateSingleTop(Screens.Update())
                     }
-                    // 其余情况仅消息提示
                     else -> Snackbar.show("发现新版本: v$latest")
                 }
             } else if (!quiet) {
@@ -157,8 +147,8 @@ fun MainScreen(
         navController.navigateSingleTop(Screens.Loading())
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
     NavHost(
+        modifier = modifier,
         navController = navController,
         startDestination = if (settingsViewModel.appAgreementAgreed) Screens.Loading() else Screens.Agreement(),
         builder = {
@@ -325,9 +315,7 @@ fun MainScreen(
             }
         },
     )
-    }
 }
-
 
 private data class VodPlayData(
     val sourceKey: String,
