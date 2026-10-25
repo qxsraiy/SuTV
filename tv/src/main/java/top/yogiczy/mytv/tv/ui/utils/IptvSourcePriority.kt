@@ -22,6 +22,9 @@ object IptvSourcePriority {
     /** 内置咪咕源 */
     fun builtinMigu(): IptvSource = Constants.IPTV_SOURCE_LIST.first()
 
+    /** 所有内置源的 URL 集合（内置源不可删除） */
+    fun builtinUrls(): Set<String> = Constants.IPTV_SOURCE_LIST.map { it.url }.toSet()
+
     /** 是否内置咪咕源 */
     fun isBuiltinMigu(source: IptvSource): Boolean =
         source.url == builtinMigu().url || source.url.contains("/migu.m3u")

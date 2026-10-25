@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.settings
+﻿package top.yogiczy.mytv.tv.ui.screen.settings
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,11 +31,6 @@ import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsUpdateScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsVodScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsChannelGroupVisibilityScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsChannelVisibilityScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvHybridModeScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourceCacheTimeScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourceScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourcePriorityScreen
-import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsUpdateChannelScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsVodSourceScreen
 import top.yogiczy.mytv.tv.ui.utils.navigateSingleTop
 
@@ -88,21 +83,11 @@ fun SettingsScreen(
                 composable(SettingsCategories.IPTV.name) {
                     SettingsIptvScreen(
                         channelGroupListProvider = channelGroupListProvider,
-                        toIptvSourceScreen = { navController.navigateSingleTop(SettingsSubCategories.IPTV_SOURCE.name) },
-                        toIptvSourceCacheTimeScreen = {
-                            navController.navigateSingleTop(SettingsSubCategories.IPTV_SOURCE_CACHE_TIME.name)
-                        },
                         toChannelGroupVisibilityScreen = {
                             navController.navigateSingleTop(SettingsSubCategories.CHANNEL_GROUP_VISIBILITY.name)
                         },
                         toChannelVisibilityScreen = {
                             navController.navigateSingleTop(SettingsSubCategories.CHANNEL_VISIBILITY.name)
-                        },
-                        toIptvSourcePriorityScreen = {
-                            navController.navigateSingleTop(SettingsSubCategories.IPTV_SOURCE_PRIORITY.name)
-                        },
-                        toIptvHybridModeScreen = {
-                            navController.navigateSingleTop(SettingsSubCategories.IPTV_HYBRID_MODE.name)
                         },
                         onBackPressed = { navController.navigateUp() },
                     )
@@ -119,6 +104,7 @@ fun SettingsScreen(
 
                 composable(SettingsCategories.UPDATE.name) {
                     SettingsUpdateScreen(
+                        onCheckUpdate = onCheckUpdate,
                         onBackPressed = { navController.navigateUp() },
                     )
                 }
@@ -141,43 +127,6 @@ fun SettingsScreen(
                     )
                 }
 
-                composable(SettingsSubCategories.IPTV_SOURCE.name) {
-                    SettingsIptvSourceScreen(
-                        currentIptvSourceProvider = { settingsViewModel.iptvSourceCurrent },
-                        iptvSourceListProvider = { settingsViewModel.iptvSourceList },
-                        onSetCurrent = {
-                            settingsViewModel.iptvSourceCurrent = it
-                            settingsViewModel.iptvChannelGroupHiddenList = emptySet()
-                            settingsViewModel.iptvChannelLastPlay = Channel.EMPTY
-                            onReload()
-                        },
-                        onDelete = {
-                            settingsViewModel.iptvSourceList =
-                                IptvSourceList(settingsViewModel.iptvSourceList - it)
-                        },
-                        onClearCache = {
-                            coroutineScope.launch {
-                                IptvRepository(it).clearCache()
-                                Snackbar.show("缓存已清除")
-                            }
-                        },
-                        onBackPressed = {
-                            if (!navController.navigateUp()) onBackPressed()
-                        },
-                    )
-                }
-
-                composable(SettingsSubCategories.IPTV_SOURCE_CACHE_TIME.name) {
-                    SettingsIptvSourceCacheTimeScreen(
-                        cacheTimeProvider = { settingsViewModel.iptvSourceCacheTime },
-                        onCacheTimeChanged = {
-                            settingsViewModel.iptvSourceCacheTime = it
-                            navController.navigateUp()
-                        },
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
                 composable(SettingsSubCategories.CHANNEL_GROUP_VISIBILITY.name) {
                     var hasChanged by remember { mutableStateOf(false) }
                     SettingsChannelGroupVisibilityScreen(
@@ -194,18 +143,6 @@ fun SettingsScreen(
                     )
                 }
 
-                composable(SettingsSubCategories.IPTV_SOURCE_PRIORITY.name) {
-                    SettingsIptvSourcePriorityScreen(
-                        onDefaultUrlChange = {
-                            settingsViewModel.iptvSourceDefaultUrl = it
-                        },
-                        onBackupUrlsChange = {
-                            settingsViewModel.iptvSourceBackupUrls = it
-                        },
-                        onBackPressed = { navController.navigateUp() },
-                    )
-                }
-
                 composable(SettingsSubCategories.CHANNEL_VISIBILITY.name) {
                     var hasChanged by remember { mutableStateOf(false) }
                     SettingsChannelVisibilityScreen(
@@ -219,17 +156,6 @@ fun SettingsScreen(
                             if (hasChanged) onReload()
                             else navController.navigateUp()
                         },
-                    )
-                }
-
-                composable(SettingsSubCategories.IPTV_HYBRID_MODE.name) {
-                    SettingsIptvHybridModeScreen(
-                        hybridModeProvider = { settingsViewModel.iptvHybridMode },
-                        onHybridModeChanged = {
-                            settingsViewModel.iptvHybridMode = it
-                            navController.navigateUp()
-                        },
-                        onBackPressed = { navController.navigateUp() },
                     )
                 }
 

@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.main
+﻿package top.yogiczy.mytv.tv.ui.screen.main
 
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -51,7 +51,6 @@ import top.yogiczy.mytv.tv.ui.screen.settings.SettingsScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.SettingsViewModel
 import top.yogiczy.mytv.tv.ui.screen.settings.settingsVM
 import top.yogiczy.mytv.tv.ui.screen.update.UpdateScreen
-import top.yogiczy.mytv.tv.ui.screen.update.UpdateAvailableDialog
 import top.yogiczy.mytv.tv.ui.screen.update.UpdateViewModel
 import top.yogiczy.mytv.tv.ui.screen.update.updateVM
 import top.yogiczy.mytv.tv.ui.utils.navigateSingleTop
@@ -132,11 +131,18 @@ fun MainScreen(
             updateViewModel.checkUpdate(BuildConfig.VERSION_NAME, settingsViewModel.updateChannel)
 
             if (updateViewModel.isUpdateAvailable) {
-                // 有新版本：强提醒开启 → 弹窗；否则仅消息提示
-                if (!quiet || settingsViewModel.updateForceRemind) {
-                    updateViewModel.showUpdatePopup()
-                } else {
-                    Snackbar.show("发现新版本: v${updateViewModel.latestRelease.version}")
+                val latest = updateViewModel.latestRelease.version
+                when {
+                    // 手动检查：直接进入更新界面
+                    !quiet -> navController.navigateSingleTop(Screens.Update())
+                    // 启动自动检查：强提醒开启且该版本未提醒过 → 进入更新界面
+                    settingsViewModel.updateForceRemind &&
+                        settingsViewModel.appLastLatestVersion != latest -> {
+                        settingsViewModel.appLastLatestVersion = latest
+                        navController.navigateSingleTop(Screens.Update())
+                    }
+                    // 其余情况仅消息提示
+                    else -> Snackbar.show("发现新版本: v$latest")
                 }
             } else if (!quiet) {
                 Snackbar.show("当前已是最新版本")
@@ -319,50 +325,9 @@ fun MainScreen(
             }
         },
     )
-
-        // ===== 全局「发现新版本」弹窗 =====
-        if (updateViewModel.popupVisible) {
-            val latestFile = remember { File(Globals.cacheDir, "latest.apk") }
-            var downloading by remember { mutableStateOf(false) }
-            var pendingInstall by remember { mutableStateOf(false) }
-            val (hasInstallPermission, requestInstallPermission) =
-                rememberCanRequestPackageInstallsPermission()
-
-            // 授予安装权限后补装
-            LaunchedEffect(hasInstallPermission) {
-                if (hasInstallPermission && pendingInstall) {
-                    pendingInstall = false
-                    ApkInstaller.installApk(context, latestFile.path)
-                }
-            }
-
-            UpdateAvailableDialog(
-                latestVersion = updateViewModel.latestRelease.version,
-                currentVersion = BuildConfig.VERSION_NAME,
-                downloading = downloading,
-                onConfirm = {
-                    if (!downloading) {
-                        coroutineScope.launch {
-                            downloading = true
-                            updateViewModel.downloadAndUpdate(latestFile)
-                            downloading = false
-                            if (updateViewModel.updateDownloaded) {
-                                updateViewModel.dismissUpdatePopup()
-                                if (hasInstallPermission) {
-                                    ApkInstaller.installApk(context, latestFile.path)
-                                } else {
-                                    pendingInstall = true
-                                    requestInstallPermission()
-                                }
-                            }
-                        }
-                    }
-                },
-                onCancel = { updateViewModel.dismissUpdatePopup() },
-            )
-        }
     }
 }
+
 
 private data class VodPlayData(
     val sourceKey: String,

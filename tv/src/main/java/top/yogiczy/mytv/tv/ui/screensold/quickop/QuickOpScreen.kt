@@ -79,7 +79,7 @@ fun QuickOpScreen(
             channelNumberProvider = {
                 currentChannelNumberProvider().padStart(2, '0')
             },
-            toSettingsIptvSourceScreen = { toSettingsScreen(SettingsSubCategories.IPTV_SOURCE) },
+            toSettingsIptvSourceScreen = { toSettingsScreen(null) },
         )
 
         QuickOpScreenBottom(
