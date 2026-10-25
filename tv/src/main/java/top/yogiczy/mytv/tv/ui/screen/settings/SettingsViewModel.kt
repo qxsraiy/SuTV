@@ -98,6 +98,14 @@ class SettingsViewModel : ViewModel() {
             Configs.iptvChannelGroupHiddenList = value
         }
 
+    private var _iptvChannelHiddenList by mutableStateOf(emptySet<String>())
+    var iptvChannelHiddenList: Set<String>
+        get() = _iptvChannelHiddenList
+        set(value) {
+            _iptvChannelHiddenList = value
+            Configs.iptvChannelHiddenList = value
+        }
+
     private var _iptvHybridMode by mutableStateOf(Configs.IptvHybridMode.DISABLE)
     var iptvHybridMode: Configs.IptvHybridMode
         get() = _iptvHybridMode
@@ -352,6 +360,7 @@ class SettingsViewModel : ViewModel() {
         _iptvSourceCurrent = Configs.iptvSourceCurrent
         _iptvSourceList = Configs.iptvSourceList
         _iptvChannelGroupHiddenList = Configs.iptvChannelGroupHiddenList
+        _iptvChannelHiddenList = Configs.iptvChannelHiddenList
         _iptvHybridMode = Configs.iptvHybridMode
         _iptvSimilarChannelMerge = Configs.iptvSimilarChannelMerge
         _iptvChannelLogoProvider = Configs.iptvChannelLogoProvider

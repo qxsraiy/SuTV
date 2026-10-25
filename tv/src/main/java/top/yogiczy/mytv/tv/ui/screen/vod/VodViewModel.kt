@@ -65,6 +65,24 @@ class VodViewModel : ViewModel() {
         loadSources()
     }
 
+    // 记录上次已应用的默认源配置, 用于检测设置页是否改过默认源
+    private var appliedDefaultKey: String? = null
+
+    /**
+     * 若设置页里的默认源被改过, 则切换到新的默认源。
+     * 从设置页返回点播页时调用。避免用户手动换源后被强制重置。
+     */
+    fun applyConfiguredDefaultSourceIfChanged() {
+        val configuredKey = top.yogiczy.mytv.tv.ui.utils.Configs.vodDefaultSourceKey
+        if (configuredKey == appliedDefaultKey) return
+        appliedDefaultKey = configuredKey
+        if (configuredKey.isBlank()) return
+        val all = _state.value.sources.toList()
+        val target = all.find { it.key == configuredKey } ?: return
+        if (target.key == _state.value.currentSource.key) return
+        selectSource(target)
+    }
+
     fun loadSources() {
         viewModelScope.launch(Dispatchers.IO) {
             _state.value = _state.value.copy(loading = true)
@@ -74,6 +92,7 @@ class VodViewModel : ViewModel() {
                     kotlinx.serialization.builtins.ListSerializer(VodSource.serializer()), json
                 )
                 val sourceList = VodSourceList(sources)
+                appliedDefaultKey = top.yogiczy.mytv.tv.ui.utils.Configs.vodDefaultSourceKey
                 _state.value = _state.value.copy(sources = sourceList, loading = false)
                 // 自动换源: 先试默认源, 失败则并发试其他源, 谁先用谁
                 loadCategoriesWithFallback(sourceList)
@@ -88,7 +107,7 @@ class VodViewModel : ViewModel() {
         loadCategories(source.key)
     }
 
-    // 自动换源加载分类: 默认源失败时并发尝试其他源
+    // 自动换源加载分类: 用户设置的默认源失败时并发尝试其他源
     private suspend fun loadCategoriesWithFallback(sourceList: VodSourceList) {
         val allSources = sourceList.toList()
         if (allSources.isEmpty()) {
@@ -96,8 +115,12 @@ class VodViewModel : ViewModel() {
             return
         }
 
-        val defaultSource = allSources.find { it.default } ?: allSources.first()
-        _state.value = _state.value.copy(loading = true, error = null)
+        // 优先使用用户在设置里配置的默认源; 未配置时用内置 default 标记
+        val configuredKey = top.yogiczy.mytv.tv.ui.utils.Configs.vodDefaultSourceKey
+        val defaultSource = allSources.find { it.key == configuredKey }
+            ?: allSources.find { it.default }
+            ?: allSources.first()
+        _state.value = _state.value.copy(loading = true, error = null, currentSource = defaultSource)
 
         // 1. 先试默认源 (快速路径, 5s超时)
         val defaultResult = withTimeoutOrNull(5000) {

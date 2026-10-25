@@ -71,9 +71,10 @@ fun VodScreen(
     val state by vm.state
     val context = LocalContext.current
 
-    // 初始加载
+    // 初始加载 / 从设置页返回时同步默认源
     LaunchedEffect(Unit) {
         if (state.sources.isEmpty()) vm.loadSources()
+        else vm.applyConfiguredDefaultSourceIfChanged()
     }
 
     // 观看历史 — 版本号变化时自动刷新

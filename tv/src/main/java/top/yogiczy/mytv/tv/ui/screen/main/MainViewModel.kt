@@ -93,8 +93,24 @@ class MainViewModel : ViewModel() {
                 _uiState.value = MainUiState.Ready(
                     channelGroupList = groupList,
                     filteredChannelGroupList = withContext(Dispatchers.Default) {
-                        ChannelGroupList(groupList.filter { it.name !in Configs.iptvChannelGroupHiddenList })
-                            .withMetadata()
+                        val hiddenGroups = Configs.iptvChannelGroupHiddenList
+                        val hiddenChannels = Configs.iptvChannelHiddenList
+                        ChannelGroupList(
+                            groupList
+                                // 过滤被隐藏的分组
+                                .filter { it.name !in hiddenGroups }
+                                // 过滤被屏蔽的具体频道
+                                .map { group ->
+                                    if (hiddenChannels.isEmpty()) group
+                                    else group.copy(
+                                        channelList = ChannelList(
+                                            group.channelList.filter { it.name !in hiddenChannels }
+                                        )
+                                    )
+                                }
+                                // 频道全部被屏蔽的分组不再显示
+                                .filter { it.channelList.isNotEmpty() }
+                        ).withMetadata()
                     }
                 )
                 groupList

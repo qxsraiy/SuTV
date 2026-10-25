@@ -63,6 +63,9 @@ object Configs {
         /** 直播源分组隐藏列表 */
         IPTV_CHANNEL_GROUP_HIDDEN_LIST,
 
+        /** 直播源频道隐藏列表 */
+        IPTV_CHANNEL_HIDDEN_LIST,
+
         /** 混合模式 */
         IPTV_HYBRID_MODE,
 
@@ -172,6 +175,9 @@ object Configs {
         /** 点播播放器 画面比例 (0=适应 1=裁剪 2=拉伸) */
         VOD_PLAYER_RESIZE_MODE,
 
+        /** 点播 默认采集源 key (空=用内置默认) */
+        VOD_DEFAULT_SOURCE_KEY,
+
         /** ==================== 主题 ==================== */
         /** 当前应用主题 */
         THEME_APP_CURRENT,
@@ -250,6 +256,11 @@ object Configs {
     var iptvChannelGroupHiddenList: Set<String>
         get() = SP.getStringSet(KEY.IPTV_CHANNEL_GROUP_HIDDEN_LIST.name, emptySet())
         set(value) = SP.putStringSet(KEY.IPTV_CHANNEL_GROUP_HIDDEN_LIST.name, value)
+
+    /** 直播源频道隐藏列表（按频道名屏蔽具体频道） */
+    var iptvChannelHiddenList: Set<String>
+        get() = SP.getStringSet(KEY.IPTV_CHANNEL_HIDDEN_LIST.name, emptySet())
+        set(value) = SP.putStringSet(KEY.IPTV_CHANNEL_HIDDEN_LIST.name, value)
 
     /** 混合模式 */
     var iptvHybridMode: IptvHybridMode
@@ -442,6 +453,11 @@ object Configs {
         get() = SP.getInt(KEY.VOD_PLAYER_RESIZE_MODE.name, 0)
         set(value) = SP.putInt(KEY.VOD_PLAYER_RESIZE_MODE.name, value)
 
+    /** 点播 默认采集源 key (空=用内置默认) */
+    var vodDefaultSourceKey: String
+        get() = SP.getString(KEY.VOD_DEFAULT_SOURCE_KEY.name, "") ?: ""
+        set(value) = SP.putString(KEY.VOD_DEFAULT_SOURCE_KEY.name, value)
+
     /** ==================== 主题 ==================== */
     /** 当前应用主题 */
     var themeAppCurrent: AppThemeDef?
@@ -522,6 +538,7 @@ object Configs {
             iptvSourceCurrent = iptvSourceCurrent,
             iptvSourceList = iptvSourceList,
             iptvChannelGroupHiddenList = iptvChannelGroupHiddenList,
+            iptvChannelHiddenList = iptvChannelHiddenList,
             iptvHybridMode = iptvHybridMode,
             iptvSimilarChannelMerge = iptvSimilarChannelMerge,
             iptvChannelLogoProvider = iptvChannelLogoProvider,
@@ -554,6 +571,7 @@ object Configs {
             videoPlayerForceAudioSoftDecode = videoPlayerForceAudioSoftDecode,
             videoPlayerStopPreviousMediaItem = videoPlayerStopPreviousMediaItem,
             vodPlayerResizeMode = vodPlayerResizeMode,
+            vodDefaultSourceKey = vodDefaultSourceKey,
             themeAppCurrent = themeAppCurrent,
             feiyangAllInOneFilePath = feiyangAllInOneFilePath,
         )
@@ -569,6 +587,7 @@ object Configs {
         configs.iptvSourceCurrent?.let { iptvSourceCurrent = it }
         configs.iptvSourceList?.let { iptvSourceList = it }
         configs.iptvChannelGroupHiddenList?.let { iptvChannelGroupHiddenList = it }
+        configs.iptvChannelHiddenList?.let { iptvChannelHiddenList = it }
         configs.iptvHybridMode?.let { iptvHybridMode = it }
         configs.iptvSimilarChannelMerge?.let { iptvSimilarChannelMerge = it }
         configs.iptvChannelLogoProvider?.let { iptvChannelLogoProvider = it }
@@ -595,6 +614,7 @@ object Configs {
         configs.videoPlayerForceAudioSoftDecode?.let { videoPlayerForceAudioSoftDecode = it }
         configs.videoPlayerStopPreviousMediaItem?.let { videoPlayerStopPreviousMediaItem = it }
         configs.vodPlayerResizeMode?.let { vodPlayerResizeMode = it }
+        configs.vodDefaultSourceKey?.let { vodDefaultSourceKey = it }
         configs.themeAppCurrent?.let { themeAppCurrent = it }
         configs.feiyangAllInOneFilePath?.let { feiyangAllInOneFilePath = it }
     }
@@ -613,6 +633,7 @@ object Configs {
         val iptvSourceCurrent: IptvSource? = null,
         val iptvSourceList: IptvSourceList? = null,
         val iptvChannelGroupHiddenList: Set<String>? = null,
+        val iptvChannelHiddenList: Set<String>? = null,
         val iptvHybridMode: IptvHybridMode? = null,
         val iptvSimilarChannelMerge: Boolean? = null,
         val iptvChannelLogoProvider: String? = null,
@@ -645,6 +666,7 @@ object Configs {
         val videoPlayerForceAudioSoftDecode: Boolean? = null,
         val videoPlayerStopPreviousMediaItem: Boolean? = null,
         val vodPlayerResizeMode: Int? = null,
+        val vodDefaultSourceKey: String? = null,
         val themeAppCurrent: AppThemeDef? = null,
         val feiyangAllInOneFilePath: String? = null,
     ) {

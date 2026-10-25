@@ -30,6 +30,7 @@ fun SettingsIptvScreen(
     toIptvSourceScreen: () -> Unit = {},
     toIptvSourceCacheTimeScreen: () -> Unit = {},
     toChannelGroupVisibilityScreen: () -> Unit = {},
+    toChannelVisibilityScreen: () -> Unit = {},
     toIptvHybridModeScreen: () -> Unit = {},
     onBackPressed: () -> Unit = {},
 ) {
@@ -92,6 +93,25 @@ fun SettingsIptvScreen(
                     }
                 },
                 onSelect = toChannelGroupVisibilityScreen,
+                link = true,
+            )
+        }
+
+        item {
+            val allChannelCount = channelGroupListProvider().sumOf { it.channelList.size }
+            val hiddenChannelCount = settingsViewModel.iptvChannelHiddenList.size
+
+            SettingsListItem(
+                headlineContent = "频道管理",
+                supportingContent = "屏蔽不想看的频道",
+                trailingContent = {
+                    if (hiddenChannelCount == 0) {
+                        Text("共${allChannelCount}个频道")
+                    } else {
+                        Text("共${allChannelCount}个频道，已屏蔽${hiddenChannelCount}个")
+                    }
+                },
+                onSelect = toChannelVisibilityScreen,
                 link = true,
             )
         }

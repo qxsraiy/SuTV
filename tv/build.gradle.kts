@@ -21,8 +21,8 @@ android {
         applicationId = "top.yogiczy.slcs.tv"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 14
-        versionName = "2.0.4"
+        versionCode = 15
+        versionName = "2.0.5"
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -117,7 +117,7 @@ dependencies {
     implementation(libs.kotlinx.collections.immutable)
     implementation(libs.androidx.material.icons.extended)
 
-    // 播放器
+    // 播放�?
     val mediaSettingsFile = file("../../media/core_settings.gradle")
     if (mediaSettingsFile.exists()) {
         implementation(project(":media3:lib-exoplayer"))
@@ -133,7 +133,7 @@ dependencies {
         implementation(libs.androidx.media3.ui)
     }
 
-    // 二维码
+    // 二维�?
     implementation(libs.qrose)
 
     implementation(libs.coil.compose)

@@ -30,6 +30,7 @@ import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsThemeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsUpdateScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.categories.SettingsVodScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsChannelGroupVisibilityScreen
+import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsChannelVisibilityScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvHybridModeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourceCacheTimeScreen
 import top.yogiczy.mytv.tv.ui.screen.settings.subcategories.SettingsIptvSourceScreen
@@ -91,6 +92,9 @@ fun SettingsScreen(
                         },
                         toChannelGroupVisibilityScreen = {
                             navController.navigateSingleTop(SettingsSubCategories.CHANNEL_GROUP_VISIBILITY.name)
+                        },
+                        toChannelVisibilityScreen = {
+                            navController.navigateSingleTop(SettingsSubCategories.CHANNEL_VISIBILITY.name)
                         },
                         toIptvHybridModeScreen = {
                             navController.navigateSingleTop(SettingsSubCategories.IPTV_HYBRID_MODE.name)
@@ -179,6 +183,22 @@ fun SettingsScreen(
                         channelGroupNameHiddenListProvider = { settingsViewModel.iptvChannelGroupHiddenList.toList() },
                         onChannelGroupNameHiddenListChange = {
                             settingsViewModel.iptvChannelGroupHiddenList = it.toSet()
+                            hasChanged = true
+                        },
+                        onBackPressed = {
+                            if (hasChanged) onReload()
+                            else navController.navigateUp()
+                        },
+                    )
+                }
+
+                composable(SettingsSubCategories.CHANNEL_VISIBILITY.name) {
+                    var hasChanged by remember { mutableStateOf(false) }
+                    SettingsChannelVisibilityScreen(
+                        channelGroupListProvider = channelGroupListProvider,
+                        channelNameHiddenListProvider = { settingsViewModel.iptvChannelHiddenList.toList() },
+                        onChannelNameHiddenListChange = {
+                            settingsViewModel.iptvChannelHiddenList = it.toSet()
                             hasChanged = true
                         },
                         onBackPressed = {
