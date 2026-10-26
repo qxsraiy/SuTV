@@ -109,6 +109,7 @@ fun SettingsScreen(
 
                 composable(SettingsCategories.UPDATE.name) {
                     SettingsUpdateScreen(
+                        onCheckUpdate = onCheckUpdate,
                         onBackPressed = { navController.navigateUp() },
                     )
                 }
