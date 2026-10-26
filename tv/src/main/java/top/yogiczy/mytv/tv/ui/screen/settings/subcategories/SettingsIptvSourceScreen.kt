@@ -364,10 +364,6 @@ private fun IptvSourceItem(
             iptvSourceProvider = { iptvSource },
             roleProvider = { role },
             onDismissRequest = { actionsVisible = false },
-            onSetCurrent = {
-                onSetCurrent()
-                actionsVisible = false
-            },
             onSetDefault = {
                 onSetDefault()
                 actionsVisible = false
@@ -391,17 +387,14 @@ private fun IptvSourceItem(
 @Composable
 private fun SettingsIptvSourceActions(
     modifier: Modifier = Modifier,
-    currentIptvSourceProvider: () -> IptvSource = { IptvSource() },
     iptvSourceProvider: () -> IptvSource = { IptvSource() },
     roleProvider: () -> IptvRole = { IptvRole.Disabled },
     onDismissRequest: () -> Unit = {},
-    onSetCurrent: () -> Unit = {},
     onSetDefault: () -> Unit = {},
     onToggleBackup: () -> Unit = {},
     onDelete: () -> Unit = {},
     onClearCache: () -> Unit = {},
 ) {
-    val currentIptvSource = currentIptvSourceProvider()
     val iptvSource = iptvSourceProvider()
     val role = roleProvider()
 
@@ -419,34 +412,25 @@ private fun SettingsIptvSourceActions(
             )
         },
     ) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+        // 单列纵向排列，宽度一致、文字左对齐，视觉更整齐
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            item {
-                SettingsIptvSourceActionItem(
-                    title = "设为当前",
-                    imageVector = Icons.Outlined.PlayArrow,
-                    onSelected = onSetCurrent,
-                    disabled = currentIptvSource == iptvSource,
-                    modifier = Modifier.focusOnLaunched(),
-                )
-            }
-
             item {
                 SettingsIptvSourceActionItem(
                     title = if (role == IptvRole.Default) "已是默认源" else "设为默认源",
                     imageVector = Icons.Outlined.Star,
                     onSelected = onSetDefault,
                     disabled = role == IptvRole.Default,
+                    modifier = Modifier.focusOnLaunched(),
                 )
             }
 
             item {
                 SettingsIptvSourceActionItem(
-                    title = if (role == IptvRole.Backup) "取消备用" else "设为备用",
+                    title = if (role == IptvRole.Backup) "取消备用源" else "设为备用源",
                     imageVector = Icons.Outlined.SwapHoriz,
                     onSelected = onToggleBackup,
                 )

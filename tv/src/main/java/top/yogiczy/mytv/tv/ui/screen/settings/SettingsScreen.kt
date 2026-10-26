@@ -1,4 +1,4 @@
-﻿package top.yogiczy.mytv.tv.ui.screen.settings
+package top.yogiczy.mytv.tv.ui.screen.settings
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,6 +46,7 @@ fun SettingsScreen(
     channelGroupListProvider: () -> ChannelGroupList = { ChannelGroupList() },
     settingsViewModel: SettingsViewModel = settingsVM,
     onCheckUpdate: () -> Unit = {},
+    onSwitchSource: (top.yogiczy.mytv.core.data.entities.iptvsource.IptvSource) -> Unit = {},
     toUpdateScreen: () -> Unit = {},
     onReload: () -> Unit = {},
     onBackPressed: () -> Unit = {},
@@ -146,11 +147,9 @@ fun SettingsScreen(
                             settingsViewModel.iptvSourceDefaultUrl = it.url
                             settingsViewModel.iptvSourceBackupUrls =
                                 settingsViewModel.iptvSourceBackupUrls - it.url
-                            settingsViewModel.iptvSourceCurrent = it
-                            settingsViewModel.iptvChannelGroupHiddenList = emptySet()
-                            settingsViewModel.iptvChannelLastPlay = Channel.EMPTY
+                            // 后台切换并重新加载，不跳转页面（避免闪回）
+                            onSwitchSource(it)
                             Snackbar.show("已设为默认源：" + it.name)
-                            onReload()
                         },
                         onSetBackup = { source, enable ->
                             settingsViewModel.iptvSourceBackupUrls =

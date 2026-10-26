@@ -1,4 +1,4 @@
-﻿package top.yogiczy.mytv.tv.ui.screen.main
+package top.yogiczy.mytv.tv.ui.screen.main
 
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -268,6 +268,13 @@ fun MainScreen(
                     },
                     channelGroupListProvider = channelGroupListProvider,
                     onCheckUpdate = { checkUpdate(false) },
+                    onSwitchSource = { src ->
+                        // 后台切换直播源并重新加载，不离开设置页
+                        settingsViewModel.iptvSourceCurrent = src
+                        settingsViewModel.iptvChannelGroupHiddenList = emptySet()
+                        settingsViewModel.iptvChannelLastPlay = Channel.EMPTY
+                        mainViewModel.init()
+                    },
                     toUpdateScreen = { navController.navigateSingleTop(Screens.Update()) },
                     onReload = { reload() },
                     onBackPressed = { navController.navigateUp() },
