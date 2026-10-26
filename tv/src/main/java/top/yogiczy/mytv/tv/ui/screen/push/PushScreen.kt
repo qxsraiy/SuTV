@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.push
+﻿package top.yogiczy.mytv.tv.ui.screen.push
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,11 +30,9 @@ fun PushScreen(
     settingsViewModel: SettingsViewModel = settingsVM,
     onBackPressed: () -> Unit = {},
 ) {
+    // 进入页面刷新一次即可，去掉 1Hz 轮询
     LaunchedEffect(Unit) {
-        while (true) {
-            settingsViewModel.refresh()
-            delay(1000)
-        }
+        settingsViewModel.refresh()
     }
 
     AppScreen(

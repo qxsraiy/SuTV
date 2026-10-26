@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.subtitletracks.components
+﻿package top.yogiczy.mytv.tv.ui.screensold.subtitletracks.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,10 +29,10 @@ fun SubtitleTrackItem(
             .ifElse(track.isSelected == true, Modifier.focusOnLaunchedSaveable())
             .handleKeyEvents(onSelect = onSelected),
         selected = false,
-        onClick = {},
+        onClick = onSelected,
         headlineContent = { Text(track.shortLabel) },
         trailingContent = {
-            RadioButton(selected = track.isSelected == true, onClick = {})
+            RadioButton(selected = track.isSelected == true, onClick = onSelected,)
         },
     )
 }

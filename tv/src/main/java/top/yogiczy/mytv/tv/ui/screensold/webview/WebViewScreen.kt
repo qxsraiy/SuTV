@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.webview
+﻿package top.yogiczy.mytv.tv.ui.screensold.webview
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -110,6 +110,15 @@ fun WebViewScreen(
                         }
                     },
                     update = { it.loadUrl(url) },
+                    onRelease = { wv ->
+                        // 释放 WebView，避免切源/退出后内存滞留
+                        runCatching {
+                            wv.stopLoading()
+                            wv.loadUrl("about:blank")
+                            wv.removeAllViews()
+                            wv.destroy()
+                        }
+                    },
                 )
             } else {
                 AndroidView(
@@ -161,6 +170,14 @@ fun WebViewScreen(
                         }
                     },
                     update = { it.loadUrl(url) },
+                    onRelease = { wv ->
+                        runCatching {
+                            wv.stopLoading()
+                            wv.loadUrl("about:blank")
+                            wv.removeAllViews()
+                            wv.destroy()
+                        }
+                    },
                 )
             }
 
@@ -489,11 +506,13 @@ var WebviewVideoPlayerImpl = {
   },
 
   async _waitVideoReady() {
-    while (true) {
+    const deadline = Date.now() + 30000
+    while (Date.now() < deadline) {
       const videoEl = this._getVideoEl()
       if (videoEl) return videoEl
       await delay(100)
     }
+    return null
   },
 
   _fullscreenVideo() {
@@ -571,12 +590,15 @@ var WebviewVideoPlayerImpl_hostInitialize = {
     const urlParams = new URLSearchParams(window.location.search)
     const resolution = urlParams.get('resolution')
 
-    while (true) {
-      const errorMsgEl = document.querySelector('.bright-text')
-      const liList = document.querySelector('.bei-list-inner')
-      if (errorMsgEl || liList) break
+    {
+      const deadline = Date.now() + 30000
+      while (Date.now() < deadline) {
+        const errorMsgEl = document.querySelector('.bright-text')
+        const liList = document.querySelector('.bei-list-inner')
+        if (errorMsgEl || liList) break
 
-      await delay(100)
+        await delay(100)
+      }
     }
 
     let liList = document.querySelectorAll('.bei-list-inner span')
@@ -655,7 +677,8 @@ var WebviewVideoPlayerImpl_hostInitialize = {
   },
 
   "web.guangdianyun.tv": async () => {
-    while (true) {
+    const deadline = Date.now() + 30000
+    while (Date.now() < deadline) {
       if (WebviewVideoPlayerImpl._getVideoEl()?.videoWidth) break
       await delay(100)
     }

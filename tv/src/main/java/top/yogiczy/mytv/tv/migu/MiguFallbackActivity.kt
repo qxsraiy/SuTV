@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.migu
+﻿package top.yogiczy.mytv.tv.migu
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -331,7 +331,16 @@ class MiguFallbackActivity : Activity() {
     override fun onDestroy() {
         handler.removeCallbacks(overlayHideRunnable)
         handler.removeCallbacks(watchdogRunnable)
-        webView.destroy()
+        // 彻底释放 WebView，避免频繁切换后内存持续增长
+        runCatching {
+            webView.stopLoading()
+            webView.loadUrl("about:blank")
+            webView.webChromeClient = null
+            webView.webViewClient = WebViewClient()
+            webView.removeAllViews()
+            (webView.parent as? android.view.ViewGroup)?.removeView(webView)
+            webView.destroy()
+        }
         super.onDestroy()
     }
 }

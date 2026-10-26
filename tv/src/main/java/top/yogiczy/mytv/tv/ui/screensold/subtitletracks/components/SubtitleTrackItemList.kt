@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.subtitletracks.components
+﻿package top.yogiczy.mytv.tv.ui.screensold.subtitletracks.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -55,10 +55,10 @@ fun SubtitleTrackItemList(
                     )
                     .handleKeyEvents(onSelect = { onSelected(null) }),
                 selected = false,
-                onClick = {},
+                onClick = { onSelected(null) },
                 headlineContent = { Text("关闭") },
                 trailingContent = {
-                    RadioButton(selected = trackList.all { it.isSelected != true }, onClick = {})
+                    RadioButton(selected = trackList.all { it.isSelected != true }, onClick = { onSelected(null) },)
                 },
             )
         }

@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.settings
+﻿package top.yogiczy.mytv.tv.ui.screen.settings
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -121,7 +121,7 @@ private fun SettingsCategoryItem(
         colors = ClickableSurfaceDefaults.colors(
             containerColor = MaterialTheme.colorScheme.onSurface.copy(0.1f),
         ),
-        onClick = {},
+        onClick = onSelected,
     ) {
         if (title == SettingsCategories.THEME.title && isFocused) {
             SettingsCategoryItemThemeBackground()

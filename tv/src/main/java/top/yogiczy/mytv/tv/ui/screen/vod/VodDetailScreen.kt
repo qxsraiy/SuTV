@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -32,6 +33,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import top.yogiczy.mytv.tv.ui.screen.components.AppButton
 import top.yogiczy.mytv.tv.ui.screen.components.AppThemeWrapper
 import top.yogiczy.mytv.tv.ui.theme.colors
 import androidx.compose.runtime.Composable
@@ -248,12 +250,14 @@ fun VodDetailScreen(
                 onDispose { player.removeListener(listener) }
             }
 
-            // 进度刷新 (1s)
+            // 进度刷新 (1s)：仅在播放时轮询，暂停/挂起时停止，避免无意义重组
             LaunchedEffect(currentEp?.url, isPlayerPlaying) {
-                while (true) {
+                playerPositionMs = player.currentPosition.coerceAtLeast(0L)
+                playerDurationMs = player.duration.let { if (it > 0) it else 0L }
+                while (isPlayerPlaying) {
+                    kotlinx.coroutines.delay(1000)
                     playerPositionMs = player.currentPosition.coerceAtLeast(0L)
                     playerDurationMs = player.duration.let { if (it > 0) it else 0L }
-                    kotlinx.coroutines.delay(1000)
                 }
             }
 
@@ -734,44 +738,32 @@ fun VodDetailScreen(
                         .fillMaxHeight(0.5f)
                         .padding(8.dp),
                 ) {
-                    // 返回 + 收藏 (同一行)
+                    // 返回 + 收藏 (同一行)：统一使用 AppButton 组件，聚焦样式全 App 一致
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        var backFocused by remember { mutableStateOf(false) }
-                        Box(
-                            modifier = Modifier
-                                .onFocusChanged { backFocused = it.isFocused }
-                                .focusable()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (backFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else MaterialTheme.colors.surfaceContainerHigh)
-                                .border(if (backFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
-                                .clickable { player.release(); onBack() }
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                        ) {
-                            Text("← 返回", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
-                        }
+                        AppButton(
+                            modifier = Modifier.widthIn(max = 140.dp),
+                            text = "← 返回",
+                            compact = true,
+                            fillMaxWidth = false,
+                            onClick = { player.release(); onBack() },
+                        )
 
                         // 收藏按钮
                         var favState by remember { mutableStateOf(VodFavoriteManager.isFavorite(context, sourceKey, vodId)) }
-                        var favFocused by remember { mutableStateOf(false) }
-                        Box(
-                            modifier = Modifier
-                                .onFocusChanged { favFocused = it.isFocused }
-                                .focusable()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (favFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else MaterialTheme.colors.surfaceContainerHigh)
-                                .border(if (favFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
-                                .clickable {
-                                    favState = VodFavoriteManager.toggle(context, VodFavoriteItem(
-                                        sourceKey = sourceKey, vodId = vodId, vodName = vodName, vodPic = vodPic,
-                                    ))
-                                }
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                        ) {
-                            Text(if (favState) "★ 已收藏" else "☆ 收藏", color = if (favState) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
-                        }
+                        AppButton(
+                            modifier = Modifier.widthIn(max = 160.dp),
+                            text = if (favState) "★ 已收藏" else "☆ 收藏",
+                            compact = true,
+                            fillMaxWidth = false,
+                            onClick = {
+                                favState = VodFavoriteManager.toggle(context, VodFavoriteItem(
+                                    sourceKey = sourceKey, vodId = vodId, vodName = vodName, vodPic = vodPic,
+                                ))
+                            },
+                        )
                     }
 
                     Row(

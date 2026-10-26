@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.videoplayerdiaplaymode.components
+﻿package top.yogiczy.mytv.tv.ui.screensold.videoplayerdiaplaymode.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,10 +31,10 @@ fun VideoPlayerDisplayModeItem(
             .ifElse(isSelected, Modifier.focusOnLaunchedSaveable())
             .handleKeyEvents(onSelect = onSelected),
         selected = false,
-        onClick = {},
+        onClick = onSelected,
         headlineContent = { Text(displayMode.label) },
         trailingContent = {
-            RadioButton(selected = isSelected, onClick = {})
+            RadioButton(selected = isSelected, onClick = onSelected,)
         },
     )
 }

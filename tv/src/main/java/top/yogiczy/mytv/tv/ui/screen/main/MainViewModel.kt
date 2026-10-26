@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.main
+﻿package top.yogiczy.mytv.tv.ui.screen.main
 
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.ViewModel
@@ -114,6 +114,12 @@ class MainViewModel : ViewModel() {
             .map { mergeSimilarChannel(it) }
             .map { hybridChannel(it) }
             .map { groupList ->
+                // 启动耗时打点：频道列表就绪
+                top.yogiczy.mytv.tv.utlis.StartupTrace.mark(
+                    "channelList.ready",
+                    "source=${Configs.iptvSourceCurrent.name}, groups=${groupList.size}, " +
+                        "channels=${groupList.sumOf { it.channelList.size }}",
+                )
                 _uiState.value = MainUiState.Ready(
                     channelGroupList = groupList,
                     filteredChannelGroupList = withContext(Dispatchers.Default) {

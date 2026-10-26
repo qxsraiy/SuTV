@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.channelline.components
+﻿package top.yogiczy.mytv.tv.ui.screensold.channelline.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -54,7 +54,7 @@ fun ChannelLineItem(
             .ifElse(isSelected, Modifier.focusOnLaunchedSaveable())
             .handleKeyEvents(onSelect = onSelected),
         selected = false,
-        onClick = {},
+        onClick = onSelected,
         headlineContent = { Text(line.name ?: "线路${lineIdx + 1}", maxLines = 1) },
         overlineContent = {
             Row(
@@ -89,7 +89,7 @@ fun ChannelLineItem(
         },
         supportingContent = { Text(line.url, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         trailingContent = {
-            RadioButton(selected = isSelected, onClick = {})
+            RadioButton(selected = isSelected, onClick = onSelected,)
         },
     )
 }

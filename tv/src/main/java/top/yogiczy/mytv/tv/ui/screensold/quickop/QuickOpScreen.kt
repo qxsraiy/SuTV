@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.quickop
+﻿package top.yogiczy.mytv.tv.ui.screensold.quickop
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -137,7 +137,7 @@ private fun QuickOpScreenTop(
             Box(modifier = Modifier.padding(horizontal = 8.dp)) {
                 Spacer(
                     modifier = Modifier
-                        .background(Color.White)
+                        .background(MaterialTheme.colorScheme.onSurface)
                         .width(2.dp)
                         .height(30.dp),
                 )
@@ -178,9 +178,9 @@ private fun QuickOpScreenBottom(
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            Color(0x00000000),
-                            Color(0xB4000000),
-                            Color(0xF3000000),
+                            MaterialTheme.colorScheme.background.copy(alpha = 0f),
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.70f),
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.95f),
                         ),
                         start = Offset(0f, 0f),
                         end = Offset(0f, Float.POSITIVE_INFINITY),

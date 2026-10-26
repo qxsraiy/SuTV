@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.settings
+﻿package top.yogiczy.mytv.tv.ui.screen.settings
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,6 +19,7 @@ import top.yogiczy.mytv.core.data.entities.epgsource.EpgSourceList
 import top.yogiczy.mytv.core.data.entities.iptvsource.IptvSourceList
 import top.yogiczy.mytv.core.data.repositories.epg.EpgRepository
 import top.yogiczy.mytv.core.data.repositories.iptv.IptvRepository
+import top.yogiczy.mytv.tv.ui.screen.components.UiText
 import top.yogiczy.mytv.tv.ui.material.Snackbar
 import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
 import top.yogiczy.mytv.tv.ui.screen.push.PushScreen
@@ -53,11 +54,10 @@ fun SettingsScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
 
+    // 进入设置页刷新一次即可：所有写入都走 SettingsViewModel 的 setter（本身是 Compose state），
+    // 不再每秒轮询（原 1Hz 轮询会持续触发重组）。
     LaunchedEffect(Unit) {
-        while (true) {
-            settingsViewModel.refresh()
-            delay(1000)
-        }
+        settingsViewModel.refresh()
     }
 
     val navController = rememberNavController()
@@ -156,11 +156,11 @@ fun SettingsScreen(
                             settingsViewModel.iptvSourceBackupUrls = base - it.url
                             // 后台切换并重新加载，不跳转页面（避免闪回）
                             onSwitchSource(it)
-                            Snackbar.show("已设为默认源：" + it.name)
+                            Snackbar.show(UiText.sourceSetDefault(it.name))
                         },
                         onClearDefault = {
                             settingsViewModel.iptvSourceDefaultUrl = ""
-                            Snackbar.show("已取消默认源，播放时将使用内置咪咕")
+                            Snackbar.show(UiText.SOURCE_DEFAULT_CLEARED)
                         },
                         onSetBackup = { source, enable ->
                             val base = top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority
@@ -169,8 +169,8 @@ fun SettingsScreen(
                                 if (enable) (base + source.url).take(3).toSet()
                                 else base - source.url
                             Snackbar.show(
-                                if (enable) "已设为备用源：" + source.name
-                                else "已取消备用源：" + source.name
+                                if (enable) UiText.sourceSetBackup(source.name)
+                                else UiText.sourceUnsetBackup(source.name)
                             )
                         },
                         onDelete = {

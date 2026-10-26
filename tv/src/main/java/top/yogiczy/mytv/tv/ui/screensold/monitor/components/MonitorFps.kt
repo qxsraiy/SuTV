@@ -54,6 +54,11 @@ private fun MonitorFpsChart(
 ) {
     val fpsList = fpsListProvider()
 
+    // 主题色在 @Composable 作用域取出，DrawScope 内不能读取 MaterialTheme
+    val colorLow = MaterialTheme.colorScheme.error
+    val colorMid = MaterialTheme.colorScheme.secondary
+    val colorGood = MaterialTheme.colorScheme.primary
+
     Canvas(
         modifier = modifier,
     ) {
@@ -72,9 +77,9 @@ private fun MonitorFpsChart(
             val rect = Rect(x, y, x + barWidth, size.height)
 
             val color = when (fps) {
-                in 0..30 -> Color(0xFFF44336)
-                in 31..45 -> Color(0xFFFFEB3B)
-                else -> Color(0xFF00A2FF)
+                in 0..30 -> colorLow
+                in 31..45 -> colorMid
+                else -> colorGood
             }
 
             drawRect(color, topLeft = rect.topLeft, size = rect.size)

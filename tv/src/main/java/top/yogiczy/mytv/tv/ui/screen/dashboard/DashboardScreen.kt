@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.dashboard
+﻿package top.yogiczy.mytv.tv.ui.screen.dashboard
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -99,7 +99,7 @@ fun DashboardScreen(
                 Icons.Outlined.Settings,
                 contentDescription = "设置",
                 modifier = Modifier.size(if (settingsFocused) 30.dp else 26.dp),
-                tint = if (settingsFocused) MaterialTheme.colorScheme.primary else Color.White,
+                tint = if (settingsFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             )
         }
 

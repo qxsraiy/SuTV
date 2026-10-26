@@ -38,6 +38,8 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import top.yogiczy.mytv.tv.ui.screen.components.AppThemeWrapper
+import top.yogiczy.mytv.tv.ui.screen.components.EmptyState
+import top.yogiczy.mytv.tv.ui.screen.components.UiText
 import top.yogiczy.mytv.tv.ui.theme.colors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -250,7 +252,7 @@ fun VodScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("暂无数据", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
+                            EmptyState(fillMaxSize = false, title = UiText.EMPTY_DATA)
                         }
                     }
                 }

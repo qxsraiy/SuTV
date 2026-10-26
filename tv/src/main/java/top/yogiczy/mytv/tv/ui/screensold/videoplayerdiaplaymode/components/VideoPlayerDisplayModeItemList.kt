@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.videoplayerdiaplaymode.components
+﻿package top.yogiczy.mytv.tv.ui.screensold.videoplayerdiaplaymode.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -62,7 +62,7 @@ fun VideoPlayerDisplayModeItemList(
                     modifier = modifier
                         .handleKeyEvents(onSelect = onApplyToGlobal),
                     selected = false,
-                    onClick = {},
+                    onClick = onApplyToGlobal,
                     headlineContent = { Text("应用到全局") },
                 )
             }

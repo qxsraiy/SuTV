@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv
+﻿package top.yogiczy.mytv.tv
 
 import android.app.PictureInPictureParams
 import android.content.pm.ActivityInfo
@@ -16,11 +16,14 @@ import top.yogiczy.mytv.tv.ui.App
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.utils.Configs
 import top.yogiczy.mytv.tv.utlis.HttpServer
+import top.yogiczy.mytv.tv.utlis.StartupTrace
 import kotlin.system.exitProcess
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        StartupTrace.start()
         super.onCreate(savedInstanceState)
+        StartupTrace.mark("activity.onCreate")
         enableEdgeToEdge()
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
 

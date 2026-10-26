@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.dashboard.components
+﻿package top.yogiczy.mytv.tv.ui.screen.dashboard.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
+import top.yogiczy.mytv.tv.ui.theme.colors
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -109,7 +110,7 @@ fun DashboardModuleList(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFF1a1a2e)),
+                            .background(MaterialTheme.colors.surfaceContainer),
                     )
                 }
             },
@@ -136,7 +137,7 @@ fun DashboardModuleList(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFF16213e)),
+                            .background(MaterialTheme.colors.surfaceContainerHigh),
                     )
                 }
             },
@@ -184,7 +185,7 @@ private fun DashboardCard(
         Spacer(Modifier.height(8.dp))
         Text(
             text = title,
-            color = if (isFocused) MaterialTheme.colorScheme.primary else Color.White,
+            color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
         )

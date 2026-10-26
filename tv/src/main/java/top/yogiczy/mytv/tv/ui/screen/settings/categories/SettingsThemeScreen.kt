@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.settings.categories
+﻿package top.yogiczy.mytv.tv.ui.screen.settings.categories
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -109,7 +109,7 @@ private fun AppThemeDefItem(
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(BorderStroke(2.dp, MaterialTheme.colorScheme.onSurface))
         ),
-        onClick = {},
+        onClick = onSelected,
     ) {
         AppThemeWrapper(appThemeDef) {
             Box(modifier = Modifier.fillMaxSize()) {

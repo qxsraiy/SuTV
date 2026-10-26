@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.dashboard.components
+﻿package top.yogiczy.mytv.tv.ui.screen.dashboard.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -40,7 +40,7 @@ fun DashboardModuleItem(
         colors = ClickableSurfaceDefaults.colors(
             containerColor = MaterialTheme.colorScheme.onSurface.copy(0.1f),
         ),
-        onClick = {},
+        onClick = onSelected,
     ) {
         Column(
             modifier = Modifier.align(Alignment.Center),

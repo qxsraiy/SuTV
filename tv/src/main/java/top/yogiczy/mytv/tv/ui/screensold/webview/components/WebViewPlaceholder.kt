@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.webview.components
+﻿package top.yogiczy.mytv.tv.ui.screensold.webview.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -19,7 +19,7 @@ fun WebViewPlaceholder(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(0.8f)),
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.8f)),
     ) {
         Text(
             text = "混合模式（webview）",

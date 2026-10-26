@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.channel
+﻿package top.yogiczy.mytv.tv.ui.screensold.channel
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.tv.material3.MaterialTheme
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -47,9 +48,9 @@ fun ChannelTempScreen(
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            Color(0x00000000),
-                            Color(0xB4000000),
-                            Color(0xF3000000),
+                            MaterialTheme.colorScheme.background.copy(alpha = 0f),
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.70f),
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.95f),
                         ),
                         start = Offset(0f, 0f),
                         end = Offset(0f, Float.POSITIVE_INFINITY),

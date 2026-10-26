@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.components
+﻿package top.yogiczy.mytv.tv.ui.screensold.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -83,7 +83,7 @@ private fun SelectDialogItem(
     onSelected: () -> Unit = {},
 ) {
     Card(
-        onClick = {},
+        onClick = onSelected,
         modifier = modifier
             .handleKeyEvents(onSelect = onSelected),
         colors = CardDefaults.colors(

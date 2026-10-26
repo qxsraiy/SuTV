@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.videoplayercontroller.components
+﻿package top.yogiczy.mytv.tv.ui.screensold.videoplayercontroller.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -16,7 +16,7 @@ fun VideoPlayerControllerBtn(
     IconButton(
         modifier = modifier
             .handleKeyEvents(onSelect = onSelect),
-        onClick = {},
+        onClick = onSelect,
     ) {
         content()
     }

@@ -237,15 +237,18 @@ fun AppThemeWrapper(
     content: @Composable () -> Unit,
 ) {
     if (appThemeDef == null) {
+        // 未选择主题壁纸时的兜底背景：用主题色derive，避免写死色值
+        val bg = MaterialTheme.colorScheme.background
+        val accent = MaterialTheme.colorScheme.primary
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            Color(0xFF141E30),
-                            Color(0xFF243B55),
-                            Color(0xFF141E30)
+                            bg,
+                            accent.copy(alpha = 0.22f),
+                            bg,
                         ),
                     )
                 )

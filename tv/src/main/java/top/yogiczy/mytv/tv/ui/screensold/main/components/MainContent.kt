@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.main.components
+﻿package top.yogiczy.mytv.tv.ui.screensold.main.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
@@ -21,6 +21,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import kotlinx.coroutines.launch
 import top.yogiczy.mytv.core.data.entities.channel.Channel
@@ -183,21 +184,21 @@ fun MainContent(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xAA000000)),
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.67f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = Color.White)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.height(16.dp))
                     Text(
                         mainContentState.sourceSwitchMessage,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 20.sp,
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "按 OK / 返回 回到频道列表",
-                        color = Color(0xFFAAAAAA),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp,
                     )
                 }
@@ -311,26 +312,26 @@ private fun NetworkErrorScreen(onTimeout: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0B2A5B)),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 "网络故障",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 34.sp,
             )
             Spacer(Modifier.height(16.dp))
             Text(
                 "请检查网络后重试，或重启 App / 设备",
-                color = Color(0xFFCCD9F0),
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 18.sp,
             )
             Spacer(Modifier.height(24.dp))
             Text(
                 if (isSelfDefaultLauncher(context)) "按任意键返回频道列表"
                 else "${remaining} 秒后自动退出，按任意键返回频道列表",
-                color = Color(0xFF8FA8CC),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 15.sp,
             )
         }

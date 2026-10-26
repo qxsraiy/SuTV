@@ -66,6 +66,7 @@ import top.yogiczy.mytv.tv.ui.material.TagDefaults
 import top.yogiczy.mytv.tv.ui.rememberChildPadding
 import top.yogiczy.mytv.tv.ui.screen.components.AppScaffoldHeaderBtn
 import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
+import top.yogiczy.mytv.tv.ui.screen.components.UiText
 import top.yogiczy.mytv.tv.ui.screen.push.PushContent
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.theme.colors
@@ -220,7 +221,7 @@ private fun SettingsIptvSourceContent(
                             iptvSourceList.firstOrNull { it.url == defaultUrl }
                         } else null
                     if (otherDefault != null) {
-                        onError("已有默认源「${otherDefault.name}」，请先将它改为停用或备用")
+                        onError(UiText.sourceDefaultExists(otherDefault.name))
                     } else {
                         defaultUrl = iptvSource.url
                         backupUrls = backupUrls - iptvSource.url
@@ -237,7 +238,7 @@ private fun SettingsIptvSourceContent(
                         backupUrls = backupUrls - iptvSource.url
                         onSetBackup(iptvSource, false)
                     } else if (backupUrls.size >= 3) {
-                        onError("备用源已满 3 个，请先取消一个备用源")
+                        onError(UiText.SOURCE_BACKUP_FULL)
                     } else {
                         backupUrls = backupUrls + iptvSource.url
                         // 设成备用后不再是默认

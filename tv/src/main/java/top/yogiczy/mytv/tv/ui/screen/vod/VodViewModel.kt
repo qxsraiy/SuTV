@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.vod
+﻿package top.yogiczy.mytv.tv.ui.screen.vod
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -194,6 +194,13 @@ class VodViewModel : ViewModel() {
     }
 
     fun loadCategories(sourceKey: String) {
+        val cached = categoryCache[sourceKey]
+        if (cached != null && System.currentTimeMillis() - cached.second < CACHE_TTL_MS) {
+            _state.value = _state.value.copy(categories = cached.first)
+            loadList(sourceKey, "", 1)
+            return
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val json = apiGet("$serverUrl/vod/categories?source=$sourceKey")
@@ -202,6 +209,7 @@ class VodViewModel : ViewModel() {
                 )
                 // 只显示子分类(有视频)，父分类不直接返回结果
                 val leafCats = cats.filter { it.type_pid != 0 }
+                categoryCache[sourceKey] = leafCats to System.currentTimeMillis()
                 _state.value = _state.value.copy(categories = leafCats)
                 // 默认加载最新(不带分类)
                 loadList(sourceKey, "", 1)
@@ -212,6 +220,23 @@ class VodViewModel : ViewModel() {
     }
 
     fun loadList(sourceKey: String, typeId: String, page: Int) {
+        // 首页列表缓存：同一「源 + 分类」在有效期内直接命中，返回列表不再重拉
+        val cacheKey = "$sourceKey|$typeId"
+        if (page == 1) {
+            val cached = listCache[cacheKey]
+            if (cached != null && System.currentTimeMillis() - cached.at < CACHE_TTL_MS) {
+                _state.value = _state.value.copy(
+                    items = cached.items,
+                    currentTypeId = typeId,
+                    page = cached.page,
+                    pageCount = cached.pageCount,
+                    loading = false,
+                    error = null,
+                )
+                return
+            }
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             _state.value = _state.value.copy(loading = true)
             try {
@@ -220,6 +245,14 @@ class VodViewModel : ViewModel() {
                     "&page=$page"
                 val json = apiGet(url)
                 val resp = Globals.json.decodeFromString(VodItemList.serializer(), json)
+                if (page == 1) {
+                    listCache[cacheKey] = ListCacheEntry(
+                        items = resp.list,
+                        page = resp.page,
+                        pageCount = resp.pagecount,
+                        at = System.currentTimeMillis(),
+                    )
+                }
                 _state.value = _state.value.copy(
                     items = if (page == 1) resp.list else _state.value.items + resp.list,
                     currentTypeId = typeId,
@@ -229,6 +262,26 @@ class VodViewModel : ViewModel() {
                 _state.value = _state.value.copy(loading = false, error = e.message)
             }
         }
+    }
+
+    /** 清空列表缓存（下拉/按钮刷新时调用，强制走网络） */
+    fun clearListCache() {
+        listCache.clear()
+        categoryCache.clear()
+    }
+
+    private data class ListCacheEntry(
+        val items: List<VodItem>,
+        val page: Int,
+        val pageCount: Int,
+        val at: Long,
+    )
+
+    private val listCache = mutableMapOf<String, ListCacheEntry>()
+    private val categoryCache = mutableMapOf<String, Pair<List<VodCategory>, Long>>()
+
+    companion object {
+        private const val CACHE_TTL_MS = 5 * 60 * 1000L
     }
 
     // 当前搜索Job — 新搜索前取消旧Job, 防止状态竞态

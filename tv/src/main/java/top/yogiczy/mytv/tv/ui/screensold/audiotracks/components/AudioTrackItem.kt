@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.audiotracks.components
+﻿package top.yogiczy.mytv.tv.ui.screensold.audiotracks.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,10 +29,10 @@ fun AudioTrackItem(
             .ifElse(track.isSelected == true, Modifier.focusOnLaunchedSaveable())
             .handleKeyEvents(onSelect = onSelected),
         selected = false,
-        onClick = {},
+        onClick = onSelected,
         headlineContent = { Text(track.shortLabel) },
         trailingContent = {
-            RadioButton(selected = track.isSelected == true, onClick = {})
+            RadioButton(selected = track.isSelected == true, onClick = onSelected,)
         },
     )
 }

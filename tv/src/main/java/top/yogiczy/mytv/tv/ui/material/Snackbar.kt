@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.material
+﻿package top.yogiczy.mytv.tv.ui.material
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -270,7 +270,7 @@ private fun SnackbarUIPreview() {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 WideButton(
-                    onClick = {},
+                    onClick = { Snackbar.show("显示新snackbar") },
                     modifier = Modifier.handleKeyEvents(onSelect = {
                         Snackbar.show("显示新snackbar")
                     }),
@@ -279,7 +279,7 @@ private fun SnackbarUIPreview() {
                 }
 
                 WideButton(
-                    onClick = {},
+                    onClick = { Snackbar.show("显示snackbar(id=test)", id = "test") },
                     modifier = Modifier.handleKeyEvents(onSelect = {
                         Snackbar.show(
                             "显示snackbar(id=test)",

@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.epgreverse
+﻿package top.yogiczy.mytv.tv.ui.screensold.epgreverse
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -108,14 +108,14 @@ private fun EpgReverseScreenContent(
                     modifier = Modifier
                         .focusOnLaunched()
                         .handleKeyEvents(onSelect = onConfirmReserve),
-                    onClick = {},
+                    onClick = onConfirmReserve,
                 ) {
                     Text("立即前往")
                 }
 
                 WideButton(
                     modifier = Modifier.handleKeyEvents(onSelect = onIgnoreReserve),
-                    onClick = {},
+                    onClick = onIgnoreReserve,
                 ) {
                     Text("忽略")
                 }

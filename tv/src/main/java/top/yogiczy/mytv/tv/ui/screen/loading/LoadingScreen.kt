@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.loading
+﻿package top.yogiczy.mytv.tv.ui.screen.loading
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
+import top.yogiczy.mytv.tv.ui.theme.colors
 import androidx.tv.material3.Text
 import top.yogiczy.mytv.tv.ui.screen.main.MainUiState
 
@@ -64,7 +65,7 @@ fun LoadingScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    listOf(Color(0xFF0D1117), Color(0xFF161B22), Color(0xFF0D1117))
+                    listOf(MaterialTheme.colorScheme.background, MaterialTheme.colors.surfaceContainer, MaterialTheme.colorScheme.background)
                 )
             ),
         contentAlignment = Alignment.Center,
@@ -84,7 +85,7 @@ fun LoadingScreen(
                 )
                 Text(
                     "天光云影",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 36.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.alpha(breathe),
@@ -100,12 +101,12 @@ fun LoadingScreen(
                 Box(
                     modifier = Modifier
                         .size(width = 120.dp, height = 2.dp)
-                        .background(Color(0xFF333333)),
+                        .background(MaterialTheme.colors.surfaceContainerHigh),
                 ) {
                     Box(
                         modifier = Modifier
                             .size(width = 120.dp * progress, height = 2.dp)
-                            .background(Color(0xFF6E9CFF)),
+                            .background(MaterialTheme.colorScheme.primary),
                     )
                 }
             }
@@ -126,7 +127,7 @@ fun LoadingScreen(
                     Spacer(Modifier.height(8.dp))
                     Text(
                         mainUiState.message ?: "",
-                        color = Color(0xFF888888),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp,
                     )
                 }

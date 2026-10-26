@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screensold.videoplayer.player
+﻿package top.yogiczy.mytv.tv.ui.screensold.videoplayer.player
 
 import android.content.Context
 import android.net.Uri
@@ -286,6 +286,8 @@ class Media3VideoPlayer(
                 triggerError(null)
                 triggerBuffering(true)
             } else if (playbackState == Player.STATE_READY) {
+                // 启动耗时打点：直播首帧就绪
+                top.yogiczy.mytv.tv.utlis.StartupTrace.mark("live.firstFrame.ready")
                 triggerReady()
                 triggerDuration(videoPlayer.duration)
 
@@ -296,7 +298,7 @@ class Media3VideoPlayer(
                             System.currentTimeMillis() - videoPlayer.currentLiveOffset
 
                         triggerCurrentPosition(if (livePosition > 0) livePosition else videoPlayer.currentPosition)
-                        delay(500)
+                        delay(1000)
                     }
                 }
             }

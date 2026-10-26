@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.favorites
+﻿package top.yogiczy.mytv.tv.ui.screen.favorites
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -57,6 +57,8 @@ import top.yogiczy.mytv.tv.ui.screen.channels.components.ChannelsChannelGroupLis
 import top.yogiczy.mytv.tv.ui.screen.components.AppScaffoldHeaderBtn
 import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
 import top.yogiczy.mytv.tv.ui.screen.vod.VodFavoriteManager
+import top.yogiczy.mytv.tv.ui.screen.components.EmptyState
+import top.yogiczy.mytv.tv.ui.screen.components.UiText
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -96,7 +98,7 @@ fun FavoritesScreen(
         ) {
             // ===== VOD 收藏 (自适应2行网格) =====
             if (vodFavorites.isNotEmpty()) {
-                Text("点播收藏", color = Color.White, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 48.dp))
+                Text("点播收藏", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 48.dp))
                 VodFavoriteGrid(
                     favorites = vodFavorites,
                     onPlayVod = onPlayVod,
@@ -153,7 +155,7 @@ fun FavoritesScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("暂无收藏", color = Color(0xFF666666), style = MaterialTheme.typography.titleLarge)
+                    EmptyState(fillMaxSize = false, title = UiText.EMPTY_FAVORITE)
                 }
             }
         }
@@ -227,18 +229,18 @@ private fun VodFavoriteCard(
                         .align(Alignment.TopEnd)
                         .padding(4.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xCCFF0000))
+                        .background(MaterialTheme.colorScheme.error)
                         .clickable { onRemove() }
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                 ) {
-                    Text("✕", color = Color.White, fontSize = 10.sp)
+                    Text("✕", color = MaterialTheme.colorScheme.onError, fontSize = 10.sp)
                 }
             }
         }
         Spacer(Modifier.height(4.dp))
         Text(
             fav.vodName,
-            color = if (isFocused) MaterialTheme.colorScheme.primary else Color.White,
+            color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             fontSize = 11.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

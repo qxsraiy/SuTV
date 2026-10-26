@@ -21,8 +21,8 @@ android {
         applicationId = "top.yogiczy.slcs.tv"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 27
-        versionName = "2.1.7"
+        versionCode = 28
+        versionName = "2.2.0"
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -117,7 +117,7 @@ dependencies {
     implementation(libs.kotlinx.collections.immutable)
     implementation(libs.androidx.material.icons.extended)
 
-    // 鎾斁鍣?
+    // 播放??
     val mediaSettingsFile = file("../../media/core_settings.gradle")
     if (mediaSettingsFile.exists()) {
         implementation(project(":media3:lib-exoplayer"))
@@ -133,7 +133,7 @@ dependencies {
         implementation(libs.androidx.media3.ui)
     }
 
-    // 浜岀淮鐮?
+    // 二维??
     implementation(libs.qrose)
 
     implementation(libs.coil.compose)
@@ -150,13 +150,24 @@ dependencies {
     implementation(project(":allinone"))
     // implementation(project(":tbsx5"))
 
-    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar", "*.jar"))))
+    // 体积优化：ffmpeg 扩展（AC3/EAC3/DTS 软解）默认不打包，单 ABI 可省约 4.7MB。
+    // 需要时加 -PwithFfmpeg=true 重新启用。
+    val withFfmpeg = (findProperty("withFfmpeg") as String?)?.toBoolean() ?: false
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
+    if (withFfmpeg) {
+        implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("lib-decoder-ffmpeg-release.aar"))))
+    }
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
+}
+
+// 体积优化：去掉 Sentry 原生 so（只保留 Java 层崩溃采集），省 ~1.2MB
+configurations.configureEach {
+    exclude(group = "io.sentry", module = "sentry-android-ndk")
 }
 
 sentry {

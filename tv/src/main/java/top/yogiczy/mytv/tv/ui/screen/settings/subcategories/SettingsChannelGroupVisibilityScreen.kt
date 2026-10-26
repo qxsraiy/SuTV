@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.settings.subcategories
+﻿package top.yogiczy.mytv.tv.ui.screen.settings.subcategories
 
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
@@ -111,7 +111,7 @@ private fun ChannelGroupVisibilityItem(
             containerColor = MaterialTheme.colorScheme.onSurface.copy(0.1f),
         ),
         selected = false,
-        onClick = {},
+        onClick = onVisibilityToggle,
     )
 }
 
