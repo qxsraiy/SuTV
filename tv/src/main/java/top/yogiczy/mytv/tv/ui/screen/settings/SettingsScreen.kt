@@ -136,8 +136,13 @@ fun SettingsScreen(
                     SettingsIptvSourceScreen(
                         currentIptvSourceProvider = { settingsViewModel.iptvSourceCurrent },
                         iptvSourceListProvider = { settingsViewModel.iptvSourceList },
-                        defaultUrlProvider = { settingsViewModel.iptvSourceDefaultUrl },
-                        backupUrlsProvider = { settingsViewModel.iptvSourceBackupUrls },
+                        defaultUrlProvider = {
+                            top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority.effectiveDefault().url
+                        },
+                        backupUrlsProvider = {
+                            top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority.effectiveBackups()
+                                .map { it.url }.toSet()
+                        },
                         onSetCurrent = {
                             settingsViewModel.iptvSourceCurrent = it
                             settingsViewModel.iptvChannelGroupHiddenList = emptySet()

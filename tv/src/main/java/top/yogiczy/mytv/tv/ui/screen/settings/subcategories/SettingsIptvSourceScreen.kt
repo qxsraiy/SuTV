@@ -159,8 +159,10 @@ private fun SettingsIptvSourceContent(
     onError: (String) -> Unit = {},
 ) {
     val iptvSourceList = iptvSourceListProvider()
-    val defaultUrl = defaultUrlProvider()
-    val backupUrls = backupUrlsProvider()
+
+    // 页面内部维护默认/备用状态：操作后立即刷新显示，不依赖外部 refresh 时机
+    var defaultUrl by remember { mutableStateOf(defaultUrlProvider()) }
+    var backupUrls by remember { mutableStateOf(backupUrlsProvider()) }
 
     // 生效的默认源（未显式设置时回退内置咪咕），保证列表里始终有一行标记为「默认」
     val effectiveDefaultUrl = remember(defaultUrl) {
@@ -191,22 +193,28 @@ private fun SettingsIptvSourceContent(
                 isSelectedProvider = { currentIptvSourceProvider() == iptvSource },
                 onSetCurrent = { onSetCurrent(iptvSource) },
                 onSetDefault = {
-                    // 已有其它默认源 → 提示先改它
-                    val otherDefault = iptvSourceList.firstOrNull {
-                        it.url == effectiveDefaultUrl && it.url != iptvSource.url
-                    }
+                    // 只有用户「显式设置过」别的默认源时才拦截；
+                    // 内置咪咕只是隐式回退，不应阻止把其它源设为默认
+                    val otherDefault =
+                        if (defaultUrl.isNotBlank() && defaultUrl != iptvSource.url) {
+                            iptvSourceList.firstOrNull { it.url == defaultUrl }
+                        } else null
                     if (otherDefault != null) {
                         onError("已有默认源「${otherDefault.name}」，请先将它改为停用或备用")
                     } else {
+                        defaultUrl = iptvSource.url
+                        backupUrls = backupUrls - iptvSource.url
                         onSetDefault(iptvSource)
                     }
                 },
                 onToggleBackup = {
                     if (role == IptvRole.Backup) {
+                        backupUrls = backupUrls - iptvSource.url
                         onSetBackup(iptvSource, false)
                     } else if (backupUrls.size >= 3) {
-                        onError("备用源已满 3 个\n请先取消一个备用源")
+                        onError("备用源已满 3 个，请先取消一个备用源")
                     } else {
+                        backupUrls = backupUrls + iptvSource.url
                         onSetBackup(iptvSource, true)
                     }
                 },
@@ -222,7 +230,8 @@ private fun SettingsIptvSourceContent(
                 modifier = Modifier.handleKeyEvents(onSelect = { visible = true }),
                 headlineContent = { Text("添加其他直播源") },
                 selected = false,
-                onClick = {},
+                // 触控支持
+                onClick = { visible = true },
             )
 
             SimplePopup(
@@ -353,7 +362,11 @@ private fun IptvSourceItem(
             }
         },
         selected = false,
-        onClick = {},
+        // 触控支持：手指点击等同遥控确认（打开操作菜单）
+        onClick = {
+            popupManager.push(focusRequester, true)
+            actionsVisible = true
+        },
     )
 
     SimplePopup(
@@ -482,7 +495,8 @@ private fun SettingsIptvSourceActionItem(
             containerColor = MaterialTheme.colorScheme.onSurface.copy(0.1f),
         ),
         selected = false,
-        onClick = {},
+        // 触控支持：手指点击等同遥控确认
+        onClick = { if (!disabled) onSelected() },
         leadingContent = { Icon(imageVector, contentDescription = null) },
         headlineContent = { Text(title) },
         enabled = !disabled,

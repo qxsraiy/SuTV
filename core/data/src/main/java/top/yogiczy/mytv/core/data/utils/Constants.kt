@@ -36,6 +36,10 @@ object Constants {
                 url = "http://localhost:10481/migu.m3u",
             ),
             IptvSource(
+                name = "9527 综合直播",
+                url = "http://193.123.86.190:14888/TV/iptv.php",
+            ),
+            IptvSource(
                 name = "IPTV默认源 (Guovin)",
                 url = "https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/result.m3u",
             ),
