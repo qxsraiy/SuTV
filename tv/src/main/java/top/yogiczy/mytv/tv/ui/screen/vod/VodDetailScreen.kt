@@ -32,6 +32,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import top.yogiczy.mytv.tv.ui.screen.components.AppThemeWrapper
 import top.yogiczy.mytv.tv.ui.theme.colors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -178,10 +179,10 @@ fun VodDetailScreen(
         }
     }
 
+    AppThemeWrapper {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
     ) {
         if (isPlaying && detail != null && mergedSources.isNotEmpty()) {
             // ===== 全屏播放 =====
@@ -946,5 +947,6 @@ fun VodDetailScreen(
                 }
             }
         }
+    }
     }
 }

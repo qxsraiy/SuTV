@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.Update
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import top.yogiczy.mytv.tv.ui.screen.components.AppThemeWrapper
 import top.yogiczy.mytv.tv.ui.theme.colors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -83,10 +84,10 @@ fun VodScreen(
     val historyVersion by VodHistoryManager.version
     var historyItems by remember(historyVersion) { mutableStateOf(VodHistoryManager.load(context)) }
 
+    AppThemeWrapper {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // 顶部栏
@@ -117,7 +118,7 @@ fun VodScreen(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .background(MaterialTheme.colors.surfaceContainer)
+                            .background(MaterialTheme.colors.surfaceContainer.copy(alpha = 0.72f))
                             .padding(6.dp),
                     ) {
                         Text(
@@ -233,7 +234,7 @@ fun VodScreen(
                                     .onFocusChanged { retryFocused = it.isFocused }
                                     .focusable()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (retryFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f) else MaterialTheme.colors.surfaceContainerHigh)
+                                    .background(if (retryFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f) else MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
                                     .border(if (retryFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                                     .clickable {
                                         if (state.sources.isEmpty()) vm.loadSources()
@@ -255,6 +256,7 @@ fun VodScreen(
                 }
             }
         }
+    }
     }
 }
 
@@ -284,7 +286,7 @@ private fun VodTopBar(
                 .onFocusChanged { backFocused = it.isFocused }
                 .focusable()
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (backFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else MaterialTheme.colors.surfaceContainerHigh)
+                .background(if (backFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
                 .border(if (backFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                 .clickable { onBack() }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -299,7 +301,7 @@ private fun VodTopBar(
                 .onFocusChanged { sourceFocused = it.isFocused }
                 .focusable()
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (sourceFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else MaterialTheme.colors.surfaceContainerHigh)
+                .background(if (sourceFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
                 .border(if (sourceFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                 .clickable { showSources = !showSources }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -324,7 +326,7 @@ private fun VodTopBar(
                 .focusRequester(searchFocusRequester)
                 .focusable()
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (searchFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else MaterialTheme.colors.surfaceContainerHigh)
+                .background(if (searchFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
                 .border(if (searchFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             singleLine = true,
@@ -357,7 +359,7 @@ private fun VodTopBar(
                 .onFocusChanged { refreshFocused = it.isFocused }
                 .focusable()
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (refreshFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f) else MaterialTheme.colors.surfaceContainerHigh)
+                .background(if (refreshFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f) else MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
                 .border(if (refreshFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                 .clickable { vm.refreshSearch() }
                 .padding(8.dp),
@@ -400,7 +402,7 @@ private fun VodTopBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colors.surfaceContainerHigh)
+                .background(MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
                 .padding(8.dp),
         ) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -451,7 +453,7 @@ private fun CategoryTabs(
                     .focusable()
                     .scale(if (focused) 1.1f else 1f)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(if (focused) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else MaterialTheme.colors.surfaceContainerHigh)
+                    .background(if (focused) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
                     .border(if (focused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
                     .clickable { onSelect(cat) }
                     .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -474,7 +476,7 @@ private fun VodCard(
             .focusable()
             .scale(if (focused) 1.05f else 1f)
             .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colors.surfaceContainerHigh)
+            .background(MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
             .border(if (focused) 3.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
             .clickable { onClick() }
             .padding(4.dp),
