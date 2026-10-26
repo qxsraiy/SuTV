@@ -1,5 +1,7 @@
-package top.yogiczy.mytv.tv.ui.screen.settings.subcategories
+﻿package top.yogiczy.mytv.tv.ui.screen.settings.subcategories
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -39,6 +41,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.tv.material3.Border
+import androidx.tv.material3.Card
+import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.ListItemDefaults
@@ -63,6 +68,7 @@ import top.yogiczy.mytv.tv.ui.screen.components.AppScaffoldHeaderBtn
 import top.yogiczy.mytv.tv.ui.screen.components.AppScreen
 import top.yogiczy.mytv.tv.ui.screen.push.PushContent
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
+import top.yogiczy.mytv.tv.ui.theme.colors
 import top.yogiczy.mytv.tv.ui.utils.focusOnLaunched
 import top.yogiczy.mytv.tv.ui.utils.gridColumns
 import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
@@ -77,6 +83,7 @@ fun SettingsIptvSourceScreen(
     backupUrlsProvider: () -> Set<String> = { emptySet() },
     onSetCurrent: (IptvSource) -> Unit = {},
     onSetDefault: (IptvSource) -> Unit = {},
+    onClearDefault: () -> Unit = {},
     onSetBackup: (IptvSource, Boolean) -> Unit = { _, _ -> },
     onDelete: (IptvSource) -> Unit = {},
     onClearCache: (IptvSource) -> Unit = {},
@@ -135,6 +142,7 @@ fun SettingsIptvSourceScreen(
             backupUrlsProvider = backupUrlsProvider,
             onSetCurrent = onSetCurrent,
             onSetDefault = onSetDefault,
+            onClearDefault = onClearDefault,
             onSetBackup = onSetBackup,
             onDelete = onDelete,
             onClearCache = onClearCache,
@@ -153,6 +161,7 @@ private fun SettingsIptvSourceContent(
     backupUrlsProvider: () -> Set<String> = { emptySet() },
     onSetCurrent: (IptvSource) -> Unit = {},
     onSetDefault: (IptvSource) -> Unit = {},
+    onClearDefault: () -> Unit = {},
     onSetBackup: (IptvSource, Boolean) -> Unit = { _, _ -> },
     onDelete: (IptvSource) -> Unit = {},
     onClearCache: (IptvSource) -> Unit = {},
@@ -164,10 +173,11 @@ private fun SettingsIptvSourceContent(
     var defaultUrl by remember { mutableStateOf(defaultUrlProvider()) }
     var backupUrls by remember { mutableStateOf(backupUrlsProvider()) }
 
-    // 生效的默认源（未显式设置时回退内置咪咕），保证列表里始终有一行标记为「默认」
-    val effectiveDefaultUrl = remember(defaultUrl) {
-        if (defaultUrl.isNotBlank()) defaultUrl
-        else top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority.builtinMigu().url
+    // 默认源只认「显式设置」；未设置时顶部提示播放会回退内置咪咕
+    fun roleOf(url: String): IptvRole = when {
+        defaultUrl.isNotBlank() && url == defaultUrl -> IptvRole.Default
+        backupUrls.contains(url) -> IptvRole.Backup
+        else -> IptvRole.Disabled
     }
 
     val childPadding = rememberChildPadding()
@@ -177,12 +187,23 @@ private fun SettingsIptvSourceContent(
         contentPadding = childPadding.copy(top = 10.dp).paddingValues,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        item {
+            // 顶部状态提示
+            Text(
+                if (defaultUrl.isNotBlank()) {
+                    val name = iptvSourceList.firstOrNull { it.url == defaultUrl }?.name ?: defaultUrl
+                    "默认源：$name"
+                } else {
+                    "默认源：未设置（播放时使用内置咪咕）"
+                } + "　备用源 ${backupUrls.size}/3",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+            )
+        }
+
         items(iptvSourceList) { iptvSource ->
-            val role = when {
-                iptvSource.url == effectiveDefaultUrl -> IptvRole.Default
-                backupUrls.contains(iptvSource.url) -> IptvRole.Backup
-                else -> IptvRole.Disabled
-            }
+            val role = roleOf(iptvSource.url)
 
             IptvSourceItem(
                 iptvSourceProvider = { iptvSource },
@@ -193,8 +214,7 @@ private fun SettingsIptvSourceContent(
                 isSelectedProvider = { currentIptvSourceProvider() == iptvSource },
                 onSetCurrent = { onSetCurrent(iptvSource) },
                 onSetDefault = {
-                    // 只有用户「显式设置过」别的默认源时才拦截；
-                    // 内置咪咕只是隐式回退，不应阻止把其它源设为默认
+                    // 只有用户「显式设置过」别的默认源时才拦截
                     val otherDefault =
                         if (defaultUrl.isNotBlank() && defaultUrl != iptvSource.url) {
                             iptvSourceList.firstOrNull { it.url == defaultUrl }
@@ -207,6 +227,11 @@ private fun SettingsIptvSourceContent(
                         onSetDefault(iptvSource)
                     }
                 },
+                onClearDefault = {
+                    // 取消默认源 → 变停用（此时不会占用备用名额）
+                    defaultUrl = ""
+                    onClearDefault()
+                },
                 onToggleBackup = {
                     if (role == IptvRole.Backup) {
                         backupUrls = backupUrls - iptvSource.url
@@ -215,6 +240,11 @@ private fun SettingsIptvSourceContent(
                         onError("备用源已满 3 个，请先取消一个备用源")
                     } else {
                         backupUrls = backupUrls + iptvSource.url
+                        // 设成备用后不再是默认
+                        if (defaultUrl == iptvSource.url) {
+                            defaultUrl = ""
+                            onClearDefault()
+                        }
                         onSetBackup(iptvSource, true)
                     }
                 },
@@ -253,6 +283,7 @@ private fun IptvSourceItem(
     isSelectedProvider: () -> Boolean = { false },
     onSetCurrent: () -> Unit = {},
     onSetDefault: () -> Unit = {},
+    onClearDefault: () -> Unit = {},
     onToggleBackup: () -> Unit = {},
     onDelete: () -> Unit = {},
     onClearCache: () -> Unit = {},
@@ -381,6 +412,10 @@ private fun IptvSourceItem(
                 onSetDefault()
                 actionsVisible = false
             },
+            onClearDefault = {
+                onClearDefault()
+                actionsVisible = false
+            },
             onToggleBackup = {
                 onToggleBackup()
                 actionsVisible = false
@@ -404,6 +439,7 @@ private fun SettingsIptvSourceActions(
     roleProvider: () -> IptvRole = { IptvRole.Disabled },
     onDismissRequest: () -> Unit = {},
     onSetDefault: () -> Unit = {},
+    onClearDefault: () -> Unit = {},
     onToggleBackup: () -> Unit = {},
     onDelete: () -> Unit = {},
     onClearCache: () -> Unit = {},
@@ -432,13 +468,21 @@ private fun SettingsIptvSourceActions(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
-                SettingsIptvSourceActionItem(
-                    title = if (role == IptvRole.Default) "已是默认源" else "设为默认源",
-                    imageVector = Icons.Outlined.Star,
-                    onSelected = onSetDefault,
-                    disabled = role == IptvRole.Default,
-                    modifier = Modifier.focusOnLaunched(),
-                )
+                if (role == IptvRole.Default) {
+                    SettingsIptvSourceActionItem(
+                        title = "取消默认源（变停用）",
+                        imageVector = Icons.Outlined.Star,
+                        onSelected = onClearDefault,
+                        modifier = Modifier.focusOnLaunched(),
+                    )
+                } else {
+                    SettingsIptvSourceActionItem(
+                        title = "设为默认源",
+                        imageVector = Icons.Outlined.Star,
+                        onSelected = onSetDefault,
+                        modifier = Modifier.focusOnLaunched(),
+                    )
+                }
             }
 
             item {
@@ -484,23 +528,49 @@ private fun SettingsIptvSourceActionItem(
     onSelected: () -> Unit = {},
     disabled: Boolean = false,
 ) {
-    ListItem(
+    // 用 Card + clickable：触控与遥控都能触发（ListItem 在 Drawer 内收不到触摸）
+    Card(
+        onClick = { },
         modifier = modifier
             .fillMaxWidth()
-            .ifElse(
-                !disabled,
-                Modifier.handleKeyEvents(onSelect = onSelected),
-            ),
-        colors = ListItemDefaults.colors(
-            containerColor = MaterialTheme.colorScheme.onSurface.copy(0.1f),
+            .handleKeyEvents(onSelect = if (disabled) null else onSelected)
+            .clickable(enabled = !disabled) { onSelected() },
+        colors = CardDefaults.colors(
+            containerColor = MaterialTheme.colors.surfaceContainerHigh,
+            focusedContainerColor = MaterialTheme.colorScheme.onSurface,
         ),
-        selected = false,
-        // 触控支持：手指点击等同遥控确认
-        onClick = { if (!disabled) onSelected() },
-        leadingContent = { Icon(imageVector, contentDescription = null) },
-        headlineContent = { Text(title) },
-        enabled = !disabled,
-    )
+        border = CardDefaults.border(
+            focusedBorder = Border(
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                ),
+            ),
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp, horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                imageVector,
+                contentDescription = null,
+                tint = if (disabled) {
+                    LocalContentColor.current.copy(0.4f)
+                } else LocalContentColor.current,
+            )
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (disabled) {
+                    LocalContentColor.current.copy(0.4f)
+                } else LocalContentColor.current,
+            )
+        }
+    }
 }
 
 enum class IptvRole { Default, Backup, Disabled }

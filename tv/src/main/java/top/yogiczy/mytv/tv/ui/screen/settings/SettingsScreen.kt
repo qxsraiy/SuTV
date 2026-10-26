@@ -136,9 +136,8 @@ fun SettingsScreen(
                     SettingsIptvSourceScreen(
                         currentIptvSourceProvider = { settingsViewModel.iptvSourceCurrent },
                         iptvSourceListProvider = { settingsViewModel.iptvSourceList },
-                        defaultUrlProvider = {
-                            top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority.effectiveDefault().url
-                        },
+                        // 默认源传「显式配置值」：空 = 未设置，允许把其它源设为默认
+                        defaultUrlProvider = { settingsViewModel.iptvSourceDefaultUrl },
                         backupUrlsProvider = {
                             top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority.effectiveBackups()
                                 .map { it.url }.toSet()
@@ -151,16 +150,24 @@ fun SettingsScreen(
                         },
                         onSetDefault = {
                             settingsViewModel.iptvSourceDefaultUrl = it.url
-                            settingsViewModel.iptvSourceBackupUrls =
-                                settingsViewModel.iptvSourceBackupUrls - it.url
+                            // 从「生效备用源」里移除，避免与原始配置不一致
+                            val base = top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority
+                                .effectiveBackups().map { b -> b.url }.toSet()
+                            settingsViewModel.iptvSourceBackupUrls = base - it.url
                             // 后台切换并重新加载，不跳转页面（避免闪回）
                             onSwitchSource(it)
                             Snackbar.show("已设为默认源：" + it.name)
                         },
+                        onClearDefault = {
+                            settingsViewModel.iptvSourceDefaultUrl = ""
+                            Snackbar.show("已取消默认源，播放时将使用内置咪咕")
+                        },
                         onSetBackup = { source, enable ->
+                            val base = top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority
+                                .effectiveBackups().map { b -> b.url }.toSet()
                             settingsViewModel.iptvSourceBackupUrls =
-                                if (enable) settingsViewModel.iptvSourceBackupUrls + source.url
-                                else settingsViewModel.iptvSourceBackupUrls - source.url
+                                if (enable) (base + source.url).take(3).toSet()
+                                else base - source.url
                             Snackbar.show(
                                 if (enable) "已设为备用源：" + source.name
                                 else "已取消备用源：" + source.name
