@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.utlis
+﻿package top.yogiczy.mytv.tv.utlis
 
 import android.content.Context
 import android.content.Intent
@@ -28,6 +28,7 @@ import top.yogiczy.mytv.core.data.utils.Logger
 import top.yogiczy.mytv.tv.BuildConfig
 import top.yogiczy.mytv.tv.HttpServerService
 import top.yogiczy.mytv.tv.R
+import top.yogiczy.mytv.core.data.network.Ipv4FirstDns
 import top.yogiczy.mytv.tv.migu.MiguApi
 import top.yogiczy.mytv.tv.migu.MiguBackendManager
 import top.yogiczy.mytv.tv.migu.MiguM3uGenerator
@@ -51,7 +52,7 @@ object HttpServer : Loggable("HttpServer") {
     private const val M3U8_CACHE_TTL = 30_000L
 
     private val sharedClient by lazy {
-        val builder = okhttp3.OkHttpClient.Builder()
+        val builder = okhttp3.OkHttpClient.Builder().dns(Ipv4FirstDns)
             .followRedirects(true)
             .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
@@ -61,7 +62,7 @@ object HttpServer : Loggable("HttpServer") {
     }
 
     private val noRedirectClient by lazy {
-        val builder = okhttp3.OkHttpClient.Builder()
+        val builder = okhttp3.OkHttpClient.Builder().dns(Ipv4FirstDns)
             .followRedirects(false)
             .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
@@ -71,7 +72,7 @@ object HttpServer : Loggable("HttpServer") {
     }
 
     private val proxyClient by lazy {
-        val builder = okhttp3.OkHttpClient.Builder()
+        val builder = okhttp3.OkHttpClient.Builder().dns(Ipv4FirstDns)
             .followRedirects(true)
             .connectTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(6, java.util.concurrent.TimeUnit.SECONDS)

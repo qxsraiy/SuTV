@@ -19,7 +19,9 @@ import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
+import okhttp3.OkHttpClient
+import top.yogiczy.mytv.core.data.network.Ipv4FirstDns
 import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -119,17 +121,30 @@ class Media3VideoPlayer(
     }
 
     private fun getDataSourceFactory(): DefaultDataSource.Factory {
+        // 播放走 OkHttp 数据源：可自定义 DNS，实现「IPv4 优先」，
+        // 规避部分设备 IPv6 半死导致 TCP 建连失败（Media3 2001）。
+        val okHttpClient = okHttpClientLazy.value
         return DefaultDataSource.Factory(
             context,
-            DefaultHttpDataSource.Factory().apply {
+            OkHttpDataSource.Factory(okHttpClient).apply {
                 setUserAgent(currentChannelLine.httpUserAgent ?: Configs.videoPlayerUserAgent)
                 setDefaultRequestProperties(Configs.videoPlayerHeaders.toHeaders())
-                setConnectTimeoutMs(Configs.videoPlayerLoadTimeout.toInt())
-                setReadTimeoutMs(Configs.videoPlayerLoadTimeout.toInt())
-                setKeepPostFor302Redirects(true)
-                setAllowCrossProtocolRedirects(true)
+                // 超时由 OkHttpClient 统一控制（connect 15s / read 30s）
             },
         )
+    }
+
+    private companion object {
+        /** 复用同一个 OkHttpClient（连接池 + IPv4 优先 DNS） */
+        val okHttpClientLazy: Lazy<OkHttpClient> = lazy {
+            OkHttpClient.Builder()
+                .dns(Ipv4FirstDns)
+                .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .retryOnConnectionFailure(true)
+                .followRedirects(true)
+                .build()
+        }
     }
 
     private fun getMediaSource(contentType: Int? = null): MediaSource? {

@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.migu
+﻿package top.yogiczy.mytv.tv.migu
 
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -32,6 +32,7 @@ object MiguApi {
     
     private val client: OkHttpClient by lazy {
         val c = OkHttpClient.Builder()
+            .dns(top.yogiczy.mytv.core.data.network.Ipv4FirstDns)
             .connectTimeout(5, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
             .build()

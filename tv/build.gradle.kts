@@ -21,8 +21,8 @@ android {
         applicationId = "top.yogiczy.slcs.tv"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 29
-        versionName = "2.2.1"
+        versionCode = 30
+        versionName = "2.2.2"
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -131,6 +131,7 @@ dependencies {
         implementation(libs.androidx.media3.exoplayer.rtsp)
         implementation(libs.androidx.media3.exoplayer.dash)
         implementation(libs.androidx.media3.ui)
+    implementation(libs.androidx.media3.datasource.okhttp)
     }
 
     // ?????
@@ -151,7 +152,7 @@ dependencies {
     // implementation(project(":tbsx5"))
 
     // ????????ffmpeg ?????AC3/EAC3/DTS ?????????????? ABI ???? 4.7MB??
-    // ?????? -PwithFfmpeg=true ???????ив?
+    // ?????? -PwithFfmpeg=true ??????????
     val withFfmpeg = (findProperty("withFfmpeg") as String?)?.toBoolean() ?: true
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
     if (withFfmpeg) {

@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.core.data.network
+﻿package top.yogiczy.mytv.core.data.network
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,6 +55,8 @@ suspend fun <T> String.request(
 
     return withContext(Dispatchers.IO) {
         val client = OkHttpClient.Builder()
+            // IPv4 优先：避免设备 IPv6 半死时连不上流地址（Media3 2001 / 拉流失败）
+            .dns(top.yogiczy.mytv.core.data.network.Ipv4FirstDns)
             .sslSocketFactory(
                 TrustAllSSLSocketFactory.sslSocketFactory,
                 TrustAllSSLSocketFactory.trustManager
