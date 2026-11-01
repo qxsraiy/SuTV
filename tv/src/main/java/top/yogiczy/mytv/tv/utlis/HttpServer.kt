@@ -51,6 +51,36 @@ object HttpServer : Loggable("HttpServer") {
     private val m3u8Cache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, String>>()
     private const val M3U8_CACHE_TTL = 30_000L
 
+    // ---- 冷启动就绪控制 ----
+    // 播放器/直播源加载可能在服务 listen 之前就发起请求，必须先等待就绪，避免 connection refused。
+    @Volatile
+    private var isReady = false
+    private val readyLatch = java.util.concurrent.CountDownLatch(1)
+
+    /** 服务是否已开始监听 */
+    val ready: Boolean get() = isReady
+
+    /**
+     * 等待本地服务就绪（含路由注册完成）。
+     * 返回 true 表示就绪，false 表示超时。
+     */
+    fun awaitReady(timeoutMs: Long = 8000L): Boolean {
+        if (isReady) return true
+        return try {
+            readyLatch.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS) || isReady
+        } catch (_: InterruptedException) {
+            isReady
+        }
+    }
+
+    /** 启动后立即标记（幂等） */
+    private fun markReady() {
+        if (!isReady) {
+            isReady = true
+            readyLatch.countDown()
+        }
+    }
+
     private val sharedClient by lazy {
         val builder = okhttp3.OkHttpClient.Builder().dns(Ipv4FirstDns)
             .followRedirects(true)
@@ -94,7 +124,6 @@ object HttpServer : Loggable("HttpServer") {
                     response.send("ok")
                 }
 
-                server.listen(AsyncServer.getDefault(), SERVER_PORT)
 
                 server.get("/") { _, response ->
                     handleRawResource(response, context, "text/html", R.raw.web_push)
@@ -186,7 +215,31 @@ object HttpServer : Loggable("HttpServer") {
                     handleVodDetail(request, response)
                 }
 
+                // 所有路由注册完成后再开始监听，并标记就绪
+                server.listen(AsyncServer.getDefault(), SERVER_PORT)
+                markReady()
                 log.i("设置服务已启动: $serverUrl")
+
+                // 预热：把首次播放请求要付的冷启动成本提前做掉
+                // 1) 咪咕频道列表（/migu.m3u 首次请求依赖）
+                // 2) 咪咕 API 的 DNS + TLS 握手（playurl 首次请求依赖）
+                CoroutineScope(Dispatchers.IO).launch {
+                    runCatching {
+                        val manager = MiguBackendManager.getInstance(context)
+                        manager.loadAllChannels()
+                        log.i("咪咕后端预热完成")
+                    }.onFailure { log.e("咪咕后端预热失败: ${it.message}") }
+
+                    runCatching {
+                        // 轻量握手预热：只做 DNS + TLS，不解析完整响应体
+                        val warm = Request.Builder()
+                            .head()
+                            .url("https://play.miguvideo.com/")
+                            .build()
+                        proxyClient.newCall(warm).execute().close()
+                        log.i("咪咕 API 连接预热完成")
+                    }.onFailure { log.i("咪咕 API 预热跳过: ${it.message}") }
+                }
             } catch (ex: Exception) {
                 log.e("设置服务启动失败: ${ex.message}", ex)
                 launch(Dispatchers.Main) {
@@ -498,8 +551,26 @@ object HttpServer : Loggable("HttpServer") {
                 }
                 
                 if (!result.isSuccess) {
-                    response.send("获取播放地址失败: ${result.error}")
-                    log.e("获取播放地址失败: ${result.error}")
+                    // 冷启动/网络抖动：重试一次（playurl 首次请求常因 DNS/TLS 握手慢而失败）
+                    log.w("获取播放地址失败(${result.error})，300ms 后重试一次")
+                    kotlinx.coroutines.delay(300)
+                    val retry = MiguApi.getStreamUrl720p(pid)
+                    if (!retry.isSuccess) {
+                        response.send("获取播放地址失败: ${retry.error}")
+                        log.e("获取播放地址重试仍失败: ${retry.error}")
+                        return@launch
+                    }
+                    if (retry.isSuccess) {
+                        miguResultCache[pid] = System.currentTimeMillis() to retry.url
+                    }
+                    val finalUrlRetry = resolveMiguRedirect(retry.url)
+                    val target = if (finalUrlRetry.isNotEmpty()) finalUrlRetry else retry.url
+                    if (!isFallback) {
+                        response.redirect(target)
+                    } else {
+                        proxyM3u8(target, response)
+                    }
+                    log.i("重试成功: ${target.take(80)}...")
                     return@launch
                 }
                 

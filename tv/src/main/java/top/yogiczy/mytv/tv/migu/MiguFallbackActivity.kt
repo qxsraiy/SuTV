@@ -90,8 +90,17 @@ class MiguFallbackActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val initialUrl = intent.getStringExtra(EXTRA_URL) ?: ""
+        var initialUrl = intent.getStringExtra(EXTRA_URL) ?: ""
         val channelName = intent.getStringExtra(EXTRA_CHANNEL_NAME) ?: ""
+
+        // 冷启动竞态：兜底播放器可能早于本地服务 listen 就加载 /migufb/ 地址，
+        // 先等待服务就绪（含路由注册完成），避免 connection refused。
+        if (initialUrl.contains("127.0.0.1") || initialUrl.contains("localhost")) {
+            val ready = top.yogiczy.mytv.tv.utlis.HttpServer.awaitReady(8000L)
+            if (!ready) {
+                android.util.Log.w("MiguFallback", "本地服务 8s 内未就绪，仍尝试加载: $initialUrl")
+            }
+        }
 
         if (initialUrl.isEmpty()) {
             Toast.makeText(this, "播放地址为空", Toast.LENGTH_SHORT).show()

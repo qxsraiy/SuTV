@@ -81,6 +81,21 @@ class MainViewModel : ViewModel() {
 
         _uiState.value = MainUiState.Loading("加载直播源")
 
+        // 冷启动竞态防护：内置咪咕源指向本地服务（localhost:10481），
+        // 播放列表请求可能早于服务 listen → connection refused。
+        // 这里等待服务就绪（最多 8s），并且路由已在 listen 之前注册完毕。
+        val sourceUrl = Configs.iptvSourceCurrent.url
+        if (sourceUrl.contains("127.0.0.1") || sourceUrl.contains("localhost")) {
+            val ready = top.yogiczy.mytv.tv.utlis.HttpServer.awaitReady(8000L)
+            top.yogiczy.mytv.tv.utlis.StartupTrace.mark(
+                "httpServer.ready",
+                "ready=$ready, awaitFor=8s",
+            )
+            if (!ready) {
+                log.w("本地服务 8s 内未就绪，仍尝试请求直播源: $sourceUrl")
+            }
+        }
+
         flow {
             emit(
                 IptvRepository(Configs.iptvSourceCurrent)

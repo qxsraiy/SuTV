@@ -25,6 +25,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         StartupTrace.mark("activity.onCreate")
         enableEdgeToEdge()
+        // 先启动本地 HTTP 服务再组合 UI：内置咪咕源指向 localhost:10481，
+        // 否则首帧加载直播源可能早于服务监听 → connection refused
+        HttpServer.startService(applicationContext)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
 
         setContent {
@@ -48,7 +51,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        HttpServer.startService(applicationContext)
     }
 
     override fun onDestroy() {
