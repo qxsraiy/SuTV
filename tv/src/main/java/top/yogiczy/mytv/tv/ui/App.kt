@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui
+﻿package top.yogiczy.mytv.tv.ui
 
 import androidx.annotation.IntRange
 import androidx.compose.foundation.layout.PaddingValues
@@ -75,6 +75,18 @@ fun App(
         SnackbarUI()
         Visibility({ settingsViewModel.debugShowFps }) { MonitorPopup() }
         Visibility({ settingsViewModel.debugShowLayoutGrids }) { PreviewWithLayoutGrids { } }
+    }
+
+    // 启动时清理一次本地过期 apk（版本 <= 当前版本的 apk 没有安装价值，避免堆积）
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                top.yogiczy.mytv.tv.utlis.ApkCleaner.cleanObsoleteApks(
+                    context = context,
+                    currentVersion = top.yogiczy.mytv.tv.BuildConfig.VERSION_NAME,
+                )
+            }
+        }
     }
 
     if (settingsViewModel.iptvSourceCurrent.needExternalStoragePermission()) {

@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.main
+﻿package top.yogiczy.mytv.tv.ui.screen.main
 
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -20,7 +20,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import top.yogiczy.mytv.core.data.entities.channel.Channel
 import top.yogiczy.mytv.core.data.entities.channel.ChannelFavorite
 import top.yogiczy.mytv.core.data.entities.channel.ChannelFavoriteList
@@ -120,6 +122,16 @@ fun MainScreen(
             if (!quiet) Snackbar.show("正在检查更新...", leadingLoading = true, duration = 5000)
             updateViewModel.currentVersion = BuildConfig.VERSION_NAME
             updateViewModel.checkUpdate(BuildConfig.VERSION_NAME, settingsViewModel.updateChannel)
+
+            // 检查完成后清理本地过期 apk：版本号等于或低于当前版本的 apk 没有任何安装价值
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    top.yogiczy.mytv.tv.utlis.ApkCleaner.cleanObsoleteApks(
+                        context = top.yogiczy.mytv.core.data.utils.Globals.appContext,
+                        currentVersion = BuildConfig.VERSION_NAME,
+                    )
+                }
+            }
 
             if (updateViewModel.isUpdateAvailable) {
                 val latest = updateViewModel.latestRelease.version
