@@ -71,8 +71,18 @@ class MainViewModel : ViewModel() {
     }
 
     private suspend fun refreshChannel() {
-        // 启动时切到用户配置的默认源（未配置则内置咪咕）
-        if (!builtinFallbackTried) {
+        // 每次进程启动（退出重启/关机断电后重新拉起）→ 强制把「当前源」与「默认源」
+        // 重置为内置咪咕。加载失败时仍走原有降级链路（builtinFallbackTried → effectiveDefault）。
+        if (!processStartupSourceReset) {
+            processStartupSourceReset = true
+            val migu = top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority.builtinMigu()
+            runCatching {
+                Configs.iptvSourceDefaultUrl = migu.url
+                Configs.iptvSourceCurrent = migu
+                log.i("启动重置直播源为内置咪咕: ${migu.url}")
+            }.onFailure { log.w("启动重置直播源失败: ${it.message}") }
+        } else if (!builtinFallbackTried) {
+            // 进程内的后续刷新：维持用户配置的默认源
             val target = top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority.effectiveDefault()
             if (Configs.iptvSourceCurrent.url != target.url) {
                 Configs.iptvSourceCurrent = target
@@ -349,6 +359,10 @@ class MainViewModel : ViewModel() {
 
     companion object {
         var instance: MainViewModel? = null
+
+        /** 本进程是否已执行过「启动重置 LiveTV 源为内置咪咕」 */
+        @Volatile
+        private var processStartupSourceReset = false
     }
 }
 

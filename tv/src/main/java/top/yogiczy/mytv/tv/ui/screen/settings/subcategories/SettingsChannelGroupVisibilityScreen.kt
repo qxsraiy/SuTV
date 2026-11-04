@@ -53,21 +53,15 @@ fun SettingsChannelGroupVisibilityScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(channelGroupListProvider()) { group ->
+                val visibleNow = !channelGroupNameHiddenListProvider().contains(group.name)
                 ChannelGroupVisibilityItem(
                     channelGroupProvider = { group },
-                    visibilityProvider = {
-                        !channelGroupNameHiddenListProvider().contains(group.name)
-                    },
-                    onVisibilityToggle = {
-                        if (channelGroupNameHiddenListProvider().contains(group.name)) {
-                            onChannelGroupNameHiddenListChange(
-                                channelGroupNameHiddenListProvider() - group.name
-                            )
-                        } else {
-                            onChannelGroupNameHiddenListChange(
-                                channelGroupNameHiddenListProvider() + group.name
-                            )
-                        }
+                    visibilityProvider = { visibleNow },
+                    // 幂等：传入「目标是否可见」，重复触发不会来回翻转
+                    onVisibilityChange = { makeVisible ->
+                        val hidden = channelGroupNameHiddenListProvider().toMutableSet()
+                        if (makeVisible) hidden.remove(group.name) else hidden.add(group.name)
+                        onChannelGroupNameHiddenListChange(hidden.toList())
                     },
                 )
             }
@@ -80,17 +74,18 @@ private fun ChannelGroupVisibilityItem(
     modifier: Modifier = Modifier,
     channelGroupProvider: () -> ChannelGroup = { ChannelGroup() },
     visibilityProvider: () -> Boolean = { false },
-    onVisibilityToggle: () -> Unit = {},
+    onVisibilityChange: (Boolean) -> Unit = {},
 ) {
     val group = channelGroupProvider()
     val visibility = visibilityProvider()
+    val target = !visibility
 
     var isFocused by remember { mutableStateOf(false) }
 
     ListItem(
         modifier = modifier
             .onFocusChanged { isFocused = it.isFocused || it.hasFocus }
-            .handleKeyEvents(onSelect = onVisibilityToggle),
+            .handleKeyEvents(onSelect = { onVisibilityChange(target) }),
         headlineContent = {
             Text(
                 group.name,
@@ -111,7 +106,7 @@ private fun ChannelGroupVisibilityItem(
             containerColor = MaterialTheme.colorScheme.onSurface.copy(0.1f),
         ),
         selected = false,
-        onClick = onVisibilityToggle,
+        onClick = { onVisibilityChange(target) },
     )
 }
 

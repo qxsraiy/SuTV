@@ -21,8 +21,8 @@ android {
         applicationId = "top.yogiczy.slcs.tv"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 32
-        versionName = "2.2.4"
+        versionCode = 33
+        versionName = "2.2.5"
         vectorDrawables {
             useSupportLibrary = true
         }
