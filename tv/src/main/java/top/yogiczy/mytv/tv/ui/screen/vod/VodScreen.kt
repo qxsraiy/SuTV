@@ -40,10 +40,14 @@ import androidx.tv.material3.Text
 import top.yogiczy.mytv.tv.ui.screen.components.AppThemeWrapper
 import top.yogiczy.mytv.tv.ui.screen.components.EmptyState
 import top.yogiczy.mytv.tv.ui.screen.components.QrcodePopup
+import top.yogiczy.mytv.tv.ui.screen.components.AppPill
+import top.yogiczy.mytv.tv.ui.screen.components.AppActionRow
 import top.yogiczy.mytv.tv.ui.screen.components.appControlContainer
 import top.yogiczy.mytv.tv.ui.screen.components.appControlContent
 import top.yogiczy.mytv.tv.ui.screen.components.UiText
 import top.yogiczy.mytv.tv.ui.theme.colors
+import top.yogiczy.mytv.tv.ui.utils.clickableNoIndication
+import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -248,40 +252,21 @@ private fun VodTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // 返回
-        Box(
-            modifier = Modifier
-                .onFocusChanged { backFocused = it.isFocused }
-                .focusable()
-                .clip(RoundedCornerShape(8.dp))
-                .background(appControlContainer(backFocused))
-                .border(if (backFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
-                .clickable { onBack() }
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            Text("← 返回", color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp)
-        }
-        Spacer(Modifier.width(12.dp))
+        // 返回（设置页同款胶囊）
+        AppPill(text = "← 返回", onClick = onBack)
 
         // 采集源选择
-        Box(
-            modifier = Modifier
-                .onFocusChanged { sourceFocused = it.isFocused }
-                .focusable()
-                .clip(RoundedCornerShape(8.dp))
-                .background(appControlContainer(sourceFocused))
-                .border(if (sourceFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
-                .clickable { showSources = !showSources }
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            Text("源: ${state.currentSource.name} ▾", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
-        }
-        Spacer(Modifier.width(12.dp))
+        AppPill(
+            text = "源: ${state.currentSource.name} ▾",
+            selected = showSources,
+            onClick = { showSources = !showSources },
+        )
 
-        // 搜索框
+        // 搜索框（容器/文字与设置页一致；聚焦反色）
         val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
         val searchFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
         LaunchedEffect(Unit) {
@@ -290,18 +275,27 @@ private fun VodTopBar(
         BasicTextField(
             value = searchText,
             onValueChange = { searchText = it },
-            textStyle = TextStyle(color = appControlContent(searchFocused), fontSize = 14.sp),
+            textStyle = TextStyle(
+                color = if (searchFocused) MaterialTheme.colorScheme.surface
+                else MaterialTheme.colorScheme.onSurface,
+                fontSize = 15.sp,
+            ),
             modifier = Modifier
                 .weight(1f)
                 .onFocusChanged { searchFocused = it.isFocused }
                 .focusRequester(searchFocusRequester)
                 .focusable()
-                .clip(RoundedCornerShape(8.dp))
-                .background(appControlContainer(searchFocused))
-                .border(if (searchFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .clip(MaterialTheme.shapes.small)
+                .background(
+                    if (searchFocused) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+                )
+                .padding(horizontal = 14.dp, vertical = 9.dp),
             singleLine = true,
-            cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.onSurface),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(
+                if (searchFocused) MaterialTheme.colorScheme.surface
+                else MaterialTheme.colorScheme.onSurface
+            ),
             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                 imeAction = androidx.compose.ui.text.input.ImeAction.Search,
             ),
@@ -314,7 +308,6 @@ private fun VodTopBar(
                 },
             ),
         )
-        Spacer(Modifier.width(8.dp))
 
         // 刷新搜索按钮 (换5个源重新搜, loading时旋转动画)
         var refreshFocused by remember { mutableStateOf(false) }
@@ -327,18 +320,22 @@ private fun VodTopBar(
         )
         Box(
             modifier = Modifier
-                .onFocusChanged { refreshFocused = it.isFocused }
+                .onFocusChanged { refreshFocused = it.isFocused || it.hasFocus }
                 .focusable()
-                .clip(RoundedCornerShape(8.dp))
-                .background(appControlContainer(refreshFocused))
-                .border(if (refreshFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
-                .clickable { vm.refreshSearch() }
-                .padding(8.dp),
+                .clip(MaterialTheme.shapes.small)
+                .background(
+                    if (refreshFocused) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+                )
+                .clickableNoIndication { vm.refreshSearch() }
+                .handleKeyEvents(onSelect = { vm.refreshSearch() })
+                .padding(9.dp),
         ) {
             Icon(
                 Icons.Outlined.Update,
                 contentDescription = "刷新",
-                tint = MaterialTheme.colorScheme.onSurface,
+                tint = if (refreshFocused) MaterialTheme.colorScheme.surface
+                else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .size(18.dp)
                     .graphicsLayer {
@@ -346,64 +343,44 @@ private fun VodTopBar(
                     },
             )
         }
-        Spacer(Modifier.width(8.dp))
 
-        // 搜索按钮
-        Box(
-            modifier = Modifier
-                .onFocusChanged { btnFocused = it.isFocused }
-                .focusable()
-                .clip(RoundedCornerShape(8.dp))
-                .background(appControlContainer(btnFocused))
-                .border(if (btnFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
-                .clickable {
-                    if (searchText.isNotEmpty()) {
-                        keyboardController?.hide()
-                        vm.searchMulti(searchText)
-                    } else {
-                        // 输入框为空：弹出二维码，手机扫码后输入片名直接搜索
-                        keyboardController?.hide()
-                        showQrPopup = true
-                    }
+        // 搜索按钮（输入为空 → 弹出扫码搜索）
+        AppPill(
+            text = "搜索",
+            selected = true,
+            onClick = {
+                if (searchText.isNotEmpty()) {
+                    keyboardController?.hide()
+                    vm.searchMulti(searchText)
+                } else {
+                    keyboardController?.hide()
+                    showQrPopup = true
                 }
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            Text("搜索", color = appControlContent(btnFocused), fontSize = 14.sp)
-        }
+            },
+        )
     }
-
-    // 源下拉列表
+    // 源下拉列表（设置页同款胶囊，当前源高亮）
     if (showSources) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colors.surfaceContainer.copy(alpha = 0.72f))
-                .padding(8.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(state.sources) { source ->
-                    var focused by remember { mutableStateOf(false) }
-                    Box(
-                        modifier = Modifier
-                            .onFocusChanged { focused = it.isFocused }
-                            .focusable()
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(
-                                if (source.key == state.currentSource.key) {
-                                    if (focused) MaterialTheme.colorScheme.onSurface
-                                    else MaterialTheme.colorScheme.primary.copy(alpha = 0.30f)
-                                } else appControlContainer(focused)
-                            )
-                            .border(if (focused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
-                            .clickable {
-                                vm.selectSource(source)
-                                showSources = false
-                            }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                    ) {
-                        Text(source.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
-                    }
-                }
+            state.sources.forEach { source ->
+                AppActionRow(
+                    title = source.name,
+                    supporting = if (source.key == state.currentSource.key) "当前使用" else null,
+                    trailing = {
+                        if (source.key == state.currentSource.key) {
+                            Text("✓", style = MaterialTheme.typography.titleMedium)
+                        }
+                    },
+                    onClick = {
+                        vm.selectSource(source)
+                        showSources = false
+                    },
+                )
             }
         }
     }
@@ -423,19 +400,11 @@ private fun CategoryTabs(
     ) {
         items(categories) { cat ->
             var focused by remember { mutableStateOf(false) }
-            Box(
-                modifier = Modifier
-                    .onFocusChanged { focused = it.isFocused }
-                    .focusable()
-                    .scale(if (focused) 1.1f else 1f)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(appControlContainer(focused))
-                    .border(if (focused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
-                    .clickable { onSelect(cat) }
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-            ) {
-                Text(cat.type_name, color = appControlContent(focused), fontSize = 13.sp)
-            }
+            AppPill(
+                text = cat.type_name,
+                style = MaterialTheme.typography.bodyMedium,
+                onClick = { onSelect(cat) },
+            )
         }
     }
 }

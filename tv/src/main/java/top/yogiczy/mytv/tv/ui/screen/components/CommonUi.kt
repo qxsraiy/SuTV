@@ -1,4 +1,19 @@
 ﻿package top.yogiczy.mytv.tv.ui.screen.components
+import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
+import top.yogiczy.mytv.tv.ui.utils.clickableNoIndication
+import androidx.tv.material3.ListItemDefaults
+import androidx.tv.material3.ListItem
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.background
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -95,3 +110,71 @@ fun appControlContent(focused: Boolean) =
 fun appControlContentMuted(focused: Boolean) =
     if (focused) MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
     else MaterialTheme.colorScheme.onSurfaceVariant
+/**
+ * 设置页同款「胶囊按钮」：ListItem 的观感（onSurface 10% 底、聚焦反色、无描边）
+ * 用于点播顶部栏、分类标签、源下拉等短控件。
+ */
+@Composable
+fun AppPill(
+    modifier: Modifier = Modifier,
+    text: String,
+    onClick: () -> Unit = {},
+    selected: Boolean = false,
+    leading: (@Composable () -> Unit)? = null,
+    style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.titleMedium,
+) {
+    var focused by remember { mutableStateOf(false) }
+
+    val container = when {
+        focused -> MaterialTheme.colorScheme.onSurface
+        selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+    }
+    val content = if (focused) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurface
+
+    Row(
+        modifier = modifier
+            .onFocusChanged { focused = it.isFocused || it.hasFocus }
+            .focusable()
+            .clip(MaterialTheme.shapes.small)
+            .background(container)
+            .clickableNoIndication { onClick() }
+            .handleKeyEvents(onSelect = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        leading?.invoke()
+        Text(text, color = content, style = style, maxLines = 1)
+    }
+}
+
+/**
+ * 设置页同款「列表行」：与 SettingsListItem 视觉一致（tv-material3 ListItem 默认样式，
+ * 常态 onSurface 10% 容器、聚焦反色、无额外描边）。
+ */
+@Composable
+fun AppActionRow(
+    modifier: Modifier = Modifier,
+    title: String,
+    supporting: String? = null,
+    leading: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+    onClick: () -> Unit = {},
+    onLongClick: () -> Unit = {},
+) {
+    ListItem(
+        modifier = modifier
+            .fillMaxWidth()
+            .handleKeyEvents(onSelect = onClick, onLongSelect = onLongClick),
+        onClick = onClick,
+        selected = false,
+        colors = ListItemDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+        ),
+        leadingContent = leading?.let { { it() } },
+        headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        supportingContent = supporting?.let { s -> { Text(s, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
+        trailingContent = trailing?.let { { it() } },
+    )
+}

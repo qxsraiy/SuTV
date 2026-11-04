@@ -323,7 +323,11 @@ fun MainScreen(
                     vodPic = vodPlayData.vodPic,
                     initialEpIdx = vodPlayData.epIdx,
                     onBack = {
-                        navController.navigateSingleTop(Screens.Vod())
+                        // 返回到「打开详情页的那个页面」：点播列表 或 收藏记录
+                        // 原来固定跳回点播页，导致从收藏记录进来时返回错乱（返回→点播→再返回又进详情）
+                        if (!navController.navigateUp()) {
+                            navController.navigateSingleTop(Screens.Dashboard())
+                        }
                     },
                 )
             }

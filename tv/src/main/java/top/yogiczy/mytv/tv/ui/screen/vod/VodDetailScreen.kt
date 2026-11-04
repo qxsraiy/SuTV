@@ -36,6 +36,8 @@ import androidx.tv.material3.Text
 import top.yogiczy.mytv.tv.ui.screen.components.AppButton
 import top.yogiczy.mytv.tv.ui.screen.components.AppThemeWrapper
 import top.yogiczy.mytv.tv.ui.theme.colors
+import top.yogiczy.mytv.tv.ui.screen.components.appControlContainer
+import top.yogiczy.mytv.tv.ui.screen.components.appControlContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -308,8 +310,8 @@ fun VodDetailScreen(
                                     .onFocusChanged { retryFocused = it.isFocused }
                                     .focusable()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (retryFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f) else MaterialTheme.colors.surfaceContainerHigh)
-                                    .border(if (retryFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                                    .background(appControlContainer(retryFocused))
+                                    
                                     .clickable {
                                         retryCount = 0
                                         playerError = null
@@ -456,13 +458,13 @@ fun VodDetailScreen(
                                 .onFocusChanged { backFocused = it.isFocused }
                                 .focusable()
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (backFocused) MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.9f) else MaterialTheme.colors.surfaceContainer.copy(alpha = 0.8f))
-                                .border(if (backFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                                .background(if (backFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
+                                
                                 .clickable { isPlaying = false }
                                 .padding(horizontal = 16.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("← 返回", color = MaterialTheme.colorScheme.onSurface, fontSize = btnFs)
+                            Text("← 返回", color = if (backFocused) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurface, fontSize = btnFs)
                         }
 
                         // 右: 竖屏 + 收藏 + 剧集
@@ -478,8 +480,8 @@ fun VodDetailScreen(
                                     .onFocusChanged { rotFocused = it.isFocused }
                                     .focusable()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (rotFocused) MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.9f) else MaterialTheme.colors.surfaceContainer.copy(alpha = 0.8f))
-                                    .border(if (rotFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                                    .background(if (rotFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
+                                    
                                     .clickable {
                                         isPortraitMode = !isPortraitMode
                                         activity?.let { act ->
@@ -507,8 +509,8 @@ fun VodDetailScreen(
                                     .onFocusChanged { ratFocused = it.isFocused }
                                     .focusable()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (ratFocused) MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.9f) else MaterialTheme.colors.surfaceContainer.copy(alpha = 0.8f))
-                                    .border(if (ratFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                                    .background(if (ratFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
+                                    
                                     .clickable { resizeMode = (resizeMode + 1) % 3 }
                                     .padding(horizontal = 12.dp),
                                 contentAlignment = Alignment.Center,
@@ -533,8 +535,8 @@ fun VodDetailScreen(
                                     .onFocusChanged { favFocused = it.isFocused }
                                     .focusable()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (favFocused) MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.9f) else MaterialTheme.colors.surfaceContainer.copy(alpha = 0.8f))
-                                    .border(if (favFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                                    .background(if (favFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
+                                    
                                     .clickable {
                                         favState = VodFavoriteManager.toggle(context, VodFavoriteItem(
                                             sourceKey = sourceKey, vodId = vodId, vodName = vodName, vodPic = vodPic,
@@ -554,8 +556,8 @@ fun VodDetailScreen(
                                     .onFocusChanged { infoFocused = it.isFocused }
                                     .focusable()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (infoFocused) MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.9f) else MaterialTheme.colors.surfaceContainer.copy(alpha = 0.8f))
-                                    .border(if (infoFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                                    .background(if (infoFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
+                                    
                                     .clickable { showEpList = !showEpList }
                                     .padding(horizontal = 12.dp),
                                 contentAlignment = Alignment.Center,
@@ -578,7 +580,7 @@ fun VodDetailScreen(
                             .onFocusChanged { prevFocused = it.isFocused }
                             .focusable()
                             .clip(RoundedCornerShape(6.dp))
-                            .background(if (prevFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f) else MaterialTheme.colors.surfaceContainer.copy(alpha = 0.8f))
+                            .background(appControlContainer(prevFocused))
                             .clickable { if (epIdx > 0) epIdx-- }
                             .padding(horizontal = epPadH, vertical = epPadV),
                     ) { Text("◀上一集", color = if (epIdx > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = epFs) }
@@ -592,7 +594,7 @@ fun VodDetailScreen(
                             .onFocusChanged { nextFocused = it.isFocused }
                             .focusable()
                             .clip(RoundedCornerShape(6.dp))
-                            .background(if (nextFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f) else MaterialTheme.colors.surfaceContainer.copy(alpha = 0.8f))
+                            .background(appControlContainer(nextFocused))
                             .clickable { if (epIdx < epCount - 1) epIdx++ }
                             .padding(horizontal = epPadH, vertical = epPadV),
                     ) { Text("下一集▶", color = if (epIdx < epCount - 1) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = epFs) }
@@ -617,8 +619,8 @@ fun VodDetailScreen(
                                 .onFocusChanged { rwFocused = it.isFocused }
                                 .focusable()
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(if (rwFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f) else MaterialTheme.colors.surfaceContainer.copy(alpha = 0.8f))
-                                .border(if (rwFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
+                                .background(appControlContainer(rwFocused))
+                                
                                 .clickable {
                                     player.seekTo((player.currentPosition - 10000).coerceAtLeast(0L))
                                 }
@@ -633,8 +635,8 @@ fun VodDetailScreen(
                                 .onFocusChanged { ppFocused = it.isFocused }
                                 .focusable()
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(if (ppFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f) else MaterialTheme.colors.surfaceContainer.copy(alpha = 0.8f))
-                                .border(if (ppFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
+                                .background(appControlContainer(ppFocused))
+                                
                                 .clickable {
                                     if (player.isPlaying) player.pause() else player.play()
                                 }
@@ -654,8 +656,8 @@ fun VodDetailScreen(
                                 .onFocusChanged { fwFocused = it.isFocused }
                                 .focusable()
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(if (fwFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f) else MaterialTheme.colors.surfaceContainer.copy(alpha = 0.8f))
-                                .border(if (fwFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
+                                .background(appControlContainer(fwFocused))
+                                
                                 .clickable {
                                     val dur = player.duration
                                     val target = player.currentPosition + 10000
@@ -832,11 +834,9 @@ fun VodDetailScreen(
                                         .focusable()
                                         .clip(RoundedCornerShape(6.dp))
                                         .background(
-                                            if (srcFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
-                                            else if (i == selectedLineIdx) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-                                            else MaterialTheme.colors.surfaceContainerHigh
+                                            if (srcFocused) MaterialTheme.colorScheme.onSurface else if (i == selectedLineIdx) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
                                         )
-                                        .border(if (srcFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
+                                        
                                         .clickable { selectedLineIdx = i; epIdx = 0 }
                                         .padding(horizontal = 10.dp, vertical = 5.dp),
                                 ) {
@@ -866,11 +866,9 @@ fun VodDetailScreen(
                                     .scale(if (epFocused) 1.08f else 1f)
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(
-                                        if (epFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
-                                        else if (i == epIdx) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-                                        else MaterialTheme.colors.surfaceContainerHigh
+                                        if (epFocused) MaterialTheme.colorScheme.onSurface else if (i == epIdx) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
                                     )
-                                    .border(if (epFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
+                                    
                                     .clickable {
                                         epIdx = i
                                         isPlaying = true
@@ -915,8 +913,8 @@ fun VodDetailScreen(
                         .onFocusChanged { backFocused = it.isFocused }
                         .focusable()
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (backFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else MaterialTheme.colors.surfaceContainerHigh)
-                        .border(if (backFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                        .background(appControlContainer(backFocused))
+                        
                         .clickable { onBack() }
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                 ) {
@@ -930,8 +928,8 @@ fun VodDetailScreen(
                         .onFocusChanged { retryFocused = it.isFocused }
                         .focusable()
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (retryFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f) else MaterialTheme.colors.surfaceContainerHigh)
-                        .border(if (retryFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                        .background(appControlContainer(retryFocused))
+                        
                         .clickable { vm.loadDetail(sourceKey, vodId) }
                         .padding(horizontal = 20.dp, vertical = 10.dp),
                 ) {
