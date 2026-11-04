@@ -114,8 +114,12 @@ object HttpServer : Loggable("HttpServer") {
     fun start(context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Clean up old TS proxy temp files
-                Globals.cacheDir.listFiles()?.filter { it.name.startsWith("tsproxy_") }?.forEach { it.delete() }
+                // Clean up old TS proxy temp files（Globals 可能尚未初始化，不能因此让服务起不来）
+                runCatching {
+                    Globals.cacheDir.listFiles()
+                        ?.filter { it.name.startsWith("tsproxy_") }
+                        ?.forEach { it.delete() }
+                }.onFailure { log.w("清理 TS 临时文件失败: ${it.message}") }
 
                 val server = AsyncHttpServer()
 
@@ -211,6 +215,15 @@ object HttpServer : Loggable("HttpServer") {
                 server.get("/vod/search-multi") { request, response ->
                     handleVodSearchMulti(request, response)
                 }
+                // ===== 手机扫码搜索（点播）=====
+                server.get("/vod/remote-search") { _, response ->
+                    handleVodRemoteSearchPage(response)
+                }
+                server.post("/api/vod/remote-search") { request, response ->
+                    handleVodRemoteSearchSubmit(request, response)
+                }
+                log.i("已注册扫码搜索路由: GET /vod/remote-search, POST /api/vod/remote-search")
+
                 server.get("/vod/detail") { request, response ->
                     handleVodDetail(request, response)
                 }
@@ -326,6 +339,146 @@ object HttpServer : Loggable("HttpServer") {
 
         responseSuccess(response)
     }
+
+    // ===================== 手机扫码搜索（点播） =====================
+
+    /** 手机端页面：输入片名 → 确定 → 电视端立即搜索 */
+    private fun handleVodRemoteSearchPage(response: AsyncHttpServerResponse) {
+        log.i("命中扫码搜索页面请求")
+        response.setContentType("text/html; charset=utf-8")
+        response.send(VOD_REMOTE_SEARCH_HTML)
+    }
+
+    /** 手机端提交搜索关键词 */
+    private fun handleVodRemoteSearchSubmit(
+        request: AsyncHttpServerRequest,
+        response: AsyncHttpServerResponse,
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                wrapResponse(response)
+                response.setContentType("application/json; charset=utf-8")
+
+                val keyword = runCatching {
+                    request.getBody<JSONObjectBody>().get().optString("q", "")
+                }.getOrNull()?.trim().orEmpty()
+
+                if (keyword.isEmpty()) {
+                    response.send("""{"ok":false,"msg":"请输入片名"}""")
+                    return@launch
+                }
+
+                val accepted = top.yogiczy.mytv.tv.ui.screen.vod.VodRemoteSearchBus.submit(keyword)
+                if (accepted) {
+                    log.i("手机扫码搜索: $keyword")
+                    response.send("""{"ok":true,"q":"$keyword"}""")
+                } else {
+                    log.i("手机扫码搜索被拒绝（电视端不在点播页）: $keyword")
+                    response.send("""{"ok":false,"msg":"电视端不在点播页面，请回到点播后再扫码"}""")
+                }
+            } catch (e: Exception) {
+                log.e("手机扫码搜索失败: ${e.message}", e)
+                runCatching {
+                    response.setContentType("application/json; charset=utf-8")
+                    response.send("""{"ok":false,"msg":"服务异常"}""")
+                }
+            }
+        }
+    }
+
+    private val VOD_REMOTE_SEARCH_HTML = """
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>手机搜索点播</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; padding: 28px 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #12151c; color: #e8ecf3;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  h1 { font-size: 20px; margin: 8px 0 4px; font-weight: 600; }
+  p.tip { color: #8b95a7; font-size: 13px; margin: 0 0 22px; text-align: center; line-height: 1.5; }
+  .card { width: 100%; max-width: 420px; }
+  input {
+    width: 100%; padding: 15px 16px; font-size: 17px;
+    border-radius: 12px; border: 1px solid #2b3242; background: #1a1f2b; color: #e8ecf3;
+    outline: none;
+  }
+  input:focus { border-color: #5b8cff; }
+  button {
+    width: 100%; margin-top: 14px; padding: 15px 16px; font-size: 17px; font-weight: 600;
+    border: none; border-radius: 12px; background: #3d6cf5; color: #fff;
+    transition: opacity .15s;
+  }
+  button:active { opacity: .75; }
+  #status { margin-top: 16px; font-size: 14px; min-height: 20px; text-align: center; color: #9fb0c9; }
+  #status.ok { color: #55d08a; }
+  #status.err { color: #ff6b6b; }
+</style>
+</head>
+<body>
+  <h1>搜索点播</h1>
+  <p class="tip">手机与电视需在同一局域网。<br>输入片名后点「确定搜索」，电视端会立即开始搜索。</p>
+  <div class="card">
+    <input id="q" type="text" placeholder="输入片名，例如：寻踪者" autocomplete="off" autocorrect="off" autocapitalize="off">
+    <button id="go">确定搜索</button>
+    <div id="status"></div>
+  </div>
+<script>
+(function () {
+  var input = document.getElementById('q');
+  var btn = document.getElementById('go');
+  var statusEl = document.getElementById('status');
+  var busy = false;
+
+  function setStatus(text, cls) {
+    statusEl.textContent = text || '';
+    statusEl.className = cls || '';
+  }
+
+  async function submit() {
+    var q = (input.value || '').trim();
+    if (!q) { setStatus('请输入片名', 'err'); return; }
+    if (busy) return;
+    busy = true;
+    setStatus('发送中…', '');
+    try {
+      var resp = await fetch('/api/vod/remote-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: q })
+      });
+      var data = await resp.json().catch(function () { return {}; });
+      if (data && data.ok) {
+        setStatus('已发送：' + q + '　电视端正在搜索', 'ok');
+        input.value = '';
+        input.focus();
+      } else {
+        setStatus('发送失败：' + ((data && data.msg) || '未知错误'), 'err');
+      }
+    } catch (e) {
+      setStatus('网络错误：' + e.message, 'err');
+    } finally {
+      busy = false;
+    }
+  }
+
+  btn.addEventListener('click', submit);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+  });
+  input.focus();
+})();
+</script>
+</body>
+</html>
+    """.trimIndent()
 
     private fun handleVodSourcePush(
         request: AsyncHttpServerRequest,

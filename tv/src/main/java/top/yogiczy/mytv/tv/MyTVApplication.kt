@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv
+﻿package top.yogiczy.mytv.tv
 
 import android.app.Application
 import android.content.Intent
@@ -28,6 +28,12 @@ class MyTVApplication : Application(), ImageLoaderFactory {
         super.onCreate()
 
         Globals.appContext = applicationContext
+        // Globals 的路径/资源字段必须同步初始化：
+        // HttpServerService 是 START_STICKY，进程被杀后系统可能只启动服务、不启动 Activity，
+        // 此时没有 UI 流程；若 Globals 未初始化，HttpServer.start() 访问 Globals.cacheDir
+        // 会抛 lateinit 未初始化异常 → 服务反复崩溃重启 → 本地服务 404。
+        runCatching { AppData.init(applicationContext) }
+            .onFailure { android.util.Log.e("MyTVApplication", "AppData 同步初始化失败: ${it.message}") }
         // 关键初始化 (同步)
         UnsafeTrustManager.enableUnsafeTrustManager()
         top.yogiczy.mytv.tv.utlis.NetworkMonitor.register(applicationContext)
@@ -35,7 +41,6 @@ class MyTVApplication : Application(), ImageLoaderFactory {
         coroutineScope.launch(Dispatchers.IO) {
             initSentry()
             crashHandle()
-            AppData.init(applicationContext)
             // 图片缓存清理: 超过 50MB 自动裁剪
             cleanupImageCache()
         }

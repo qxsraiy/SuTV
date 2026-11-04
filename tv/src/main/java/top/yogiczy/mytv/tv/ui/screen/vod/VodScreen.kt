@@ -39,9 +39,11 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import top.yogiczy.mytv.tv.ui.screen.components.AppThemeWrapper
 import top.yogiczy.mytv.tv.ui.screen.components.EmptyState
+import top.yogiczy.mytv.tv.ui.screen.components.QrcodePopup
 import top.yogiczy.mytv.tv.ui.screen.components.UiText
 import top.yogiczy.mytv.tv.ui.theme.colors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -270,6 +272,29 @@ private fun VodTopBar(
     onPlayVod: (String, String, String, String, Int) -> Unit,
 ) {
     var searchText by remember { mutableStateOf("") }
+    var showQrPopup by remember { mutableStateOf(false) }
+    // ===== 手机扫码搜索：仅在点播主界面生效 =====
+    // 进入点播页启用；进入剧集详情或退出点播页时自动断开（NavHost 会 dispose 本界面）
+    DisposableEffect(Unit) {
+        VodRemoteSearchBus.setActive(true)
+        onDispose { VodRemoteSearchBus.setActive(false) }
+    }
+
+    // 手机端提交的关键词 → 立即搜索
+    val pendingRemoteQuery by VodRemoteSearchBus.pending.collectAsState()
+    LaunchedEffect(pendingRemoteQuery) {
+        val q = pendingRemoteQuery ?: return@LaunchedEffect
+        VodRemoteSearchBus.consume()
+        searchText = q
+        vm.searchMulti(q)
+    }
+
+    QrcodePopup(
+        visibleProvider = { showQrPopup },
+        onDismissRequest = { showQrPopup = false },
+        text = top.yogiczy.mytv.tv.utlis.HttpServer.serverUrl + "/vod/remote-search",
+        description = "手机扫码 · 输入片名 · 电视立即搜索",
+    )
     var showSources by remember { mutableStateOf(false) }
     var backFocused by remember { mutableStateOf(false) }
     var sourceFocused by remember { mutableStateOf(false) }
@@ -391,6 +416,10 @@ private fun VodTopBar(
                     if (searchText.isNotEmpty()) {
                         keyboardController?.hide()
                         vm.searchMulti(searchText)
+                    } else {
+                        // 输入框为空：弹出二维码，手机扫码后输入片名直接搜索
+                        keyboardController?.hide()
+                        showQrPopup = true
                     }
                 }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
