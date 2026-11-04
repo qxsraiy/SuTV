@@ -1,4 +1,4 @@
-package top.yogiczy.mytv.tv.ui.screen.components
+﻿package top.yogiczy.mytv.tv.ui.screen.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -75,3 +75,23 @@ fun EmptyState(
 
 /** 统一圆角：与 App 其它组件保持一致 */
 val AppCornerShape = RoundedCornerShape(8.dp)
+
+/**
+ * 统一控件配色 —— 与「设置」页的 ListItem 保持一致：
+ * 常态：onSurface 10% 容器 + onSurface 文字
+ * 聚焦：onSurface 反色容器 + surface 文字 + primary 描边
+ */
+@Composable
+fun appControlContainer(focused: Boolean) =
+    if (focused) MaterialTheme.colorScheme.onSurface
+    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+
+@Composable
+fun appControlContent(focused: Boolean) =
+    if (focused) MaterialTheme.colorScheme.surface
+    else MaterialTheme.colorScheme.onSurface
+
+@Composable
+fun appControlContentMuted(focused: Boolean) =
+    if (focused) MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
+    else MaterialTheme.colorScheme.onSurfaceVariant

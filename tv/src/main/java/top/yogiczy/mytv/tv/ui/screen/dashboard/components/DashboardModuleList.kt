@@ -50,6 +50,7 @@ fun DashboardModuleList(
     imageWidth: Dp = 120.dp,
     imageHeight: Dp = 200.dp,
     textHeight: Dp = 36.dp,
+    textGap: Dp = 10.dp,
     gap: Dp = 24.dp,
     toLiveScreen: () -> Unit = {},
     toVodScreen: () -> Unit = {},
@@ -77,6 +78,7 @@ fun DashboardModuleList(
             imageWidth = imageWidth,
             imageHeight = imageHeight,
             textHeight = textHeight,
+            textGap = textGap,
             imageContent = {
                 AsyncImage(
                     model = ImageRequest.Builder(context)
@@ -97,6 +99,7 @@ fun DashboardModuleList(
             imageWidth = imageWidth,
             imageHeight = imageHeight,
             textHeight = textHeight,
+            textGap = textGap,
             imageContent = {
                 val posterFile = vodPosterFile
                 if (posterFile != null && posterFile.exists()) {
@@ -125,11 +128,12 @@ fun DashboardModuleList(
             imageWidth = imageWidth,
             imageHeight = imageHeight,
             textHeight = textHeight,
+            textGap = textGap,
             imageContent = {
                 if (latestFav != null && latestFav.vodPic.isNotBlank()) {
                     AsyncImage(
                         model = latestFav.vodPic,
-                        contentDescription = "收藏",
+                        contentDescription = "收藏记录",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -141,7 +145,7 @@ fun DashboardModuleList(
                     )
                 }
             },
-            title = "收藏",
+            title = "收藏记录",
             onSelected = toFavoritesScreen,
         )
     }
@@ -152,6 +156,7 @@ private fun DashboardCard(
     imageWidth: Dp,
     imageHeight: Dp,
     textHeight: Dp,
+    textGap: Dp = 10.dp,
     imageContent: @Composable () -> Unit,
     title: String,
     onSelected: () -> Unit = {},
@@ -166,6 +171,9 @@ private fun DashboardCard(
             .handleKeyEvents(onSelect = onSelected),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        // 上方留空 = 下方文字区高度，使卡片整体居中且上下对称
+        Spacer(Modifier.height(textHeight))
+
         // 图片: 固定宽高 (3:5比例由外部计算)
         Box(
             modifier = Modifier
@@ -182,7 +190,7 @@ private fun DashboardCard(
         }
 
         // 文字 (图片下方, 不遮挡)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(textGap))
         Text(
             text = title,
             color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,

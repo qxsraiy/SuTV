@@ -70,9 +70,11 @@ fun DashboardScreen(
 
         // 文字标签高度: ~36dp (titleLarge + spacer)
         val textH = 36.dp
+        // 图片与文字的间距
+        val textGap = 10.dp
 
-        // 图片高度 = 可用高度 - 文字高度
-        val imageH = availableH - textH
+        // 上下对称：图片上方留空 == 下方文字区高度，所以卡片整体会比原来略小一点
+        val imageH = (availableH - textH * 2 - textGap).coerceAtLeast(120.dp)
 
         // 图片宽高比 3:5 → 宽 = 高 * 3/5
         val imageW = imageH * 0.6f
@@ -89,8 +91,8 @@ fun DashboardScreen(
         var settingsFocused by remember { mutableStateOf(false) }
         Box(
             modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = gap * 0.5f)
+                .align(Alignment.TopEnd)
+                .padding(top = verticalPadding, end = gap * 0.5f)
                 .onFocusChanged { settingsFocused = it.isFocused || it.hasFocus }
                 .focusable()
                 .handleKeyEvents(onSelect = toSettingsScreen),
@@ -121,6 +123,7 @@ fun DashboardScreen(
             imageWidth = imageW,
             imageHeight = imageH,
             textHeight = textH,
+            textGap = textGap,
             gap = gap,
             toLiveScreen = toLiveScreen,
             toVodScreen = toVodScreen,

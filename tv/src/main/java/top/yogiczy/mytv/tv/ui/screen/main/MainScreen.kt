@@ -247,11 +247,6 @@ fun MainScreen(
 
             composable(Screens.Favorites()) {
                 FavoritesScreen(
-                    channelFavoriteListProvider = { settingsViewModel.iptvChannelFavoriteList },
-                    onChannelSelected = { onChannelSelected(it) },
-                    onChannelFavoriteToggle = { onChannelFavoriteToggle(it) },
-                    onChannelFavoriteClear = { onChannelFavoriteClear() },
-                    epgListProvider = epgListProvider,
                     onPlayVod = { srcKey, id, name, pic, epIdx ->
                         vodPlayData = VodPlayData(srcKey, id, name, pic, epIdx)
                         navController.navigateSingleTop(Screens.VodDetail())

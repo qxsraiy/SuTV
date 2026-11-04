@@ -40,6 +40,8 @@ import androidx.tv.material3.Text
 import top.yogiczy.mytv.tv.ui.screen.components.AppThemeWrapper
 import top.yogiczy.mytv.tv.ui.screen.components.EmptyState
 import top.yogiczy.mytv.tv.ui.screen.components.QrcodePopup
+import top.yogiczy.mytv.tv.ui.screen.components.appControlContainer
+import top.yogiczy.mytv.tv.ui.screen.components.appControlContent
 import top.yogiczy.mytv.tv.ui.screen.components.UiText
 import top.yogiczy.mytv.tv.ui.theme.colors
 import androidx.compose.runtime.Composable
@@ -85,8 +87,6 @@ fun VodScreen(
     }
 
     // 观看历史 — 版本号变化时自动刷新
-    val historyVersion by VodHistoryManager.version
-    var historyItems by remember(historyVersion) { mutableStateOf(VodHistoryManager.load(context)) }
 
     AppThemeWrapper {
     Box(
@@ -113,68 +113,12 @@ fun VodScreen(
                 )
             }
 
-            // 主体: 左1/5最近观看 + 右4/5影片网格
-            val showHistory = historyItems.isNotEmpty()
+            // 主体: 影片网格（历史记录已移到「收藏记录」页面，这里全宽展示）
             Row(modifier = Modifier.fillMaxSize()) {
-                // 左侧: 最近观看 (1/5宽, 纯文字列表, 最多5行)
-                if (showHistory) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .background(MaterialTheme.colors.surfaceContainer.copy(alpha = 0.72f))
-                            .padding(6.dp),
-                    ) {
-                        Text(
-                            "最近观看",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(bottom = 4.dp),
-                        )
-                        val histList = historyItems.take(5)
-                        histList.forEach { hist ->
-                            var focused by remember { mutableStateOf(false) }
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 1.dp)
-                                    .onFocusChanged { focused = it.isFocused }
-                                    .focusable()
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(if (focused) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else Color.Transparent)
-                                    .border(if (focused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
-                                    .clickable {
-                                        onPlayVod(hist.sourceKey, hist.vodId, hist.vodName, hist.vodPic, hist.epIdx)
-                                    }
-                                    .padding(horizontal = 6.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    hist.vodName,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontSize = 17.sp,
-                                    maxLines = 1,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .basicMarquee(),
-                                )
-                                Text(
-                                    "第${hist.epIdx + 1}集",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 14.sp,
-                                    maxLines = 1,
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // 右侧: 影片网格 (4/5宽, 自适应列数, 至少2行完整)
-                val gridWeight = if (showHistory) 4f else 1f
+                // 影片网格（全宽）
                 BoxWithConstraints(
                     modifier = Modifier
-                        .weight(gridWeight)
+                        .weight(1f)
                         .fillMaxHeight()
                 ) {
                     // 根据可用高度计算: 2行完整的最小列宽
@@ -238,7 +182,7 @@ fun VodScreen(
                                     .onFocusChanged { retryFocused = it.isFocused }
                                     .focusable()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (retryFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f) else MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
+                                    .background(appControlContainer(retryFocused))
                                     .border(if (retryFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                                     .clickable {
                                         if (state.sources.isEmpty()) vm.loadSources()
@@ -313,7 +257,7 @@ private fun VodTopBar(
                 .onFocusChanged { backFocused = it.isFocused }
                 .focusable()
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (backFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
+                .background(appControlContainer(backFocused))
                 .border(if (backFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                 .clickable { onBack() }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -328,7 +272,7 @@ private fun VodTopBar(
                 .onFocusChanged { sourceFocused = it.isFocused }
                 .focusable()
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (sourceFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
+                .background(appControlContainer(sourceFocused))
                 .border(if (sourceFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                 .clickable { showSources = !showSources }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -346,14 +290,14 @@ private fun VodTopBar(
         BasicTextField(
             value = searchText,
             onValueChange = { searchText = it },
-            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp),
+            textStyle = TextStyle(color = appControlContent(searchFocused), fontSize = 14.sp),
             modifier = Modifier
                 .weight(1f)
                 .onFocusChanged { searchFocused = it.isFocused }
                 .focusRequester(searchFocusRequester)
                 .focusable()
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (searchFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f) else MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
+                .background(appControlContainer(searchFocused))
                 .border(if (searchFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             singleLine = true,
@@ -386,7 +330,7 @@ private fun VodTopBar(
                 .onFocusChanged { refreshFocused = it.isFocused }
                 .focusable()
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (refreshFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f) else MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
+                .background(appControlContainer(refreshFocused))
                 .border(if (refreshFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                 .clickable { vm.refreshSearch() }
                 .padding(8.dp),
@@ -410,7 +354,7 @@ private fun VodTopBar(
                 .onFocusChanged { btnFocused = it.isFocused }
                 .focusable()
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (btnFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
+                .background(appControlContainer(btnFocused))
                 .border(if (btnFocused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                 .clickable {
                     if (searchText.isNotEmpty()) {
@@ -424,7 +368,7 @@ private fun VodTopBar(
                 }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
-            Text("搜索", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
+            Text("搜索", color = appControlContent(btnFocused), fontSize = 14.sp)
         }
     }
 
@@ -433,7 +377,7 @@ private fun VodTopBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
+                .background(MaterialTheme.colors.surfaceContainer.copy(alpha = 0.72f))
                 .padding(8.dp),
         ) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -445,9 +389,10 @@ private fun VodTopBar(
                             .focusable()
                             .clip(RoundedCornerShape(6.dp))
                             .background(
-                                if (focused) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-                                else if (source.key == state.currentSource.key) MaterialTheme.colorScheme.primary.copy(alpha = 0.30f)
-                                else MaterialTheme.colors.surfaceContainerHigh
+                                if (source.key == state.currentSource.key) {
+                                    if (focused) MaterialTheme.colorScheme.onSurface
+                                    else MaterialTheme.colorScheme.primary.copy(alpha = 0.30f)
+                                } else appControlContainer(focused)
                             )
                             .border(if (focused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
                             .clickable {
@@ -484,12 +429,12 @@ private fun CategoryTabs(
                     .focusable()
                     .scale(if (focused) 1.1f else 1f)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(if (focused) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
+                    .background(appControlContainer(focused))
                     .border(if (focused) 2.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
                     .clickable { onSelect(cat) }
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             ) {
-                Text(cat.type_name, color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
+                Text(cat.type_name, color = appControlContent(focused), fontSize = 13.sp)
             }
         }
     }
@@ -507,7 +452,7 @@ private fun VodCard(
             .focusable()
             .scale(if (focused) 1.05f else 1f)
             .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colors.surfaceContainerHigh.copy(alpha = 0.72f))
+            .background(appControlContainer(focused))
             .border(if (focused) 3.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
             .clickable { onClick() }
             .padding(4.dp),
