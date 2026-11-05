@@ -37,6 +37,7 @@ import top.yogiczy.mytv.tv.ui.screen.components.AppButton
 import top.yogiczy.mytv.tv.ui.screen.components.AppThemeWrapper
 import top.yogiczy.mytv.tv.ui.theme.colors
 import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
+import top.yogiczy.mytv.tv.ui.utils.clickableNoIndication
 import top.yogiczy.mytv.tv.ui.screen.components.appControlContainer
 import top.yogiczy.mytv.tv.ui.screen.components.AppPill
 import top.yogiczy.mytv.tv.ui.screen.components.appControlContent
@@ -102,8 +103,10 @@ fun VodDetailScreen(
     // 播放控制层状态 (提到顶层, 供 BackHandler 使用)
     var controllerVisible by remember { mutableStateOf(true) }
     var showEpList by remember { mutableStateOf(false) }
-    // 最后一次交互时间 — 任何按键都会刷新, 用于重置隐藏倒计时
+    // 最后一次交互时间 — 任何按键/点击都会刷新, 用于重置隐藏倒计时（5 秒）
     var lastInteractionAt by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    // 任意控件交互 / 唤出控件时调用，重置自动隐藏倒计时
+    fun touchControls() { lastInteractionAt = System.currentTimeMillis() }
     val context = LocalContext.current
 
     val detail = state.detail
@@ -357,10 +360,10 @@ fun VodDetailScreen(
                     else pv.hideController()
                 }
             }
-            // 自动隐藏: 选集列表打开时不隐藏; 每次交互(按键)后重新计时 10 秒
+            // 自动隐藏: 5 秒无操作即隐藏；剧集列表打开时不隐藏（列表本身不自动隐藏）
             LaunchedEffect(controllerVisible, showEpList, lastInteractionAt) {
                 if (controllerVisible && !showEpList) {
-                    kotlinx.coroutines.delay(10000)
+                    kotlinx.coroutines.delay(5000)
                     controllerVisible = false
                 }
             }
@@ -382,6 +385,16 @@ fun VodDetailScreen(
                         lastInteractionAt = System.currentTimeMillis()
                     }
                     false
+                }
+                // 点击空白处：控件显示中 → 立即全部隐藏；已隐藏 → 唤出
+                .clickableNoIndication {
+                    if (controllerVisible) {
+                        if (showEpList) showEpList = false
+                        controllerVisible = false
+                    } else {
+                        touchControls()
+                        controllerVisible = true
+                    }
                 }) {
                 // PlayerView (内置控制器: 快退/暂停/快进/进度条)
                 AndroidView(
@@ -413,14 +426,6 @@ fun VodDetailScreen(
                     },
                 )
 
-                // 触摸捕获层: 控件隐藏时点击唤出
-                if (!controllerVisible) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickable { controllerVisible = true }
-                    )
-                }
 
                 // 覆盖层
                 if (controllerVisible) {
@@ -462,7 +467,7 @@ fun VodDetailScreen(
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(if (backFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
                                 
-                                .clickable { isPlaying = false }
+                                .clickable { touchControls(); isPlaying = false }
                                 .padding(horizontal = 16.dp),
                             contentAlignment = Alignment.Center,
                         ) {
@@ -485,6 +490,7 @@ fun VodDetailScreen(
                                     .background(if (rotFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
                                     
                                     .clickable {
+                                        touchControls()
                                         isPortraitMode = !isPortraitMode
                                         activity?.let { act ->
                                             act.requestedOrientation = if (isPortraitMode)
@@ -513,7 +519,7 @@ fun VodDetailScreen(
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(if (ratFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
                                     
-                                    .clickable { resizeMode = (resizeMode + 1) % 3 }
+                                    .clickable { touchControls(); resizeMode = (resizeMode + 1) % 3 }
                                     .padding(horizontal = 12.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -540,6 +546,7 @@ fun VodDetailScreen(
                                     .background(if (favFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
                                     
                                     .clickable {
+                                        touchControls()
                                         favState = VodFavoriteManager.toggle(context, VodFavoriteItem(
                                             sourceKey = sourceKey, vodId = vodId, vodName = vodName, vodPic = vodPic,
                                         ))
@@ -560,7 +567,7 @@ fun VodDetailScreen(
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(if (infoFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
                                     
-                                    .clickable { showEpList = !showEpList }
+                                    .clickable { touchControls(); showEpList = !showEpList }
                                     .padding(horizontal = 12.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -596,12 +603,13 @@ fun VodDetailScreen(
                         PlayerChip(
                             text = "◀ 上一集",
                             enabled = epIdx > 0,
-                            onClick = { epIdx-- },
+                            onClick = { touchControls(); epIdx-- },
                         )
 
                         PlayerChip(
                             text = "⏪ 10秒",
                             onClick = {
+                                touchControls()
                                 player.seekTo((player.currentPosition - 10000).coerceAtLeast(0L))
                             },
                         )
@@ -611,6 +619,7 @@ fun VodDetailScreen(
                             text = if (isPlayerPlaying) "⏸ 暂停" else "▶ 播放",
                             focusRequester = playFocusRequester,
                             onClick = {
+                                touchControls()
                                 if (player.isPlaying) player.pause() else player.play()
                             },
                         )
@@ -618,6 +627,7 @@ fun VodDetailScreen(
                         PlayerChip(
                             text = "10秒 ⏩",
                             onClick = {
+                                touchControls()
                                 val dur = player.duration
                                 val target = player.currentPosition + 10000
                                 player.seekTo(if (dur > 0) target.coerceAtMost(dur) else target)
@@ -627,7 +637,7 @@ fun VodDetailScreen(
                         PlayerChip(
                             text = "下一集 ▶",
                             enabled = epIdx < epCount - 1,
-                            onClick = { epIdx++ },
+                            onClick = { touchControls(); epIdx++ },
                         )
                     }
                     // 底部进度显示 (非焦点, 仅展示)
@@ -668,7 +678,7 @@ fun VodDetailScreen(
                                     text = ep.name,
                                     selected = isCurrent,
                                     fontSize = if (isPortraitMode) 24.sp else 15.sp,
-                                    onClick = { epIdx = i; showEpList = false },
+                                    onClick = { touchControls(); epIdx = i; showEpList = false },
                                 )
                             }
                         }
