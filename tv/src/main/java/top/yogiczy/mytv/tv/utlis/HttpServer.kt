@@ -45,11 +45,14 @@ object HttpServer : Loggable("HttpServer") {
     private const val SERVER_PORT = 10481
     val serverUrl by lazy { "http://${getLocalIpAddress()}:${SERVER_PORT}" }
 
+    /** 播放器专用回环地址：始终走 127.0.0.1，规避设备局域网/防火墙/IPv6 问题 */
+    private val loopbackUrl = "http://127.0.0.1:$SERVER_PORT"
+
     // 同频道请求去重: 缓存 pid → 结果 (5s TTL, 同一频道5秒内只请求一次API)
     private val miguResultCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, String>>() // pid → (timestamp, url)
     // M3U8 内容短时缓存 (30s TTL)
     private val m3u8Cache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, String>>()
-    private const val M3U8_CACHE_TTL = 30_000L
+    private const val M3U8_CACHE_TTL = 2_000L  // 直播 playlist 刷新很快，缓存过长会导致卡顿/落后
 
     // ---- 冷启动就绪控制 ----
     // 播放器/直播源加载可能在服务 listen 之前就发起请求，必须先等待就绪，避免 connection refused。
@@ -104,8 +107,9 @@ object HttpServer : Loggable("HttpServer") {
     private val proxyClient by lazy {
         val builder = okhttp3.OkHttpClient.Builder().dns(Ipv4FirstDns)
             .followRedirects(true)
-            .connectTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(25, java.util.concurrent.TimeUnit.SECONDS)
         val client = builder.build()
         top.yogiczy.mytv.tv.utlis.NetworkMonitor.trackPool(client.connectionPool)
         client
@@ -668,12 +672,21 @@ object HttpServer : Loggable("HttpServer") {
                         log.i("代理 M3U8 子文件: ${rewritten.length} 字节, 前200字: ${rewritten.take(200)}")
                     } else {
                         // TS 片段，写入临时文件再发送，确保二进制完整
-                        val tempFile = java.io.File(Globals.cacheDir, "tsproxy_${System.currentTimeMillis()}.ts")
+                        val tempFile = java.io.File(Globals.cacheDir, "tsproxy_${System.currentTimeMillis()}_${(0..999999).random()}.ts")
                         tempFile.writeBytes(bodyBytes)
                         response.setContentType("video/mp2t")
                         response.sendFile(tempFile)
-                        log.i("代理 TS 片段: ${bodyBytes.size} 字节 -> ${tempFile.name}")
-                        tempFile.delete()
+                        // 不能立刻删除（可能还没写完），延迟 30s 清理；同时顺手清理 2 分钟前的残留
+                        CoroutineScope(Dispatchers.IO).launch {
+                            kotlinx.coroutines.delay(30_000)
+                            runCatching { tempFile.delete() }
+                            runCatching {
+                                val now = System.currentTimeMillis()
+                                Globals.cacheDir.listFiles()
+                                    ?.filter { it.name.startsWith("tsproxy_") && now - it.lastModified() > 120_000 }
+                                    ?.forEach { it.delete() }
+                            }
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -718,35 +731,20 @@ object HttpServer : Loggable("HttpServer") {
                     }
                     val finalUrlRetry = resolveMiguRedirect(retry.url)
                     val target = if (finalUrlRetry.isNotEmpty()) finalUrlRetry else retry.url
-                    if (!isFallback) {
-                        response.redirect(target)
-                    } else {
-                        proxyM3u8(target, response)
-                    }
-                    log.i("重试成功: ${target.take(80)}...")
+                    // 统一走本地代理：播放器只连 localhost，不再直连 CDN
+                    proxyM3u8(target, response)
+                    log.i("重试成功（代理）: ${target.take(80)}...")
                     return@launch
                 }
                 
-                if (!isFallback) {
-                    // 正常模式（ExoPlayer）：302 重定向到流地址
-                    val finalUrl = resolveMiguRedirect(result.url)
-                    if (finalUrl.isNotEmpty()) {
-                        response.redirect(finalUrl)
-                        log.i("重定向到: ${finalUrl.take(80)}...")
-                    } else {
-                        response.redirect(result.url)
-                        log.i("直接重定向到: ${result.url.take(80)}...")
-                    }
-                    return@launch
-                }
-
-                // 兜底模式：直接代理 M3U8 内容，避免 CORS
-                val finalUrl = resolveMiguRedirect(result.url)
-                if (finalUrl.isNotEmpty()) {
-                    proxyM3u8(finalUrl, response)
-                } else {
-                    proxyM3u8(result.url, response)
-                }
+                // 统一走本地代理：把远端 M3U8 拉下来、改写分片地址指向 /miguprox/，
+                // 播放器全程只连 localhost:10481。
+                // 这样设备 IPv6 半死 / DNS 异常 / CDN 直连被拦 都不会导致 Media3 报 2001。
+                val finalUrlAny = resolveMiguRedirect(result.url)
+                val targetAny = if (finalUrlAny.isNotEmpty()) finalUrlAny else result.url
+                proxyM3u8(targetAny, response)
+                log.i("代理 M3U8: ${targetAny.take(80)}...")
+                return@launch
             } catch (e: Exception) {
                 log.e("处理咪咕频道请求失败: ${e.message}", e)
                 response.send("错误: ${e.message}")
@@ -795,7 +793,7 @@ object HttpServer : Loggable("HttpServer") {
      * 重写 M3U8 中的 URL，将相对 URL 转为本地代理 URL
      */
     private fun rewriteM3u8Urls(m3u8Content: String, baseUrl: String): String {
-        val serverBase = serverUrl + "/miguprox/"
+        val serverBase = loopbackUrl + "/miguprox/"
         val lines = m3u8Content.split("\n", "\r\n")
         val result = StringBuilder()
         
