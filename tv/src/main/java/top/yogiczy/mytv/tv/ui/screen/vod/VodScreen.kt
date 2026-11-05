@@ -45,6 +45,8 @@ import top.yogiczy.mytv.tv.ui.screen.components.AppActionRow
 import top.yogiczy.mytv.tv.ui.screen.components.appControlContainer
 import top.yogiczy.mytv.tv.ui.screen.components.appControlContent
 import top.yogiczy.mytv.tv.ui.screen.components.UiText
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import top.yogiczy.mytv.tv.ui.theme.colors
 import top.yogiczy.mytv.tv.ui.utils.clickableNoIndication
 import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
@@ -359,15 +361,27 @@ private fun VodTopBar(
             },
         )
     }
-    // 源下拉列表（设置页同款胶囊，当前源高亮）
+    // 源下拉列表（设置页同款行；LazyColumn 支持上下滚动 + 焦点自动跟随）
     if (showSources) {
-        Column(
+        val listState = rememberLazyListState()
+        LaunchedEffect(showSources) {
+            if (showSources) {
+                // 打开时把焦点所在行滚到可见区
+                val idx = state.sources.indexOfFirst { it.key == state.currentSource.key }
+                if (idx >= 0) listState.scrollToItem(idx)
+            }
+        }
+
+        LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxWidth()
+                // 限高并允许滚动：源多时不会再顶出屏幕，遥控上下可移动焦点
+                .heightIn(max = 360.dp)
                 .padding(horizontal = 12.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            state.sources.forEach { source ->
+            items(state.sources) { source ->
                 AppActionRow(
                     title = source.name,
                     supporting = if (source.key == state.currentSource.key) "当前使用" else null,
