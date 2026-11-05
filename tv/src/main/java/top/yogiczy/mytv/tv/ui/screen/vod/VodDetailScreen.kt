@@ -103,9 +103,8 @@ fun VodDetailScreen(
     // 播放控制层状态 (提到顶层, 供 BackHandler 使用)
     var controllerVisible by remember { mutableStateOf(true) }
     var showEpList by remember { mutableStateOf(false) }
-    // 最后一次交互时间 — 任何按键/点击都会刷新, 用于重置隐藏倒计时（5 秒）
+    // 最后一次交互时间 — 任何按键都会刷新, 用于重置隐藏倒计时
     var lastInteractionAt by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    // 任意控件交互 / 唤出控件时调用，重置自动隐藏倒计时
     fun touchControls() { lastInteractionAt = System.currentTimeMillis() }
     val context = LocalContext.current
 
@@ -360,7 +359,7 @@ fun VodDetailScreen(
                     else pv.hideController()
                 }
             }
-            // 自动隐藏: 5 秒无操作即隐藏；剧集列表打开时不隐藏（列表本身不自动隐藏）
+            // 自动隐藏: 5 秒无操作即隐藏；剧集列表打开时不隐藏
             LaunchedEffect(controllerVisible, showEpList, lastInteractionAt) {
                 if (controllerVisible && !showEpList) {
                     kotlinx.coroutines.delay(5000)
@@ -385,16 +384,6 @@ fun VodDetailScreen(
                         lastInteractionAt = System.currentTimeMillis()
                     }
                     false
-                }
-                // 点击空白处：控件显示中 → 立即全部隐藏；已隐藏 → 唤出
-                .clickableNoIndication {
-                    if (controllerVisible) {
-                        if (showEpList) showEpList = false
-                        controllerVisible = false
-                    } else {
-                        touchControls()
-                        controllerVisible = true
-                    }
                 }) {
                 // PlayerView (内置控制器: 快退/暂停/快进/进度条)
                 AndroidView(
@@ -402,10 +391,9 @@ fun VodDetailScreen(
                     factory = { ctx ->
                         PlayerView(ctx).apply {
                             this.player = player
-                            useController = true
-                            setControllerAutoShow(true)
-                            setControllerHideOnTouch(false)
-                            setControllerShowTimeoutMs(0)
+                            // 关掉原生控制器：它会吞掉触摸事件，导致我们的遮罩收不到点击；
+                            // 且原生控制条与自写控件重叠。
+                            useController = false
                             setShowPreviousButton(false)
                             setShowNextButton(false)
                             this.resizeMode = when (resizeMode) {
@@ -421,11 +409,36 @@ fun VodDetailScreen(
                             isFocusable = false
                             isFocusableInTouchMode = false
                             descendantFocusability = android.view.ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                            // 关键：PlayerView 是原生 View，会先于 Compose 消费触摸，
+                            // 导致我们的遮罩层/按钮收不到点击。这里让它不处理触摸，
+                            // 所有手势交给上层 Compose。
+                            setOnTouchListener { _, _ -> false }
                             playerViewRef.value = this
                         }
                     },
                 )
 
+                // ===== 常驻全透明遮罩层 =====
+                // 范围：上/左/右到屏幕边缘，**底部留空**（不遮挡播放器底部那条栏）。
+                // 作用：
+                //   · 控件显示中 → 点控件外面（落在遮罩上）→ 立即隐藏
+                //   · 控件已隐藏 → 点遮罩 → 唤出控件并重置 5 秒计时
+                // 这一层始终存在（不随 controllerVisible 移除），避免点击层被重新创建导致收不到触摸。
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.84f)
+                        .clickableNoIndication {
+                            if (controllerVisible) {
+                                showEpList = false
+                                controllerVisible = false
+                            } else {
+                                touchControls()
+                                controllerVisible = true
+                            }
+                        }
+                )
 
                 // 覆盖层
                 if (controllerVisible) {
