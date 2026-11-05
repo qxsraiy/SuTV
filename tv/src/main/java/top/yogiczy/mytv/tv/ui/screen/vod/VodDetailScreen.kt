@@ -36,7 +36,9 @@ import androidx.tv.material3.Text
 import top.yogiczy.mytv.tv.ui.screen.components.AppButton
 import top.yogiczy.mytv.tv.ui.screen.components.AppThemeWrapper
 import top.yogiczy.mytv.tv.ui.theme.colors
+import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
 import top.yogiczy.mytv.tv.ui.screen.components.appControlContainer
+import top.yogiczy.mytv.tv.ui.screen.components.AppPill
 import top.yogiczy.mytv.tv.ui.screen.components.appControlContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -571,102 +573,63 @@ fun VodDetailScreen(
                         }
                     }
 
-                    // 屏幕正中间偏左: 上一集
-                    var prevFocused by remember { mutableStateOf(false) }
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .offset(x = -epOffset)
-                            .onFocusChanged { prevFocused = it.isFocused }
-                            .focusable()
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(appControlContainer(prevFocused))
-                            .clickable { if (epIdx > 0) epIdx-- }
-                            .padding(horizontal = epPadH, vertical = epPadV),
-                    ) { Text("◀上一集", color = if (epIdx > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = epFs) }
-
-                    // 屏幕正中间偏右: 下一集
-                    var nextFocused by remember { mutableStateOf(false) }
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .offset(x = epOffset)
-                            .onFocusChanged { nextFocused = it.isFocused }
-                            .focusable()
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(appControlContainer(nextFocused))
-                            .clickable { if (epIdx < epCount - 1) epIdx++ }
-                            .padding(horizontal = epPadH, vertical = epPadV),
-                    ) { Text("下一集▶", color = if (epIdx < epCount - 1) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = epFs) }
-
-                    // 屏幕正中: 快退 | 播放暂停 | 快进 (遥控可操作)
+                    // ===== 居中控制面板 =====
+                    // 不透明底框：完全遮住播放器自带的快退/暂停/快进，避免重叠难看
                     val playFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
-                    // 控件显示时自动聚焦到播放键, 保证遥控器立刻可用
                     LaunchedEffect(controllerVisible) {
                         if (controllerVisible) {
                             runCatching { playFocusRequester.requestFocus() }
                         }
                     }
+
                     Row(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .fillMaxWidth(0.86f)
+                            .clip(RoundedCornerShape(14.dp))
+                            // 完全不透明，盖住下层播放器控件
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // 快退10秒
-                        var rwFocused by remember { mutableStateOf(false) }
-                        Box(
-                            modifier = Modifier
-                                .onFocusChanged { rwFocused = it.isFocused }
-                                .focusable()
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(appControlContainer(rwFocused))
-                                
-                                .clickable {
-                                    player.seekTo((player.currentPosition - 10000).coerceAtLeast(0L))
-                                }
-                                .padding(horizontal = epPadH, vertical = epPadV),
-                        ) { Text("⏪10秒", color = MaterialTheme.colorScheme.onSurface, fontSize = epFs) }
+                        PlayerChip(
+                            text = "◀ 上一集",
+                            enabled = epIdx > 0,
+                            onClick = { epIdx-- },
+                        )
 
-                        // 播放 / 暂停
-                        var ppFocused by remember { mutableStateOf(false) }
-                        Box(
-                            modifier = Modifier
-                                .focusRequester(playFocusRequester)
-                                .onFocusChanged { ppFocused = it.isFocused }
-                                .focusable()
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(appControlContainer(ppFocused))
-                                
-                                .clickable {
-                                    if (player.isPlaying) player.pause() else player.play()
-                                }
-                                .padding(horizontal = epPadH, vertical = epPadV),
-                        ) {
-                            Text(
-                                if (isPlayerPlaying) "⏸暂停" else "▶播放",
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = epFs,
-                            )
-                        }
+                        PlayerChip(
+                            text = "⏪ 10秒",
+                            onClick = {
+                                player.seekTo((player.currentPosition - 10000).coerceAtLeast(0L))
+                            },
+                        )
 
-                        // 快进10秒
-                        var fwFocused by remember { mutableStateOf(false) }
-                        Box(
-                            modifier = Modifier
-                                .onFocusChanged { fwFocused = it.isFocused }
-                                .focusable()
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(appControlContainer(fwFocused))
-                                
-                                .clickable {
-                                    val dur = player.duration
-                                    val target = player.currentPosition + 10000
-                                    player.seekTo(if (dur > 0) target.coerceAtMost(dur) else target)
-                                }
-                                .padding(horizontal = epPadH, vertical = epPadV),
-                        ) { Text("10秒⏩", color = MaterialTheme.colorScheme.onSurface, fontSize = epFs) }
+                        PlayerChip(
+                            modifier = Modifier.width(132.dp),
+                            text = if (isPlayerPlaying) "⏸ 暂停" else "▶ 播放",
+                            focusRequester = playFocusRequester,
+                            onClick = {
+                                if (player.isPlaying) player.pause() else player.play()
+                            },
+                        )
+
+                        PlayerChip(
+                            text = "10秒 ⏩",
+                            onClick = {
+                                val dur = player.duration
+                                val target = player.currentPosition + 10000
+                                player.seekTo(if (dur > 0) target.coerceAtMost(dur) else target)
+                            },
+                        )
+
+                        PlayerChip(
+                            text = "下一集 ▶",
+                            enabled = epIdx < epCount - 1,
+                            onClick = { epIdx++ },
+                        )
                     }
-
                     // 底部进度显示 (非焦点, 仅展示)
                     if (playerDurationMs > 0) {
                         Text(
@@ -740,26 +703,20 @@ fun VodDetailScreen(
                         .fillMaxHeight(0.5f)
                         .padding(8.dp),
                 ) {
-                    // 返回 + 收藏 (同一行)：统一使用 AppButton 组件，聚焦样式全 App 一致
+                    // 返回 + 收藏：与设置页同款胶囊按钮
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        AppButton(
-                            modifier = Modifier.widthIn(max = 140.dp),
+                        AppPill(
                             text = "← 返回",
-                            compact = true,
-                            fillMaxWidth = false,
                             onClick = { player.release(); onBack() },
                         )
 
-                        // 收藏按钮
                         var favState by remember { mutableStateOf(VodFavoriteManager.isFavorite(context, sourceKey, vodId)) }
-                        AppButton(
-                            modifier = Modifier.widthIn(max = 160.dp),
+                        AppPill(
                             text = if (favState) "★ 已收藏" else "☆ 收藏",
-                            compact = true,
-                            fillMaxWidth = false,
+                            selected = favState,
                             onClick = {
                                 favState = VodFavoriteManager.toggle(context, VodFavoriteItem(
                                     sourceKey = sourceKey, vodId = vodId, vodName = vodName, vodPic = vodPic,
@@ -938,5 +895,47 @@ fun VodDetailScreen(
             }
         }
     }
+    }
+}
+
+/**
+ * 播放控制按钮：统一尺寸与配色（常态 onSurface 12%、聚焦反色），
+ * 与设置页控件观感一致；放在不透明底框内可完全遮住播放器自带控件。
+ */
+@Composable
+private fun PlayerChip(
+    modifier: Modifier = Modifier,
+    text: String,
+    enabled: Boolean = true,
+    focusRequester: androidx.compose.ui.focus.FocusRequester? = null,
+    onClick: () -> Unit = {},
+) {
+    var focused by remember { mutableStateOf(false) }
+
+    val container = when {
+        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+        focused -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+    }
+    val content = when {
+        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        focused -> MaterialTheme.colorScheme.surface
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+
+    Box(
+        modifier = modifier
+            .height(46.dp)
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .onFocusChanged { focused = it.isFocused || it.hasFocus }
+            .focusable()
+            .clip(MaterialTheme.shapes.small)
+            .background(container)
+            .clickable(enabled = enabled) { onClick() }
+            .handleKeyEvents(onSelect = if (enabled) onClick else null)
+            .padding(horizontal = 18.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = content, fontSize = 15.sp, fontWeight = FontWeight.Medium)
     }
 }
