@@ -77,6 +77,22 @@ fun App(
         Visibility({ settingsViewModel.debugShowLayoutGrids }) { PreviewWithLayoutGrids { } }
     }
 
+    // 一次性迁移：清掉可能含「旧局域网 IP」的咪咕播放列表缓存。
+    // 旧版本生成 /migu.m3u 时用的是局域网 IP，IP 变了就会让播放器连不上 → Media3 2001。
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                val sp = context.getSharedPreferences("app_migrate", android.content.Context.MODE_PRIVATE)
+                if (!sp.getBoolean("migu_loopback_fix_v1", false)) {
+                    top.yogiczy.mytv.core.data.repositories.iptv.IptvRepository(
+                        top.yogiczy.mytv.tv.ui.utils.IptvSourcePriority.builtinMigu()
+                    ).clearCache()
+                    sp.edit().putBoolean("migu_loopback_fix_v1", true).apply()
+                }
+            }
+        }
+    }
+
     // 启动时清理一次本地过期 apk（版本 <= 当前版本的 apk 没有安装价值，避免堆积）
     LaunchedEffect(Unit) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {

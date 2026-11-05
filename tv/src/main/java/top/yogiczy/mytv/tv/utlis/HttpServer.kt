@@ -594,35 +594,60 @@ object HttpServer : Loggable("HttpServer") {
         wrapResponse(response).send(file.path)
     }
 
+    /**
+     * 取本机局域网 IPv4。
+     *
+     * 关键点：必须排除 VPN / 蜂窝 / 虚拟网卡（tun、ppp、rmnet、vgate、dummy、ifb…），
+     * 否则可能返回一个「看起来像内网但实际不可达」的地址，
+     * 导致播放器连 http://<错IP>:10481 直接 EHOSTUNREACH → Media3 2001。
+     * 优先 wlan / eth / ap 网卡。
+     */
     private fun getLocalIpAddress(): String {
         val defaultIp = "127.0.0.1"
+        val excludePrefix = listOf(
+            "tun", "tap", "ppp", "rmnet", "ccmni", "vgate", "vpn",
+            "dummy", "ifb", "sit", "ip6tnl", "gre", "p2p", "rev_rmnet",
+        )
+
+        fun isValidIpv4(ip: String): Boolean = when {
+            ip.startsWith("192.168.") -> true
+            ip.startsWith("10.") -> true
+            ip.startsWith("172.") -> {
+                val second = ip.split(".").getOrNull(1)?.toIntOrNull()
+                second in 16..31
+            }
+            else -> false
+        }
 
         try {
+            val candidates = mutableListOf<Pair<String, String>>() // (intfName, ip)
             val en = NetworkInterface.getNetworkInterfaces()
             while (en.hasMoreElements()) {
                 val intf = en.nextElement()
+                if (!intf.isUp) continue
+                val name = intf.name ?: ""
+                if (excludePrefix.any { name.startsWith(it) }) continue
+
                 val enumIpAddr = intf.inetAddresses
                 while (enumIpAddr.hasMoreElements()) {
                     val inetAddress = enumIpAddr.nextElement()
                     if (!inetAddress.isLoopbackAddress && inetAddress is Inet4Address) {
-                        val ip = inetAddress.hostAddress ?: defaultIp
-                        val isValid = when {
-                            ip.startsWith("192.168.") -> true
-                            ip.startsWith("10.") -> true
-                            ip.startsWith("172.") -> {
-                                val parts = ip.split(".")
-                                val secondOctet = parts.getOrNull(1)?.toIntOrNull()
-                                secondOctet in 16..31
-                            }
-
-                            else -> false
-                        }
-
-                        if (isValid)
-                            return ip
+                        val ip = inetAddress.hostAddress ?: continue
+                        if (isValidIpv4(ip)) candidates.add(name to ip)
                     }
                 }
             }
+
+            // 优先 wlan / eth / ap，其余退而求其次
+            val preferred = candidates.firstOrNull { (n, _) ->
+                n.startsWith("wlan") || n.startsWith("eth") || n.startsWith("ap")
+            }
+            val picked = preferred ?: candidates.firstOrNull()
+            if (picked != null) {
+                log.i("本机局域网 IP: ${picked.second} (${picked.first})")
+                return picked.second
+            }
+
             return defaultIp
         } catch (ex: SocketException) {
             log.e("IP Address: ${ex.message}", ex)
@@ -858,7 +883,8 @@ object HttpServer : Loggable("HttpServer") {
                 
                 val manager = MiguBackendManager.getInstance(context)
                 val categories = manager.loadAllChannels()
-                val hostUrl = serverUrl
+                // 播放器就在本机：一律用回环地址，避免局域网 IP 变化/不可达导致 2001
+                val hostUrl = loopbackUrl
                 
                 val m3uContent = MiguM3uGenerator.generateM3u(categories, hostUrl)
                 response.send(m3uContent)
@@ -882,7 +908,8 @@ object HttpServer : Loggable("HttpServer") {
                 
                 val manager = MiguBackendManager.getInstance(context)
                 val categories = manager.loadAllChannels()
-                val hostUrl = serverUrl
+                // 播放器就在本机：一律用回环地址，避免局域网 IP 变化/不可达导致 2001
+                val hostUrl = loopbackUrl
                 
                 val txtContent = MiguM3uGenerator.generateTxt(categories, hostUrl)
                 response.send(txtContent)

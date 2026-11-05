@@ -652,42 +652,24 @@ fun VodDetailScreen(
                             .width(if (isPortraitMode) 240.dp else 200.dp)
                             .padding(8.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.88f)),
+                            .background(MaterialTheme.colorScheme.surface),
                     ) {
                         androidx.compose.foundation.lazy.LazyColumn(
                             state = epListState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(4.dp),
+                            contentPadding = PaddingValues(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             items(ms.episodes.size) { i ->
                                 val ep = ms.episodes[i]
-                                var epFocused by remember { mutableStateOf(false) }
                                 val isCurrent = i == epIdx
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 1.dp)
-                                        .onFocusChanged { epFocused = it.isFocused }
-                                        .focusable()
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(
-                                            when {
-                                                epFocused -> MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-                                                isCurrent -> MaterialTheme.colorScheme.error.copy(alpha = 0.18f)
-                                                else -> Color.Transparent
-                                            }
-                                        )
-                                        .border(if (isCurrent) 1.dp else 0.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(6.dp))
-                                        .clickable { epIdx = i; showEpList = false }
-                                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                                ) {
-                                    Text(
-                                        ep.name,
-                                        color = if (isCurrent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                                        fontSize = if (isPortraitMode) 28.sp else 13.sp,
-                                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
+                                // 与设置页同款行：常态 onSurface 10%、聚焦反色、无描边
+                                EpRow(
+                                    text = ep.name,
+                                    selected = isCurrent,
+                                    fontSize = if (isPortraitMode) 24.sp else 15.sp,
+                                    onClick = { epIdx = i; showEpList = false },
+                                )
                             }
                         }
                     }
@@ -937,5 +919,46 @@ private fun PlayerChip(
         contentAlignment = Alignment.Center,
     ) {
         Text(text, color = content, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+/** 剧集行：与设置页 ListItem 一致的观感（常态 onSurface 10%、聚焦反色、无描边） */
+@Composable
+private fun EpRow(
+    text: String,
+    selected: Boolean,
+    fontSize: androidx.compose.ui.unit.TextUnit,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val container = when {
+        focused -> MaterialTheme.colorScheme.onSurface
+        selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+    }
+    val content = when {
+        focused -> MaterialTheme.colorScheme.surface
+        selected -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .onFocusChanged { focused = it.isFocused || it.hasFocus }
+            .focusable()
+            .clip(MaterialTheme.shapes.small)
+            .background(container)
+            .clickable { onClick() }
+            .handleKeyEvents(onSelect = onClick)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+    ) {
+        Text(
+            text,
+            color = content,
+            fontSize = fontSize,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
