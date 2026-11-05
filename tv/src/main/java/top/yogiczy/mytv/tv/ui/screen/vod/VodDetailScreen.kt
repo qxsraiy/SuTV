@@ -594,7 +594,7 @@ fun VodDetailScreen(
                     }
 
                     // ===== 居中控制面板 =====
-                    // 不透明底框：完全遮住播放器自带的快退/暂停/快进，避免重叠难看
+                    // 原生控制器已关闭，这里不再需要不透明底框，按钮直接浮在画面上
                     val playFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
                     LaunchedEffect(controllerVisible) {
                         if (controllerVisible) {
@@ -605,11 +605,7 @@ fun VodDetailScreen(
                     Row(
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .fillMaxWidth(0.86f)
-                            .clip(RoundedCornerShape(14.dp))
-                            // 完全不透明，盖住下层播放器控件
-                            .background(MaterialTheme.colorScheme.surface)
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                            .fillMaxWidth(0.86f),
                         horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -653,6 +649,41 @@ fun VodDetailScreen(
                             onClick = { touchControls(); epIdx++ },
                         )
                     }
+                    // ===== 右下角：倍速调节（触摸点按循环 / 遥控 OK 循环，左右键微调）=====
+                    val speedOptions = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 3.0f)
+                    var speedIdx by remember { mutableIntStateOf(2) }
+                    // 应用倍速
+                    LaunchedEffect(speedIdx) {
+                        runCatching { player.setPlaybackSpeed(speedOptions[speedIdx]) }
+                    }
+                    // 进入播放页时恢复为 1.0x
+                    LaunchedEffect(currentEp?.url) {
+                        speedIdx = 2
+                    }
+
+                    val speedText = if (speedOptions[speedIdx] == speedOptions[speedIdx].toInt().toFloat()) {
+                        "倍速 ${speedOptions[speedIdx].toInt()}.0x"
+                    } else {
+                        "倍速 ${speedOptions[speedIdx]}x"
+                    }
+                    PlayerSpeedChip(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(
+                                end = if (isPortraitMode) 40.dp else 24.dp,
+                                bottom = if (isPortraitMode) 40.dp else 20.dp,
+                            ),
+                        text = speedText,
+                        onCycle = {
+                            touchControls()
+                            speedIdx = (speedIdx + 1) % speedOptions.size
+                        },
+                        onStep = { delta ->
+                            touchControls()
+                            speedIdx = (speedIdx + delta).coerceIn(0, speedOptions.lastIndex)
+                        },
+                    )
+
                     // 底部进度显示 (非焦点, 仅展示)
                     if (playerDurationMs > 0) {
                         Text(
@@ -982,6 +1013,46 @@ private fun EpRow(
             fontSize = fontSize,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * 倍速控件：触摸点按循环切换；遥控 OK 循环、左右键微调。
+ * 与其它自写控件同款观感（常态 onSurface 12%、聚焦反色、无描边）。
+ */
+@Composable
+private fun PlayerSpeedChip(
+    modifier: Modifier = Modifier,
+    text: String,
+    onCycle: () -> Unit,
+    onStep: (Int) -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .onFocusChanged { focused = it.isFocused || it.hasFocus }
+            .focusable()
+            .clip(MaterialTheme.shapes.small)
+            .background(
+                if (focused) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            )
+            .clickable { onCycle() }
+            .handleKeyEvents(
+                onSelect = onCycle,
+                onLeft = { onStep(-1) },
+                onRight = { onStep(1) },
+            )
+            .padding(horizontal = 16.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text,
+            color = if (focused) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurface,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium,
         )
     }
 }
