@@ -716,7 +716,10 @@ object HttpServer : Loggable("HttpServer") {
                 }
             } catch (e: Exception) {
                 log.e("代理请求失败: ${e.message}", e)
-                response.send("代理失败")
+                runCatching {
+                    response.code(502)
+                    response.send("代理失败")
+                }
             }
         }
     }
@@ -747,6 +750,8 @@ object HttpServer : Loggable("HttpServer") {
                     kotlinx.coroutines.delay(300)
                     val retry = MiguApi.getStreamUrl720p(pid)
                     if (!retry.isSuccess) {
+                        // 不能返回 200 + 纯文本，否则播放器会当成 M3U8 解析 → 3002
+                        response.code(502)
                         response.send("获取播放地址失败: ${retry.error}")
                         log.e("获取播放地址重试仍失败: ${retry.error}")
                         return@launch
@@ -810,7 +815,10 @@ object HttpServer : Loggable("HttpServer") {
             }
         } catch (e: Exception) {
             log.e("代理 M3U8 失败: ${e.message}", e)
-            response.send("#EXTM3U\n# 代理失败: ${e.message}\n")
+            runCatching {
+                response.code(502)
+                response.send("代理失败: ${e.message}")
+            }
         }
     }
     

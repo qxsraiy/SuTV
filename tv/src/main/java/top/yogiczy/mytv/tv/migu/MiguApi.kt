@@ -203,8 +203,32 @@ object MiguApi {
                     finalRateType = 3
                 }
                 
-                val bodyObj = json.getJSONObject("body")
-                val urlInfo = bodyObj.getJSONObject("urlInfo")
+                val bodyObj = json.optJSONObject("body")
+                if (bodyObj == null) {
+                    return@use MiguStreamResult(
+                        url = "",
+                        rateType = 0,
+                        content = json,
+                        error = "接口返回缺少 body 字段（可能被风控/限流）"
+                    )
+                }
+
+                // urlInfo 可能是 null：会员频道 / 地区限制 / 该清晰度不支持
+                val urlInfo = bodyObj.optJSONObject("urlInfo")
+                if (urlInfo == null) {
+                    val tip = when (rid) {
+                        "TIPS_NEED_MEMBER" -> "该频道需要会员"
+                        "TIPS_NEED_LOGIN" -> "该频道需要登录"
+                        else -> "该频道暂不可用（无播放地址）"
+                    }
+                    return@use MiguStreamResult(
+                        url = "",
+                        rateType = 0,
+                        content = json,
+                        error = tip
+                    )
+                }
+
                 val streamUrl = urlInfo.optString("url", "")
                 val actualRateType = urlInfo.optInt("rateType", rateType)
                 val contId = bodyObj.optJSONObject("content")?.optString("contId") ?: pid
