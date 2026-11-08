@@ -114,7 +114,7 @@ class UpdateViewModel(
             Snackbar.show("下载更新成功")
             log.i("下载更新成功")
         } catch (ex: Exception) {
-            Snackbar.show("下载更新失败", type = SnackbarType.ERROR)
+            Snackbar.show("下载更新失败: ${ex.message ?: "网络错误"}", type = SnackbarType.ERROR)
             log.e("下载更新失败", ex)
         } finally {
             _isUpdating = false

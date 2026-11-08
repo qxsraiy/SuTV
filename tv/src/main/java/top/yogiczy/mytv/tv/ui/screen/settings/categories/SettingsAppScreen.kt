@@ -97,6 +97,7 @@ fun SettingsAppScreen(
                     coroutineScope.launch {
                         IptvRepository.clearAllCache()
                         EpgRepository.clearAllCache()
+                        top.yogiczy.mytv.tv.ui.screen.vod.VodVideoCache.clearAll()
 
                         Snackbar.show("缓存已清除")
                         onReload()

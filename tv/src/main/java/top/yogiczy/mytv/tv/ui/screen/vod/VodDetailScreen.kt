@@ -152,7 +152,7 @@ fun VodDetailScreen(
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
                 /* minBufferMs = */ 15000,
-                /* maxBufferMs = */ 60000,
+                /* maxBufferMs = */ 300000,
                 /* bufferForPlaybackMs = */ 2500,
                 /* bufferForPlaybackAfterRebufferMs = */ 5000,
             )
@@ -900,6 +900,8 @@ fun VodDetailScreen(
                         )
                     }
 
+                    // 按钮与封面之间留呼吸空间
+                    Spacer(Modifier.height(10.dp))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

@@ -18,7 +18,7 @@ import java.io.File
  * Application/播放页退出时 release（见 [release]）。
  */
 object VodVideoCache {
-    private const val MAX_BYTES = 1024L * 1024 * 1024          // 1 GB
+    private const val MAX_BYTES = 3L * 1024 * 1024 * 1024       // 3 GB，超出自动淘汰最旧分片
     private const val LOW_SPACE_MAX_BYTES = 512L * 1024 * 1024 // 低空间时 512 MB
     private const val LOW_SPACE_THRESHOLD = 500L * 1024 * 1024 // 可用 <500MB 触发保护
     private const val MAX_AGE_MS = 3L * 24 * 3600 * 1000       // 分片保留 3 天
