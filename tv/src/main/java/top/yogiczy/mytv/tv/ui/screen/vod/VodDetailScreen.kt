@@ -1,9 +1,10 @@
-﻿package top.yogiczy.mytv.tv.ui.screen.vod
+package top.yogiczy.mytv.tv.ui.screen.vod
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,12 +68,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.hls.HlsMediaSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import top.yogiczy.mytv.tv.ui.screen.vod.VodFavoriteItem
 import top.yogiczy.mytv.tv.ui.screen.vod.VodFavoriteManager
@@ -135,8 +140,40 @@ fun VodDetailScreen(
         vm.loadDetail(sourceKey, vodId)
     }
 
-    // 创建 ExoPlayer
-    val player = remember { ExoPlayer.Builder(context).build() }
+    // ===== 播放控件配色（深色半透明，亮画面上也可读）=====
+    val ctrlBg = Color.Black.copy(alpha = 0.55f)          // 常态底
+    val ctrlBgFocused = MaterialTheme.colorScheme.primary // 获焦底
+    val ctrlBgDisabled = Color.Black.copy(alpha = 0.25f)  // 禁用底
+    val ctrlText = Color.White                            // 常态文字
+    val ctrlTextDisabled = Color.White.copy(alpha = 0.4f) // 禁用文字
+
+    // 创建 ExoPlayer（大缓冲 LoadControl：快进/拖拽不易掏空缓冲）
+    val player = remember {
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                /* minBufferMs = */ 15000,
+                /* maxBufferMs = */ 60000,
+                /* bufferForPlaybackMs = */ 2500,
+                /* bufferForPlaybackAfterRebufferMs = */ 5000,
+            )
+            .build()
+        ExoPlayer.Builder(context)
+            .setLoadControl(loadControl)
+            .build()
+    }
+    // 缓存数据源工厂：点播流统一走 SimpleCache（LRU 1GB + 定时过期清理）
+    val cacheDsFactory = remember {
+        VodVideoCache.cleanExpired()
+        CacheDataSource.Factory()
+            .setCache(VodVideoCache.get(context))
+            .setUpstreamDataSourceFactory(
+                DefaultHttpDataSource.Factory()
+                    .setUserAgent("Mozilla/5.0")
+                    .setConnectTimeoutMs(15000)
+                    .setReadTimeoutMs(20000)
+            )
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+    }
     val activity = remember {
         var ctx = context
         while (ctx is android.content.ContextWrapper) {
@@ -165,6 +202,7 @@ fun VodDetailScreen(
                 VodHistoryManager.updatePosition(context, realSk, realVid, epIdx, player.currentPosition)
             }
             player.release()
+            VodVideoCache.release()
             activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             vm.clearSearch()
         }
@@ -218,12 +256,15 @@ fun VodDetailScreen(
             var playerError by remember { mutableStateOf<String?>(null) }
             // 播放状态 (用于 Compose 播放/暂停按钮, 遥控可操作)
             var isPlayerPlaying by remember { mutableStateOf(false) }
+            var isBuffering by remember { mutableStateOf(false) }
             var playerPositionMs by remember { mutableLongStateOf(0L) }
             var playerDurationMs by remember { mutableLongStateOf(0L) }
+            var playerBufferedMs by remember { mutableLongStateOf(0L) }
             val coroutineScope = rememberCoroutineScope()
             DisposableEffect(player) {
                 val listener = object : Player.Listener {
                     override fun onPlaybackStateChanged(state: Int) {
+                        isBuffering = state == Player.STATE_BUFFERING
                         if (state == Player.STATE_ENDED) {
                             if (latestEpIdx.value < latestEpCount.value - 1) {
                                 epIdx = latestEpIdx.value + 1
@@ -256,14 +297,19 @@ fun VodDetailScreen(
                 onDispose { player.removeListener(listener) }
             }
 
-            // 进度刷新 (1s)：仅在播放时轮询，暂停/挂起时停止，避免无意义重组
-            LaunchedEffect(currentEp?.url, isPlayerPlaying) {
+            // 进度刷新 (500ms)：播放/拖拽预览时轮询；拖拽中不覆盖预览位置
+            var scrubPreviewMs by remember { mutableStateOf<Long?>(null) }
+            LaunchedEffect(currentEp?.url, isPlayerPlaying, scrubPreviewMs) {
                 playerPositionMs = player.currentPosition.coerceAtLeast(0L)
                 playerDurationMs = player.duration.let { if (it > 0) it else 0L }
-                while (isPlayerPlaying) {
-                    kotlinx.coroutines.delay(1000)
-                    playerPositionMs = player.currentPosition.coerceAtLeast(0L)
+                playerBufferedMs = player.bufferedPosition.coerceAtLeast(0L)
+                while (isPlayerPlaying || scrubPreviewMs != null) {
+                    delay(500)
+                    if (scrubPreviewMs == null) {
+                        playerPositionMs = player.currentPosition.coerceAtLeast(0L)
+                    }
                     playerDurationMs = player.duration.let { if (it > 0) it else 0L }
+                    playerBufferedMs = player.bufferedPosition.coerceAtLeast(0L)
                 }
             }
 
@@ -277,15 +323,13 @@ fun VodDetailScreen(
                     val realVid = ms2?.vodId ?: vodId
                     val savedPos = VodHistoryManager.getPosition(context, realSk, realVid, epIdx)
                     if (currentEp.url.contains("m3u8", ignoreCase = true)) {
-                        val dataSourceFactory = DefaultHttpDataSource.Factory()
-                            .setUserAgent("Mozilla/5.0")
-                            .setConnectTimeoutMs(15000)
-                            .setReadTimeoutMs(20000)
-                        val hlsSource = HlsMediaSource.Factory(dataSourceFactory)
+                        val hlsSource = HlsMediaSource.Factory(cacheDsFactory)
                             .createMediaSource(MediaItem.fromUri(currentEp.url))
                         player.setMediaSource(hlsSource)
                     } else {
-                        player.setMediaItem(MediaItem.fromUri(currentEp.url))
+                        val source = DefaultMediaSourceFactory(cacheDsFactory)
+                            .createMediaSource(MediaItem.fromUri(currentEp.url))
+                        player.setMediaSource(source)
                     }
                     if (savedPos > 5000) player.seekTo(savedPos)
                     player.prepare()
@@ -329,6 +373,22 @@ fun VodDetailScreen(
                         }
                     } else {
                         Text("重连中... (第${retryCount}次)", color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp)
+                    }
+                }
+            }
+
+            // 缓冲中覆盖层（seek 到未缓存区间 / 起播 / 卡顿时提示，深色半透明）
+            if (isBuffering && playerError == null && retryCount == 0) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.45f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        top.yogiczy.mytv.tv.ui.material.CircularProgressIndicator()
+                        Spacer(Modifier.height(10.dp))
+                        Text("缓冲中...", color = Color.White, fontSize = 14.sp)
                     }
                 }
             }
@@ -450,6 +510,30 @@ fun VodDetailScreen(
                     val epPadV = if (isPortraitMode) 20.dp else 6.dp
                     val epPadH = if (isPortraitMode) 28.dp else 10.dp
 
+                    // 顶部 / 底部渐变暗色 scrim：保证控件在亮画面上可读
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .height(if (isPortraitMode) 160.dp else 90.dp)
+                            .background(
+                                androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent)
+                                )
+                            )
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(if (isPortraitMode) 220.dp else 130.dp)
+                            .background(
+                                androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
+                                )
+                            )
+                    )
+
                     // 仅当剧集列表打开时: 点击外部关闭列表+隐藏控件
                     if (showEpList) {
                         Box(
@@ -478,13 +562,13 @@ fun VodDetailScreen(
                                 .onFocusChanged { backFocused = it.isFocused }
                                 .focusable()
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (backFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
+                                .background(if (backFocused) ctrlBgFocused else ctrlBg)
                                 
                                 .clickable { touchControls(); isPlaying = false }
                                 .padding(horizontal = 16.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("← 返回", color = if (backFocused) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurface, fontSize = btnFs)
+                            Text("← 返回", color = Color.White, fontSize = btnFs)
                         }
 
                         // 右: 竖屏 + 收藏 + 剧集
@@ -500,7 +584,7 @@ fun VodDetailScreen(
                                     .onFocusChanged { rotFocused = it.isFocused }
                                     .focusable()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (rotFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
+                                    .background(if (rotFocused) ctrlBgFocused else ctrlBg)
                                     
                                     .clickable {
                                         touchControls()
@@ -517,7 +601,7 @@ fun VodDetailScreen(
                             ) {
                                 Text(
                                     if (isPortraitMode) "横屏" else "竖屏",
-                                    color = if (isPortraitMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    color = Color.White,
                                     fontSize = btnFs,
                                 )
                             }
@@ -530,7 +614,7 @@ fun VodDetailScreen(
                                     .onFocusChanged { ratFocused = it.isFocused }
                                     .focusable()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (ratFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
+                                    .background(if (ratFocused) ctrlBgFocused else ctrlBg)
                                     
                                     .clickable { touchControls(); resizeMode = (resizeMode + 1) % 3 }
                                     .padding(horizontal = 12.dp),
@@ -542,7 +626,7 @@ fun VodDetailScreen(
                                         2 -> "拉伸"
                                         else -> "适应"
                                     },
-                                    color = if (resizeMode != 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    color = Color.White,
                                     fontSize = btnFs,
                                 )
                             }
@@ -556,7 +640,7 @@ fun VodDetailScreen(
                                     .onFocusChanged { favFocused = it.isFocused }
                                     .focusable()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (favFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
+                                    .background(if (favFocused) ctrlBgFocused else ctrlBg)
                                     
                                     .clickable {
                                         touchControls()
@@ -567,7 +651,7 @@ fun VodDetailScreen(
                                     .padding(horizontal = 12.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text(if (favState) "★已收藏" else "☆收藏", color = if (favState) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, fontSize = btnFs)
+                                Text(if (favState) "★已收藏" else "☆收藏", color = Color.White, fontSize = btnFs)
                             }
 
                             // 剧集列表
@@ -578,7 +662,7 @@ fun VodDetailScreen(
                                     .onFocusChanged { infoFocused = it.isFocused }
                                     .focusable()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (infoFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f))
+                                    .background(if (infoFocused) ctrlBgFocused else ctrlBg)
                                     
                                     .clickable { touchControls(); showEpList = !showEpList }
                                     .padding(horizontal = 12.dp),
@@ -586,7 +670,7 @@ fun VodDetailScreen(
                             ) {
                                 Text(
                                     if (isPortraitMode) "剧集▾" else "${detail.vod_name} · ${currentEp?.name ?: ""} ▾",
-                                    color = MaterialTheme.colorScheme.onSurface, fontSize = btnFs, fontWeight = FontWeight.Medium,
+                                    color = Color.White, fontSize = btnFs, fontWeight = FontWeight.Medium,
                                     maxLines = 1,
                                 )
                             }
@@ -612,11 +696,16 @@ fun VodDetailScreen(
                         PlayerChip(
                             text = "◀ 上一集",
                             enabled = epIdx > 0,
+                            container = ctrlBg, containerFocused = ctrlBgFocused,
+                            containerDisabled = ctrlBgDisabled,
+                            content = ctrlText, contentDisabled = ctrlTextDisabled,
                             onClick = { touchControls(); epIdx-- },
                         )
 
                         PlayerChip(
                             text = "⏪ 10秒",
+                            container = ctrlBg, containerFocused = ctrlBgFocused,
+                            content = ctrlText,
                             onClick = {
                                 touchControls()
                                 player.seekTo((player.currentPosition - 10000).coerceAtLeast(0L))
@@ -625,6 +714,8 @@ fun VodDetailScreen(
 
                         PlayerChip(
                             modifier = Modifier.width(132.dp),
+                            container = ctrlBg, containerFocused = ctrlBgFocused,
+                            content = ctrlText,
                             text = if (isPlayerPlaying) "⏸ 暂停" else "▶ 播放",
                             focusRequester = playFocusRequester,
                             onClick = {
@@ -635,6 +726,8 @@ fun VodDetailScreen(
 
                         PlayerChip(
                             text = "10秒 ⏩",
+                            container = ctrlBg, containerFocused = ctrlBgFocused,
+                            content = ctrlText,
                             onClick = {
                                 touchControls()
                                 val dur = player.duration
@@ -646,6 +739,9 @@ fun VodDetailScreen(
                         PlayerChip(
                             text = "下一集 ▶",
                             enabled = epIdx < epCount - 1,
+                            container = ctrlBg, containerFocused = ctrlBgFocused,
+                            containerDisabled = ctrlBgDisabled,
+                            content = ctrlText, contentDisabled = ctrlTextDisabled,
                             onClick = { touchControls(); epIdx++ },
                         )
                     }
@@ -671,9 +767,11 @@ fun VodDetailScreen(
                             .align(Alignment.BottomEnd)
                             .padding(
                                 end = if (isPortraitMode) 40.dp else 24.dp,
-                                bottom = if (isPortraitMode) 40.dp else 20.dp,
+                                bottom = if (isPortraitMode) 120.dp else 76.dp,
                             ),
                         text = speedText,
+                        container = ctrlBg, containerFocused = ctrlBgFocused,
+                        content = ctrlText,
                         onCycle = {
                             touchControls()
                             speedIdx = (speedIdx + 1) % speedOptions.size
@@ -684,15 +782,34 @@ fun VodDetailScreen(
                         },
                     )
 
-                    // 底部进度显示 (非焦点, 仅展示)
+                    // ===== 底部：可拖拽进度条（触屏拖拽/点按 + 遥控左右步进长按加速）=====
                     if (playerDurationMs > 0) {
-                        Text(
-                            "${fmtTime(playerPositionMs)} / ${fmtTime(playerDurationMs)}",
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = if (isPortraitMode) 24.sp else 13.sp,
+                        VodSeekBar(
+                            positionMs = scrubPreviewMs ?: playerPositionMs,
+                            bufferedMs = playerBufferedMs,
+                            durationMs = playerDurationMs,
+                            isPortrait = isPortraitMode,
+                            onScrubStart = {
+                                touchControls()
+                                scrubPreviewMs = playerPositionMs
+                            },
+                            onScrub = { target ->
+                                touchControls()
+                                scrubPreviewMs = target.coerceIn(0L, playerDurationMs)
+                            },
+                            onScrubEnd = { target ->
+                                touchControls()
+                                scrubPreviewMs = null
+                                player.seekTo(target)
+                            },
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
-                                .padding(bottom = if (isPortraitMode) 40.dp else 20.dp),
+                                .fillMaxWidth()
+                                .padding(
+                                    start = if (isPortraitMode) 40.dp else 24.dp,
+                                    end = if (isPortraitMode) 40.dp else 24.dp,
+                                    bottom = if (isPortraitMode) 40.dp else 20.dp,
+                                ),
                         )
                     }
                 }
@@ -706,7 +823,7 @@ fun VodDetailScreen(
                             .width(if (isPortraitMode) 240.dp else 200.dp)
                             .padding(8.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surface),
+                            .background(Color.Black.copy(alpha = 0.75f)),
                     ) {
                         androidx.compose.foundation.lazy.LazyColumn(
                             state = epListState,
@@ -722,6 +839,8 @@ fun VodDetailScreen(
                                     text = ep.name,
                                     selected = isCurrent,
                                     fontSize = if (isPortraitMode) 24.sp else 15.sp,
+                                    containerFocused = ctrlBgFocused,
+                                    content = Color.White,
                                     onClick = { touchControls(); epIdx = i; showEpList = false },
                                 )
                             }
@@ -935,8 +1054,7 @@ fun VodDetailScreen(
 }
 
 /**
- * 播放控制按钮：统一尺寸与配色（常态 onSurface 12%、聚焦反色），
- * 与设置页控件观感一致；放在不透明底框内可完全遮住播放器自带控件。
+ * 播放控制按钮：深色半透明常态底 + 主题色获焦底，亮画面上可读。
  */
 @Composable
 private fun PlayerChip(
@@ -944,19 +1062,23 @@ private fun PlayerChip(
     text: String,
     enabled: Boolean = true,
     focusRequester: androidx.compose.ui.focus.FocusRequester? = null,
+    container: Color = Color.Black.copy(alpha = 0.55f),
+    containerFocused: Color = MaterialTheme.colorScheme.primary,
+    containerDisabled: Color = Color.Black.copy(alpha = 0.25f),
+    content: Color = Color.White,
+    contentDisabled: Color = Color.White.copy(alpha = 0.4f),
     onClick: () -> Unit = {},
 ) {
     var focused by remember { mutableStateOf(false) }
 
-    val container = when {
-        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
-        focused -> MaterialTheme.colorScheme.onSurface
-        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+    val containerColor = when {
+        !enabled -> containerDisabled
+        focused -> containerFocused
+        else -> container
     }
-    val content = when {
-        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-        focused -> MaterialTheme.colorScheme.surface
-        else -> MaterialTheme.colorScheme.onSurface
+    val contentColor = when {
+        !enabled -> contentDisabled
+        else -> content
     }
 
     Box(
@@ -966,13 +1088,13 @@ private fun PlayerChip(
             .onFocusChanged { focused = it.isFocused || it.hasFocus }
             .focusable()
             .clip(MaterialTheme.shapes.small)
-            .background(container)
+            .background(containerColor)
             .clickable(enabled = enabled) { onClick() }
             .handleKeyEvents(onSelect = if (enabled) onClick else null)
             .padding(horizontal = 18.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = content, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+        Text(text, color = contentColor, fontSize = 15.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -982,18 +1104,19 @@ private fun EpRow(
     text: String,
     selected: Boolean,
     fontSize: androidx.compose.ui.unit.TextUnit,
+    containerFocused: Color = MaterialTheme.colorScheme.primary,
+    content: Color = Color.White,
     onClick: () -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
     val container = when {
-        focused -> MaterialTheme.colorScheme.onSurface
+        focused -> containerFocused
         selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+        else -> Color.White.copy(alpha = 0.10f)
     }
-    val content = when {
-        focused -> MaterialTheme.colorScheme.surface
-        selected -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onSurface
+    val contentColor = when {
+        selected && !focused -> MaterialTheme.colorScheme.primary
+        else -> content
     }
 
     Box(
@@ -1009,7 +1132,7 @@ private fun EpRow(
     ) {
         Text(
             text,
-            color = content,
+            color = contentColor,
             fontSize = fontSize,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -1025,6 +1148,9 @@ private fun EpRow(
 private fun PlayerSpeedChip(
     modifier: Modifier = Modifier,
     text: String,
+    container: Color = Color.Black.copy(alpha = 0.55f),
+    containerFocused: Color = MaterialTheme.colorScheme.primary,
+    content: Color = Color.White,
     onCycle: () -> Unit,
     onStep: (Int) -> Unit,
 ) {
@@ -1035,10 +1161,7 @@ private fun PlayerSpeedChip(
             .onFocusChanged { focused = it.isFocused || it.hasFocus }
             .focusable()
             .clip(MaterialTheme.shapes.small)
-            .background(
-                if (focused) MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-            )
+            .background(if (focused) containerFocused else container)
             .clickable { onCycle() }
             .handleKeyEvents(
                 onSelect = onCycle,
@@ -1050,9 +1173,200 @@ private fun PlayerSpeedChip(
     ) {
         Text(
             text,
-            color = if (focused) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurface,
+            color = content,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
         )
+    }
+}
+
+
+/**
+ * 点播可拖拽进度条。
+ * - 触屏：点按跳转 / 按住拖拽，拖动中只更新预览（由调用方持有的 scrub 状态），松手才 seek；
+ * - 遥控：左/右键 ±10s，长按持续步进并逐步加速（10s→30s→60s）；
+ * - 展示：轨道（白25%）/ 已缓冲（白45%）/ 已播放（主题色）/ 滑块圆点 + 时间文本。
+ */
+@Composable
+private fun VodSeekBar(
+    positionMs: Long,
+    bufferedMs: Long,
+    durationMs: Long,
+    isPortrait: Boolean,
+    onScrubStart: () -> Unit,
+    onScrub: (Long) -> Unit,
+    onScrubEnd: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (durationMs <= 0) return
+    var focused by remember { mutableStateOf(false) }
+    var scrubbing by remember { mutableStateOf(false) }
+    // 当前拖拽/步进中的预览位置（内部镜像，回调同步给外层）
+    var previewMs by remember { mutableLongStateOf(positionMs) }
+    // 非拖拽时直接展示实时进度，避免组合期写状态
+    val shownMs = if (scrubbing) previewMs else positionMs
+
+    val scope = rememberCoroutineScope()
+    var stepJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+
+    fun clamp(v: Long) = v.coerceIn(0L, durationMs)
+
+    fun commitSeek() {
+        val target = clamp(previewMs)
+        scrubbing = false
+        onScrubEnd(target)
+    }
+
+    fun stepOnce(dir: Int) {
+        if (!scrubbing) {
+            scrubbing = true
+            previewMs = positionMs
+            onScrubStart()
+        }
+        previewMs = clamp(previewMs + dir * 10_000L)
+        onScrub(previewMs)
+    }
+
+    fun startHold(dir: Int) {
+        stepOnce(dir)
+        stepJob?.cancel()
+        stepJob = scope.launch {
+            delay(400) // 长按时延
+            var interval = 220L
+            var step = 10_000L
+            var ticks = 0
+            while (true) {
+                ticks++
+                // 逐步加速：10s → 30s → 60s
+                if (ticks == 10) { step = 30_000L; interval = 200L }
+                if (ticks == 25) { step = 60_000L; interval = 180L }
+                previewMs = clamp(previewMs + dir * step)
+                onScrub(previewMs)
+                if (previewMs == 0L || previewMs == durationMs) break
+                delay(interval)
+            }
+        }
+    }
+
+    fun stopHold() {
+        stepJob?.cancel()
+        stepJob = null
+        if (scrubbing) commitSeek()
+    }
+
+    val trackH = if (isPortrait) 10.dp else 5.dp
+    val thumbD = if (focused || scrubbing) (if (isPortrait) 26.dp else 14.dp) else (if (isPortrait) 16.dp else 9.dp)
+    val fs = if (isPortrait) 24.sp else 13.sp
+    val progress = (shownMs.toFloat() / durationMs).coerceIn(0f, 1f)
+    val buffered = (bufferedMs.toFloat() / durationMs).coerceIn(0f, 1f)
+
+    Column(modifier = modifier) {
+        // 时间文本：拖拽中显示预览位置
+        Text(
+            "${fmtTime(shownMs)} / ${fmtTime(durationMs)}",
+            color = Color.White,
+            fontSize = fs,
+            modifier = Modifier.padding(bottom = if (isPortrait) 10.dp else 5.dp),
+        )
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(if (isPortrait) 48.dp else 28.dp)
+                .onFocusChanged { focused = it.isFocused }
+                .focusable()
+                .pointerInput(durationMs) {
+                    detectTapGestures(
+                        onPress = { offset ->
+                            val frac = (offset.x / size.width).coerceIn(0f, 1f)
+                            previewMs = (frac * durationMs).toLong()
+                            scrubbing = true
+                            onScrubStart()
+                            onScrub(previewMs)
+                            val released = runCatching { tryAwaitRelease() }.getOrDefault(true)
+                            if (released) commitSeek() else { scrubbing = false }
+                        },
+                    )
+                }
+                .pointerInput(durationMs) {
+                    detectHorizontalDragGestures(
+                        onDragStart = {
+                            scrubbing = true
+                            previewMs = positionMs
+                            onScrubStart()
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            change.consume()
+                            val w = size.width
+                            if (w > 0) {
+                                previewMs = clamp(previewMs + (dragAmount / w * durationMs).toLong())
+                                onScrub(previewMs)
+                            }
+                        },
+                        onDragEnd = { commitSeek() },
+                        onDragCancel = { scrubbing = false },
+                    )
+                }
+                .onPreviewKeyEvent { ev ->
+                    val native = ev.nativeKeyEvent
+                    when (native.keyCode) {
+                        android.view.KeyEvent.KEYCODE_DPAD_LEFT,
+                        android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                            val dir = if (native.keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) -1 else 1
+                            when (native.action) {
+                                android.view.KeyEvent.ACTION_DOWN -> {
+                                    if (native.repeatCount == 0) startHold(dir)
+                                    true
+                                }
+                                android.view.KeyEvent.ACTION_UP -> { stopHold(); true }
+                                else -> true
+                            }
+                        }
+                        android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+                        android.view.KeyEvent.KEYCODE_ENTER -> {
+                            if (native.action == android.view.KeyEvent.ACTION_UP && scrubbing) {
+                                stopHold()
+                            }
+                            true
+                        }
+                        else -> false
+                    }
+                },
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            val trackW = maxWidth
+            // 轨道
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(trackH)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color.White.copy(alpha = 0.25f))
+            )
+            // 已缓冲
+            Box(
+                Modifier
+                    .width(trackW * buffered)
+                    .height(trackH)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color.White.copy(alpha = 0.45f))
+            )
+            // 已播放
+            Box(
+                Modifier
+                    .width(trackW * progress)
+                    .height(trackH)
+                    .clip(RoundedCornerShape(50))
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+            // 滑块
+            Box(
+                Modifier
+                    .offset(x = trackW * progress - thumbD / 2)
+                    .width(thumbD)
+                    .height(thumbD)
+                    .clip(RoundedCornerShape(50))
+                    .background(if (focused || scrubbing) MaterialTheme.colorScheme.primary else Color.White)
+            )
+        }
     }
 }
