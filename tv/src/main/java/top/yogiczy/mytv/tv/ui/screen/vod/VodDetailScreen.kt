@@ -225,6 +225,21 @@ fun VodDetailScreen(
         }
     }
 
+    // 退出播放（返回详情页）时：立即暂停 + 保存进度 + 恢复横屏
+    LaunchedEffect(isPlaying) {
+        if (!isPlaying) {
+            player.pause()
+            if (player.currentPosition > 5000) {
+                val ms = mergedSources.getOrNull(selectedLineIdx)
+                VodHistoryManager.updatePosition(
+                    context, ms?.sourceKey ?: sourceKey, ms?.vodId ?: vodId,
+                    epIdx, player.currentPosition,
+                )
+            }
+            activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        }
+    }
+
     AppThemeWrapper {
     Box(
         modifier = Modifier
@@ -297,24 +312,39 @@ fun VodDetailScreen(
                 onDispose { player.removeListener(listener) }
             }
 
-            // 进度刷新 (500ms)：播放/拖拽预览时轮询；拖拽中不覆盖预览位置
+            // 倍速状态：放在全屏播放层级，控制层 5 秒自动隐藏不会重置倍速
+            val speedOptions = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 3.0f)
+            var speedIdx by remember { mutableIntStateOf(2) }
+            // 应用倍速
+            LaunchedEffect(speedIdx) {
+                runCatching { player.setPlaybackSpeed(speedOptions[speedIdx]) }
+            }
+            // 换集恢复 1.0x
+            LaunchedEffect(currentEp?.url) {
+                speedIdx = 2
+            }
+
+            // 进度刷新 (500ms)：播放/暂停均轮询（缓存条实时刷新）；拖拽中不覆盖预览位置
             var scrubPreviewMs by remember { mutableStateOf<Long?>(null) }
-            LaunchedEffect(currentEp?.url, isPlayerPlaying, scrubPreviewMs) {
-                playerPositionMs = player.currentPosition.coerceAtLeast(0L)
-                playerDurationMs = player.duration.let { if (it > 0) it else 0L }
-                playerBufferedMs = player.bufferedPosition.coerceAtLeast(0L)
-                while (isPlayerPlaying || scrubPreviewMs != null) {
-                    delay(500)
+            LaunchedEffect(currentEp?.url, scrubPreviewMs) {
+                while (true) {
                     if (scrubPreviewMs == null) {
                         playerPositionMs = player.currentPosition.coerceAtLeast(0L)
                     }
                     playerDurationMs = player.duration.let { if (it > 0) it else 0L }
                     playerBufferedMs = player.bufferedPosition.coerceAtLeast(0L)
+                    delay(500)
                 }
             }
 
+            var preparedUrl by remember { mutableStateOf<String?>(null) }
             LaunchedEffect(currentEp?.url) {
                 if (currentEp != null && currentEp.url.isNotBlank()) {
+                    // 同一集退出又返回：直接续播，保留已加载缓存与播放位置
+                    if (preparedUrl == currentEp.url) {
+                        player.playWhenReady = true
+                        return@LaunchedEffect
+                    }
                     retryCount = 0
                     playerError = null
                     // 恢复播放进度
@@ -334,6 +364,7 @@ fun VodDetailScreen(
                     if (savedPos > 5000) player.seekTo(savedPos)
                     player.prepare()
                     player.playWhenReady = true
+                    preparedUrl = currentEp.url
                 }
             }
 
@@ -651,7 +682,7 @@ fun VodDetailScreen(
                                     .padding(horizontal = 12.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text(if (favState) "★已收藏" else "☆收藏", color = Color.White, fontSize = btnFs)
+                                Text(if (favState) "已收藏" else "收藏", color = Color.White, fontSize = btnFs)
                             }
 
                             // 剧集列表
@@ -746,17 +777,6 @@ fun VodDetailScreen(
                         )
                     }
                     // ===== 右下角：倍速调节（触摸点按循环 / 遥控 OK 循环，左右键微调）=====
-                    val speedOptions = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 3.0f)
-                    var speedIdx by remember { mutableIntStateOf(2) }
-                    // 应用倍速
-                    LaunchedEffect(speedIdx) {
-                        runCatching { player.setPlaybackSpeed(speedOptions[speedIdx]) }
-                    }
-                    // 进入播放页时恢复为 1.0x
-                    LaunchedEffect(currentEp?.url) {
-                        speedIdx = 2
-                    }
-
                     val speedText = if (speedOptions[speedIdx] == speedOptions[speedIdx].toInt().toFloat()) {
                         "倍速 ${speedOptions[speedIdx].toInt()}.0x"
                     } else {
@@ -870,7 +890,7 @@ fun VodDetailScreen(
 
                         var favState by remember { mutableStateOf(VodFavoriteManager.isFavorite(context, sourceKey, vodId)) }
                         AppPill(
-                            text = if (favState) "★ 已收藏" else "☆ 收藏",
+                            text = if (favState) "已收藏" else "收藏",
                             selected = favState,
                             onClick = {
                                 favState = VodFavoriteManager.toggle(context, VodFavoriteItem(
@@ -1342,13 +1362,13 @@ private fun VodSeekBar(
                     .clip(RoundedCornerShape(50))
                     .background(Color.White.copy(alpha = 0.25f))
             )
-            // 已缓冲
+            // 已缓冲（明显灰色，与轨道白25%区分）
             Box(
                 Modifier
                     .width(trackW * buffered)
                     .height(trackH)
                     .clip(RoundedCornerShape(50))
-                    .background(Color.White.copy(alpha = 0.45f))
+                    .background(Color(0xFF9E9E9E).copy(alpha = 0.9f))
             )
             // 已播放
             Box(
