@@ -1225,6 +1225,8 @@ private fun VodSeekBar(
     var scrubbing by remember { mutableStateOf(false) }
     // 当前拖拽/步进中的预览位置（内部镜像，回调同步给外层）
     var previewMs by remember { mutableLongStateOf(positionMs) }
+    // 相对快进/快退的秒数预览（非滑块起手滑动时显示 +xx秒/-xx秒）
+    var relDeltaSec by remember { mutableStateOf<Int?>(null) }
     // 非拖拽时直接展示实时进度，避免组合期写状态
     val shownMs = if (scrubbing) previewMs else positionMs
 
@@ -1283,9 +1285,10 @@ private fun VodSeekBar(
     val buffered = (bufferedMs.toFloat() / durationMs).coerceIn(0f, 1f)
 
     Column(modifier = modifier) {
-        // 时间文本：拖拽中显示预览位置
+        // 时间文本：拖拽中显示预览位置（相对模式附 +xx秒/-xx秒）
         Text(
-            "${fmtTime(shownMs)} / ${fmtTime(durationMs)}",
+            "${fmtTime(shownMs)} / ${fmtTime(durationMs)}" +
+                (relDeltaSec?.let { if (it >= 0) "  (+${it}秒)" else "  (${it}秒)" } ?: ""),
             color = Color.White,
             fontSize = fs,
             modifier = Modifier.padding(bottom = if (isPortrait) 10.dp else 5.dp),
@@ -1296,36 +1299,57 @@ private fun VodSeekBar(
                 .height(if (isPortrait) 48.dp else 28.dp)
                 .onFocusChanged { focused = it.isFocused }
                 .focusable()
+                // 点按进度条任意位置 = 直接跳转（爱奇艺同款）
                 .pointerInput(durationMs) {
                     detectTapGestures(
-                        onPress = { offset ->
-                            val frac = (offset.x / size.width).coerceIn(0f, 1f)
-                            previewMs = (frac * durationMs).toLong()
-                            scrubbing = true
-                            onScrubStart()
-                            onScrub(previewMs)
-                            val released = runCatching { tryAwaitRelease() }.getOrDefault(true)
-                            if (released) commitSeek() else { scrubbing = false }
+                        onTap = { offset ->
+                            val target = clamp((offset.x / size.width * durationMs).toLong())
+                            onScrubEnd(target)
                         },
                     )
                 }
+                // 拖拽：按住滑块=精确拖拽；其他位置起手=相对快进/快退（滑满全宽≈±180秒）
                 .pointerInput(durationMs) {
+                    val thumbTouchRadiusPx = 48.dp.toPx()
+                    var thumbMode = false
+                    var relAccumPx = 0f
+                    var relStartMs = 0L
                     detectHorizontalDragGestures(
-                        onDragStart = {
-                            scrubbing = true
+                        onDragStart = { offset ->
+                            val w = size.width
+                            val thumbX = (positionMs.toFloat() / durationMs) * w
+                            thumbMode = kotlin.math.abs(offset.x - thumbX) <= thumbTouchRadiusPx
+                            relStartMs = positionMs
+                            relAccumPx = 0f
                             previewMs = positionMs
+                            scrubbing = true
+                            if (!thumbMode) relDeltaSec = 0
                             onScrubStart()
                         },
                         onHorizontalDrag = { change, dragAmount ->
                             change.consume()
                             val w = size.width
-                            if (w > 0) {
+                            if (w <= 0) return@detectHorizontalDragGestures
+                            if (thumbMode) {
+                                // 精确拖拽：位置跟随手指
                                 previewMs = clamp(previewMs + (dragAmount / w * durationMs).toLong())
-                                onScrub(previewMs)
+                            } else {
+                                // 相对快进/快退：按滑动距离换算秒数
+                                relAccumPx += dragAmount
+                                val deltaSec = (relAccumPx / w * 180f).toInt()
+                                relDeltaSec = deltaSec
+                                previewMs = clamp(relStartMs + deltaSec * 1000L)
                             }
+                            onScrub(previewMs)
                         },
-                        onDragEnd = { commitSeek() },
-                        onDragCancel = { scrubbing = false },
+                        onDragEnd = {
+                            relDeltaSec = null
+                            commitSeek()
+                        },
+                        onDragCancel = {
+                            relDeltaSec = null
+                            scrubbing = false
+                        },
                     )
                 }
                 .onPreviewKeyEvent { ev ->
