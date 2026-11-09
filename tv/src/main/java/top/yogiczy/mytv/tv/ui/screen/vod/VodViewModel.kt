@@ -394,6 +394,14 @@ class VodViewModel : ViewModel() {
     // ==================== 聚合推荐（激进模式首页） ====================
 
     private var recommendJob: Job? = null
+    // 推荐源窗口偏移：点刷新时 +3 轮换到下一批健康源
+    private var recommendOffset = 0
+
+    /** 换一批推荐：轮换 3 个源 + 随机页码，强制重新拉取 */
+    fun refreshRecommendations() {
+        recommendOffset += 3
+        loadRecommendations(force = true)
+    }
 
     /**
      * 加载聚合推荐：从健康分最高的 3 个源并发拉首页第 1 页，
@@ -406,12 +414,15 @@ class VodViewModel : ViewModel() {
             _state.value = _state.value.copy(recommendLoading = true)
             val all = top.yogiczy.mytv.core.data.utils.Constants.VOD_SOURCE_LIST +
                 top.yogiczy.mytv.tv.ui.utils.Configs.vodSourceList
-            val picked = VodSourceHealthManager.topSources(all, 3)
-                .ifEmpty { all.take(3) }
-            if (picked.isEmpty()) {
+            // 健康分排序后按窗口取 3 个源（刷新时窗口后移轮换）
+            val sorted = all.sortedByDescending { VodSourceHealthManager.score(it.key) }
+            if (sorted.isEmpty()) {
                 _state.value = _state.value.copy(recommendLoading = false)
                 return@launch
             }
+            val picked = (0 until 3).map { i -> sorted[(recommendOffset + i) % sorted.size] }.distinctBy { it.key }
+            // 换批时随机拉 1~3 页，避免每次都是第一页那几部
+            val page = if (force) (1..3).random() else 1
 
             // 并发拉取各源首页
             val perSource = picked.map { source ->
@@ -420,7 +431,7 @@ class VodViewModel : ViewModel() {
                     var ok = false
                     val list = try {
                         withTimeoutOrNull(8000) {
-                            val json = apiGet("$serverUrl/vod/list?source=${source.key}&pg=1")
+                            val json = apiGet("$serverUrl/vod/list?source=${source.key}&pg=$page")
                             val resp = Globals.json.decodeFromString(VodItemList.serializer(), json)
                             ok = true
                             resp.list.take(15).map {

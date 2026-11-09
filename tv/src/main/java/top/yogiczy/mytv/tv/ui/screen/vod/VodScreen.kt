@@ -331,7 +331,17 @@ private fun VodTopBar(
             ),
         )
 
-        // 刷新搜索按钮 (换5个源重新搜, loading时旋转动画)
+        // 刷新按钮：搜索中→换批源重搜；激进模式→换一批推荐；保守模式→随机换一页片单
+        fun onRefresh() {
+            when {
+                state.searchResults.isNotEmpty() || vm.lastSearchWdText.isNotBlank() -> vm.refreshSearch()
+                aggressive -> vm.refreshRecommendations()
+                else -> {
+                    val nextPage = if (state.pageCount > 1) (1..state.pageCount).random() else 1
+                    vm.loadList(state.currentSource.key, state.currentTypeId, nextPage)
+                }
+            }
+        }
         var refreshFocused by remember { mutableStateOf(false) }
         val rotationTransition = rememberInfiniteTransition(label = "refresh")
         val rotation by rotationTransition.animateFloat(
@@ -349,8 +359,8 @@ private fun VodTopBar(
                     if (refreshFocused) MaterialTheme.colorScheme.onSurface
                     else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
                 )
-                .clickableNoIndication { vm.refreshSearch() }
-                .handleKeyEvents(onSelect = { vm.refreshSearch() })
+                .clickableNoIndication { onRefresh() }
+                .handleKeyEvents(onSelect = { onRefresh() })
                 .padding(9.dp),
         ) {
             Icon(

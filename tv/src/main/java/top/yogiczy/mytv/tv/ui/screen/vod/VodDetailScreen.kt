@@ -1232,6 +1232,8 @@ private fun VodSeekBar(
 
     val scope = rememberCoroutineScope()
     var stepJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    // pointerInput 闭包会冻结首次组合的值，必须用 UpdatedState 拿实时位置
+    val livePositionMs = rememberUpdatedState(positionMs)
 
     fun clamp(v: Long) = v.coerceIn(0L, durationMs)
 
@@ -1316,12 +1318,13 @@ private fun VodSeekBar(
                     var relStartMs = 0L
                     detectHorizontalDragGestures(
                         onDragStart = { offset ->
+                            val cur = livePositionMs.value
                             val w = size.width
-                            val thumbX = (positionMs.toFloat() / durationMs) * w
+                            val thumbX = (cur.toFloat() / durationMs) * w
                             thumbMode = kotlin.math.abs(offset.x - thumbX) <= thumbTouchRadiusPx
-                            relStartMs = positionMs
+                            relStartMs = cur
                             relAccumPx = 0f
-                            previewMs = positionMs
+                            previewMs = cur
                             scrubbing = true
                             if (!thumbMode) relDeltaSec = 0
                             onScrubStart()
