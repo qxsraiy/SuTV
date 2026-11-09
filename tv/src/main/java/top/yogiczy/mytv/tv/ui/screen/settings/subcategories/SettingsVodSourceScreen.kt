@@ -40,6 +40,8 @@ import top.yogiczy.mytv.tv.ui.screen.settings.components.SettingsListItem
 import top.yogiczy.mytv.tv.ui.theme.MyTvTheme
 import top.yogiczy.mytv.tv.ui.utils.Configs
 import top.yogiczy.mytv.tv.ui.utils.handleKeyEvents
+import top.yogiczy.mytv.tv.ui.material.SimplePopup
+import top.yogiczy.mytv.tv.ui.screen.push.PushContent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Check
@@ -141,6 +143,48 @@ fun SettingsVodSourceScreen(
                         refreshKey++
                     },
                 )
+            }
+
+            // 最底部: 添加新的点播源（仿直播源管理，扫码/浏览器推送添加）
+            item {
+                Spacer(Modifier.height(10.dp))
+                var addVisible by remember { mutableStateOf(false) }
+                var addFocused by remember { mutableStateOf(false) }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { addFocused = it.isFocused }
+                        .focusable()
+                        .handleKeyEvents(onSelect = { addVisible = true })
+                        .clickable { addVisible = true }
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(
+                            if (addFocused) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface.copy(0.04f)
+                        )
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        "＋ 添加新的点播源",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = if (addFocused) MaterialTheme.colorScheme.surface
+                        else MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+
+                // 推送添加（手机扫码打开推送页，推送页支持点播源添加）
+                SimplePopup(
+                    visibleProvider = { addVisible },
+                    onDismissRequest = {
+                        addVisible = false
+                        refreshKey++ // 推送添加后刷新列表
+                    },
+                ) {
+                    PushContent()
+                }
             }
         }
     }

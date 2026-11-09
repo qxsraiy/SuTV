@@ -184,6 +184,9 @@ object Configs {
         /** 点播 默认采集源 key (空=用内置默认) */
         VOD_DEFAULT_SOURCE_KEY,
 
+        /** 点播 搜索模式 (true=激进:全部源并发; false=保守:每批5个源轮换) */
+        VOD_SEARCH_AGGRESSIVE,
+
         /** ==================== 主题 ==================== */
         /** 当前应用主题 */
         THEME_APP_CURRENT,
@@ -473,6 +476,11 @@ object Configs {
     var vodDefaultSourceKey: String
         get() = SP.getString(KEY.VOD_DEFAULT_SOURCE_KEY.name, "") ?: ""
         set(value) = SP.putString(KEY.VOD_DEFAULT_SOURCE_KEY.name, value)
+
+    /** 点播 搜索模式 (true=激进:全部源并发探测; false=保守:每批5个源轮换) */
+    var vodSearchAggressive: Boolean
+        get() = SP.getBoolean(KEY.VOD_SEARCH_AGGRESSIVE.name, false)
+        set(value) = SP.putBoolean(KEY.VOD_SEARCH_AGGRESSIVE.name, value)
 
     /** ==================== 主题 ==================== */
     /** 当前应用主题 */

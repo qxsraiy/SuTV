@@ -1,4 +1,4 @@
-﻿package top.yogiczy.mytv.tv.ui.screen.vod
+package top.yogiczy.mytv.tv.ui.screen.vod
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -307,24 +307,30 @@ class VodViewModel : ViewModel() {
             }
 
             val size = all.size
-            val batch = (0 until 5).map { i -> all[(searchBatchOffset + i) % size] }
+            // 激进模式: 全部源并发探测(分块限流, 每块8个); 保守模式: 每批5个源轮换
+            val aggressive = top.yogiczy.mytv.tv.ui.utils.Configs.vodSearchAggressive
+            val batch = if (aggressive) all
+            else (0 until 5).map { i -> all[(searchBatchOffset + i) % size] }
             val encoded = java.net.URLEncoder.encode(wd, "UTF-8")
+            val perSourceTimeout = if (aggressive) 8000L else 5000L
 
             // Channel 收集结果: 谁先回来谁先显示
-            val resultChannel = Channel<List<top.yogiczy.mytv.core.data.entities.vod.VodItem>>(5)
+            val resultChannel = Channel<List<top.yogiczy.mytv.core.data.entities.vod.VodItem>>(batch.size)
 
-            // 并发搜索5个源, 每个源独立超时, 完成后发到 Channel
-            val jobs = batch.map { source ->
-                async(Dispatchers.IO) {
-                    val results = try {
-                        withTimeoutOrNull(5000) {
-                            val url = "$serverUrl/vod/search?source=${source.key}&wd=$encoded"
-                            val json = apiGet(url)
-                            val resp = Globals.json.decodeFromString(VodItemList.serializer(), json)
-                            resp.list.map { it.copy(sourceKey = source.key, sourceName = source.name) }
-                        } ?: emptyList()
-                    } catch (_: Exception) { emptyList() }
-                    resultChannel.send(results)
+            // 并发搜索全部目标源, 每个源独立超时, 完成后发到 Channel
+            val jobs = batch.chunked(8).flatMap { chunk ->
+                chunk.map { source ->
+                    async(Dispatchers.IO) {
+                        val results = try {
+                            withTimeoutOrNull(perSourceTimeout) {
+                                val url = "$serverUrl/vod/search?source=${source.key}&wd=$encoded"
+                                val json = apiGet(url)
+                                val resp = Globals.json.decodeFromString(VodItemList.serializer(), json)
+                                resp.list.map { it.copy(sourceKey = source.key, sourceName = source.name) }
+                            } ?: emptyList()
+                        } catch (_: Exception) { emptyList() }
+                        resultChannel.send(results)
+                    }
                 }
             }
 
@@ -334,7 +340,7 @@ class VodViewModel : ViewModel() {
             val total = jobs.size
 
             while (completed < total) {
-                val results = withTimeoutOrNull(6000) {
+                val results = withTimeoutOrNull(perSourceTimeout + 1000) {
                     resultChannel.receive()
                 } ?: break
                 completed++
@@ -356,15 +362,18 @@ class VodViewModel : ViewModel() {
             val final = _state.value.searchResults
             _state.value = _state.value.copy(
                 loading = false,
-                error = if (final.isEmpty()) "未找到结果, 点刷新换源重试" else null,
+                error = if (final.isEmpty()) {
+                    if (top.yogiczy.mytv.tv.ui.utils.Configs.vodSearchAggressive) "已搜索全部源, 未找到结果"
+                    else "未找到结果, 点刷新换源重试"
+                } else null,
             )
         }
     }
 
-    // 刷新搜索: 换5个源重新搜
+    // 刷新搜索: 保守模式换5个源重新搜; 激进模式已覆盖全部源, 直接重搜
     fun refreshSearch() {
         if (lastSearchWd.isBlank()) return
-        searchBatchOffset += 5
+        if (!top.yogiczy.mytv.tv.ui.utils.Configs.vodSearchAggressive) searchBatchOffset += 5
         searchMulti(lastSearchWd)
     }
 
