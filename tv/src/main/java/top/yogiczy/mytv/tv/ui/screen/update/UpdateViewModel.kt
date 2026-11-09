@@ -101,14 +101,25 @@ class UpdateViewModel(
             _isUpdating = true
             _updateDownloaded = false
 
-            Downloader.downloadTo(_latestRelease.downloadUrl, latestFile.path) {
-                Snackbar.show(
-                    "正在下载更新: $it%",
-                    leadingLoading = true,
-                    duration = 10_000,
-                    id = "downloadProcess"
-                )
-            }
+            Downloader.downloadTo(_latestRelease.downloadUrl, latestFile.path,
+                onProgressCb = {
+                    Snackbar.show(
+                        "正在下载更新: $it%",
+                        leadingLoading = true,
+                        duration = 300_000, // 长时停留，下载完成/失败时会被覆盖
+                        id = "downloadProcess"
+                    )
+                },
+                onStatus = { status ->
+                    // 阶段提示：直连/重试/切换国内镜像，避免"更新中"卡住无反馈
+                    Snackbar.show(
+                        status,
+                        leadingLoading = true,
+                        duration = 300_000,
+                        id = "downloadProcess"
+                    )
+                },
+            )
 
             _updateDownloaded = true
             Snackbar.show("下载更新成功")

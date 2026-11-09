@@ -26,7 +26,7 @@ object Downloader {
                 .body(DownloadResponseBody(originalResponse, onProgressCb)).build()
         }
         return OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
             .addNetworkInterceptor(interceptor)
@@ -38,24 +38,34 @@ object Downloader {
      * 主地址失败后自动重试 2 次（间隔 2s/4s），再依次尝试加速镜像。
      * 失败抛出带具体原因的异常（HTTP 码 / 超时 / 连接重置）。
      */
-    suspend fun downloadTo(url: String, filePath: String, onProgressCb: ((Int) -> Unit)?) =
-        withContext(Dispatchers.IO) {
-            var lastError: Exception? = null
-            for ((mirrorIdx, prefix) in MIRROR_PREFIXES.withIndex()) {
-                val target = prefix + url
-                val attempts = if (mirrorIdx == 0) 3 else 1
-                for (attempt in 1..attempts) {
-                    try {
-                        doDownload(target, filePath, onProgressCb)
-                        return@withContext
-                    } catch (ex: Exception) {
-                        lastError = ex
-                        if (attempt < attempts) delay(2000L * attempt)
-                    }
+    suspend fun downloadTo(
+        url: String,
+        filePath: String,
+        onProgressCb: ((Int) -> Unit)?,
+        onStatus: ((String) -> Unit)? = null,
+    ) = withContext(Dispatchers.IO) {
+        var lastError: Exception? = null
+        for ((mirrorIdx, prefix) in MIRROR_PREFIXES.withIndex()) {
+            val target = prefix + url
+            val attempts = if (mirrorIdx == 0) 2 else 1
+            for (attempt in 1..attempts) {
+                // 阶段提示：直连重试 / 切换镜像，让 UI 有反馈不"卡死"
+                when {
+                    mirrorIdx == 0 && attempt == 1 -> onStatus?.invoke("正在连接 GitHub 下载…")
+                    mirrorIdx == 0 -> onStatus?.invoke("直连失败，正在重试（第${attempt}次）…")
+                    else -> onStatus?.invoke("直连不可用，切换国内加速镜像（${prefix.removePrefix("https://").removeSuffix("/")}）…")
+                }
+                try {
+                    doDownload(target, filePath, onProgressCb)
+                    return@withContext
+                } catch (ex: Exception) {
+                    lastError = ex
+                    if (attempt < attempts) delay(2000L * attempt)
                 }
             }
-            throw Exception("下载文件失败: ${lastError?.message ?: "未知错误"}", lastError)
         }
+        throw Exception("下载文件失败: ${lastError?.message ?: "未知错误"}", lastError)
+    }
 
     private fun doDownload(url: String, filePath: String, onProgressCb: ((Int) -> Unit)?) {
         val client = newClient(onProgressCb)
