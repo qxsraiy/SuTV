@@ -35,6 +35,9 @@ data class VodUiState(
     val page: Int = 1,
     val pageCount: Int = 1,
     val searchResults: List<VodItem> = emptyList(),
+    /** 聚合推荐（激进模式首页混合展示） */
+    val recommendItems: List<VodItem> = emptyList(),
+    val recommendLoading: Boolean = false,
 )
 
 // 跨源合并的播放线路
@@ -289,8 +292,9 @@ class VodViewModel : ViewModel() {
 
     // 当前搜索批次偏移 (每次刷新+5, 循环)
     private var searchBatchOffset = 0
-    // 上次搜索关键词
+    // 上次搜索关键词（用于返回点播页时恢复搜索框文字）
     private var lastSearchWd = ""
+    val lastSearchWdText get() = lastSearchWd
 
     fun searchMulti(wd: String) {
         searchJob?.cancel()
@@ -321,14 +325,18 @@ class VodViewModel : ViewModel() {
             val jobs = batch.chunked(8).flatMap { chunk ->
                 chunk.map { source ->
                     async(Dispatchers.IO) {
+                        val startAt = System.currentTimeMillis()
+                        var ok = false
                         val results = try {
                             withTimeoutOrNull(perSourceTimeout) {
                                 val url = "$serverUrl/vod/search?source=${source.key}&wd=$encoded"
                                 val json = apiGet(url)
                                 val resp = Globals.json.decodeFromString(VodItemList.serializer(), json)
+                                ok = true // 拿到响应即算源存活（有无结果都算）
                                 resp.list.map { it.copy(sourceKey = source.key, sourceName = source.name) }
                             } ?: emptyList()
                         } catch (_: Exception) { emptyList() }
+                        VodSourceHealthManager.record(source.key, ok, System.currentTimeMillis() - startAt)
                         resultChannel.send(results)
                     }
                 }
@@ -381,6 +389,65 @@ class VodViewModel : ViewModel() {
     fun cancelSearch() {
         searchJob?.cancel()
         searchJob = null
+    }
+
+    // ==================== 聚合推荐（激进模式首页） ====================
+
+    private var recommendJob: Job? = null
+
+    /**
+     * 加载聚合推荐：从健康分最高的 3 个源并发拉首页第 1 页，
+     * 交叉混合（A1,B1,C1,A2,B2,C2…）去重后展示。任一源失败不影响其他源。
+     */
+    fun loadRecommendations(force: Boolean = false) {
+        if (recommendJob?.isActive == true) return
+        if (!force && _state.value.recommendItems.isNotEmpty()) return
+        recommendJob = viewModelScope.launch(Dispatchers.IO) {
+            _state.value = _state.value.copy(recommendLoading = true)
+            val all = top.yogiczy.mytv.core.data.utils.Constants.VOD_SOURCE_LIST +
+                top.yogiczy.mytv.tv.ui.utils.Configs.vodSourceList
+            val picked = VodSourceHealthManager.topSources(all, 3)
+                .ifEmpty { all.take(3) }
+            if (picked.isEmpty()) {
+                _state.value = _state.value.copy(recommendLoading = false)
+                return@launch
+            }
+
+            // 并发拉取各源首页
+            val perSource = picked.map { source ->
+                async(Dispatchers.IO) {
+                    val startAt = System.currentTimeMillis()
+                    var ok = false
+                    val list = try {
+                        withTimeoutOrNull(8000) {
+                            val json = apiGet("$serverUrl/vod/list?source=${source.key}&pg=1")
+                            val resp = Globals.json.decodeFromString(VodItemList.serializer(), json)
+                            ok = true
+                            resp.list.take(15).map {
+                                it.copy(sourceKey = source.key, sourceName = source.name)
+                            }
+                        } ?: emptyList()
+                    } catch (_: Exception) { emptyList() }
+                    VodSourceHealthManager.record(source.key, ok, System.currentTimeMillis() - startAt)
+                    list
+                }
+            }.map { it.await() }
+
+            // 交叉混合 + 按名称去重
+            val seen = mutableSetOf<String>()
+            val mixed = mutableListOf<VodItem>()
+            val maxLen = perSource.maxOfOrNull { it.size } ?: 0
+            for (i in 0 until maxLen) {
+                for (list in perSource) {
+                    val item = list.getOrNull(i) ?: continue
+                    if (seen.add(item.vod_name)) mixed.add(item)
+                }
+            }
+            _state.value = _state.value.copy(
+                recommendItems = mixed.take(45),
+                recommendLoading = false,
+            )
+        }
     }
 
     fun search(wd: String, sourceKey: String) {

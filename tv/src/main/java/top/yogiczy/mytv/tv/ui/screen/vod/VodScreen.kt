@@ -1,4 +1,4 @@
-﻿package top.yogiczy.mytv.tv.ui.screen.vod
+package top.yogiczy.mytv.tv.ui.screen.vod
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -86,10 +86,21 @@ fun VodScreen(
     val state by vm.state
     val context = LocalContext.current
 
-    // 初始加载 / 从设置页返回时同步默认源
+    // 搜索模式：激进=全源聚合(隐藏源列表/分类, 首页显示聚合推荐); 保守=当前样子
+    var aggressive by remember { mutableStateOf(top.yogiczy.mytv.tv.ui.utils.Configs.vodSearchAggressive) }
+
+    // 初始加载 / 从设置页返回时同步默认源与搜索模式
     LaunchedEffect(Unit) {
+        aggressive = top.yogiczy.mytv.tv.ui.utils.Configs.vodSearchAggressive
         if (state.sources.isEmpty()) vm.loadSources()
         else vm.applyConfiguredDefaultSourceIfChanged()
+    }
+
+    // 激进模式：进入点播页(未搜索时)加载聚合推荐
+    LaunchedEffect(aggressive) {
+        if (aggressive && state.searchResults.isEmpty() && state.recommendItems.isEmpty()) {
+            vm.loadRecommendations()
+        }
     }
 
     // 观看历史 — 版本号变化时自动刷新
@@ -104,12 +115,13 @@ fun VodScreen(
             VodTopBar(
                 vm = vm,
                 state = state,
+                aggressive = aggressive,
                 onBack = onBack,
                 onPlayVod = onPlayVod,
             )
 
-            // 分类导航
-            if (state.categories.isNotEmpty()) {
+            // 分类导航（激进模式隐藏：首页为聚合推荐，分类属于单一源）
+            if (!aggressive && state.categories.isNotEmpty()) {
                 CategoryTabs(
                     categories = state.categories,
                     sourceKey = state.currentSource.key,
@@ -136,8 +148,12 @@ fun VodScreen(
                     val maxImageH = (availH - 6.dp) / 2f - 44.dp
                     val minColW = (maxImageH * 3f / 4f).coerceAtLeast(80.dp)
 
-                    val displayItems = if (state.searchResults.isNotEmpty()) state.searchResults else state.items
-                    val isLoading = state.loading && displayItems.isEmpty()
+                    val displayItems = when {
+                        state.searchResults.isNotEmpty() -> state.searchResults
+                        aggressive && state.recommendItems.isNotEmpty() -> state.recommendItems
+                        else -> state.items
+                    }
+                    val isLoading = (state.loading || (aggressive && state.recommendLoading)) && displayItems.isEmpty()
 
                     if (isLoading) {
                         Box(
@@ -165,8 +181,8 @@ fun VodScreen(
                                     },
                                 )
                             }
-                            // 加载更多
-                            if (state.searchResults.isEmpty() && state.page < state.pageCount) {
+                            // 加载更多（激进模式推荐视图不分页）
+                            if (state.searchResults.isEmpty() && !aggressive && state.page < state.pageCount) {
                                 item {
                                     LaunchedEffect(Unit) {
                                         vm.loadList(state.currentSource.key, state.currentTypeId, state.page + 1)
@@ -218,10 +234,12 @@ fun VodScreen(
 private fun VodTopBar(
     vm: VodViewModel,
     state: VodUiState,
+    aggressive: Boolean,
     onBack: () -> Unit,
     onPlayVod: (String, String, String, String, Int) -> Unit,
 ) {
-    var searchText by remember { mutableStateOf("") }
+    // 搜索框文字持久化：从详情页返回时恢复上次搜索内容（存在 ViewModel 里）
+    var searchText by remember { mutableStateOf(vm.lastSearchWdText) }
     var showQrPopup by remember { mutableStateOf(false) }
     // ===== 手机扫码搜索：仅在点播主界面生效 =====
     // 进入点播页启用；进入剧集详情或退出点播页时自动断开（NavHost 会 dispose 本界面）
@@ -261,12 +279,14 @@ private fun VodTopBar(
         // 返回（设置页同款胶囊）
         AppPill(text = "← 返回", onClick = onBack)
 
-        // 采集源选择
-        AppPill(
-            text = "源: ${state.currentSource.name} ▾",
-            selected = showSources,
-            onClick = { showSources = !showSources },
-        )
+        // 采集源选择（激进模式隐藏：聚合展示/全源搜索，无需关心当前源）
+        if (!aggressive) {
+            AppPill(
+                text = "源: ${state.currentSource.name} ▾",
+                selected = showSources,
+                onClick = { showSources = !showSources },
+            )
+        }
 
         // 搜索框（容器/文字与设置页一致；聚焦反色）
         val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
