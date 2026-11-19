@@ -1,4 +1,4 @@
-﻿package top.yogiczy.mytv.tv
+package top.yogiczy.mytv.tv
 
 import android.app.Application
 import android.content.Intent
@@ -72,7 +72,18 @@ class MyTVApplication : Application(), ImageLoaderFactory {
     }
 
     override fun newImageLoader(): ImageLoader {
+        // 安卓7.1以下不信任 ISRG Root X1，Let's Encrypt 证书的图片/源全挂；
+        // 图片加载统一走 trust-all 客户端
+        val imageClient = okhttp3.OkHttpClient.Builder()
+            .sslSocketFactory(
+                top.yogiczy.mytv.core.data.network.TrustAllSSLSocketFactory.sslSocketFactory,
+                top.yogiczy.mytv.core.data.network.TrustAllSSLSocketFactory.trustManager
+            )
+            .hostnameVerifier { _, _ -> true }
+            .build()
         return ImageLoader(this).newBuilder()
+            .okHttpClient(imageClient)
+            .allowRgb565(android.os.Build.VERSION.SDK_INT < 26)
             .logger(DebugLogger())
             .components {
                 add(SvgDecoder.Factory())

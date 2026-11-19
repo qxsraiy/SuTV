@@ -59,6 +59,11 @@ class VodViewModel : ViewModel() {
 
     // 共享OkHttpClient, 避免每次创建
     private val httpClient = okhttp3.OkHttpClient.Builder()
+        .sslSocketFactory(
+            top.yogiczy.mytv.core.data.network.TrustAllSSLSocketFactory.sslSocketFactory,
+            top.yogiczy.mytv.core.data.network.TrustAllSSLSocketFactory.trustManager
+        )
+        .hostnameVerifier { _, _ -> true }
         .connectTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
         .readTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
         .build()

@@ -148,13 +148,19 @@ fun VodDetailScreen(
     val ctrlTextDisabled = Color.White.copy(alpha = 0.4f) // 禁用文字
 
     // 创建 ExoPlayer（大缓冲 LoadControl：快进/拖拽不易掏空缓冲）
+    // 低配设备（<安卓8 / 内存<2GB）降低缓冲目标，避免内存吃紧卡顿
+    val lowSpec = remember {
+        val am = context.getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        val mi = android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+        android.os.Build.VERSION.SDK_INT < 26 || mi.totalMem < 2L * 1024 * 1024 * 1024
+    }
     val player = remember {
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
                 /* minBufferMs = */ 15000,
-                /* maxBufferMs = */ 300000,
-                /* bufferForPlaybackMs = */ 2500,
-                /* bufferForPlaybackAfterRebufferMs = */ 5000,
+                /* maxBufferMs = */ if (lowSpec) 90000 else 300000,
+                /* bufferForPlaybackMs = */ if (lowSpec) 1500 else 2500,
+                /* bufferForPlaybackAfterRebufferMs = */ if (lowSpec) 3000 else 5000,
             )
             .build()
         ExoPlayer.Builder(context)

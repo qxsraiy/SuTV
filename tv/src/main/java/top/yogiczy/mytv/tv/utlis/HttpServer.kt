@@ -1,4 +1,4 @@
-﻿package top.yogiczy.mytv.tv.utlis
+package top.yogiczy.mytv.tv.utlis
 
 import android.content.Context
 import android.content.Intent
@@ -86,6 +86,11 @@ object HttpServer : Loggable("HttpServer") {
 
     private val sharedClient by lazy {
         val builder = okhttp3.OkHttpClient.Builder().dns(Ipv4FirstDns)
+            .sslSocketFactory(
+                top.yogiczy.mytv.core.data.network.TrustAllSSLSocketFactory.sslSocketFactory,
+                top.yogiczy.mytv.core.data.network.TrustAllSSLSocketFactory.trustManager
+            )
+            .hostnameVerifier { _, _ -> true }
             .followRedirects(true)
             .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
@@ -96,6 +101,11 @@ object HttpServer : Loggable("HttpServer") {
 
     private val noRedirectClient by lazy {
         val builder = okhttp3.OkHttpClient.Builder().dns(Ipv4FirstDns)
+            .sslSocketFactory(
+                top.yogiczy.mytv.core.data.network.TrustAllSSLSocketFactory.sslSocketFactory,
+                top.yogiczy.mytv.core.data.network.TrustAllSSLSocketFactory.trustManager
+            )
+            .hostnameVerifier { _, _ -> true }
             .followRedirects(false)
             .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
@@ -106,6 +116,11 @@ object HttpServer : Loggable("HttpServer") {
 
     private val proxyClient by lazy {
         val builder = okhttp3.OkHttpClient.Builder().dns(Ipv4FirstDns)
+            .sslSocketFactory(
+                top.yogiczy.mytv.core.data.network.TrustAllSSLSocketFactory.sslSocketFactory,
+                top.yogiczy.mytv.core.data.network.TrustAllSSLSocketFactory.trustManager
+            )
+            .hostnameVerifier { _, _ -> true }
             .followRedirects(true)
             .retryOnConnectionFailure(true)
             .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)

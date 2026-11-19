@@ -19,13 +19,26 @@ object Downloader {
         "https://gh-proxy.com/",
     )
 
+    // 老设备（<安卓7.1）不信任 Let's Encrypt 的 ISRG 根证书，更新下载同样信任所有证书
+    private val trustAllManager = object : javax.net.ssl.X509TrustManager {
+        @android.annotation.SuppressLint("TrustAllX509TrustManager")
+        override fun checkClientTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) {}
+        @android.annotation.SuppressLint("TrustAllX509TrustManager")
+        override fun checkServerTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) {}
+        override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = arrayOf()
+    }
+
     private fun newClient(onProgressCb: ((Int) -> Unit)?): OkHttpClient {
         val interceptor = Interceptor { chain ->
             val originalResponse = chain.proceed(chain.request())
             originalResponse.newBuilder()
                 .body(DownloadResponseBody(originalResponse, onProgressCb)).build()
         }
+        val sslContext = javax.net.ssl.SSLContext.getInstance("TLS")
+        sslContext.init(null, arrayOf<javax.net.ssl.TrustManager>(trustAllManager), java.security.SecureRandom())
         return OkHttpClient.Builder()
+            .sslSocketFactory(sslContext.socketFactory, trustAllManager)
+            .hostnameVerifier { _, _ -> true }
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
