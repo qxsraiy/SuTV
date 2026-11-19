@@ -253,7 +253,10 @@ private fun VodTopBar(
     LaunchedEffect(pendingRemoteQuery) {
         val q = pendingRemoteQuery ?: return@LaunchedEffect
         VodRemoteSearchBus.consume()
+        // 电视端必须有可见反馈：关弹窗、提示、回填关键词、立即搜索
+        showQrPopup = false
         searchText = q
+        top.yogiczy.mytv.tv.ui.material.Snackbar.show("收到手机搜索：《$q》，正在搜索…")
         vm.searchMulti(q)
     }
 
