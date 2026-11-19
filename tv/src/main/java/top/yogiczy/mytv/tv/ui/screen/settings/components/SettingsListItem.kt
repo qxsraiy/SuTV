@@ -48,16 +48,26 @@ fun SettingsListItem(
 
     var showPush by remember { mutableStateOf(false) }
 
-    ListItem(
-        selected = false,
-        // 触控支持：手指点击等同遥控确认
-        onClick = {
+    // 防双击穿：tv ListItem 的 Surface 在按键 DOWN 时就触发 onClick，
+    // 而 handleKeyEvents 在 UP 时再触发一次 → 遥控按一次等于按两次（开关类设置等于没变）。
+    // 这里 400ms 去抖，触摸/遥控都只生效一次。
+    var lastInvokeAt by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
+    val invokeOnce: () -> Unit = {
+        val now = android.os.SystemClock.uptimeMillis()
+        if (now - lastInvokeAt > 400) {
+            lastInvokeAt = now
             if (onSelect != null) onSelect()
             else if (remoteConfig) {
                 popupManager.push(focusRequester, true)
                 showPush = true
             }
-        },
+        }
+    }
+
+    ListItem(
+        selected = false,
+        // 触控支持：手指点击等同遥控确认
+        onClick = { invokeOnce() },
         headlineContent = { Text(text = headlineContent) },
         trailingContent = {
             Row(
@@ -98,13 +108,7 @@ fun SettingsListItem(
         modifier = modifier
             .focusRequester(focusRequester)
             .handleKeyEvents(
-                onSelect = {
-                    if (onSelect != null) onSelect()
-                    else if (remoteConfig) {
-                        popupManager.push(focusRequester, true)
-                        showPush = true
-                    }
-                },
+                onSelect = { invokeOnce() },
                 onLongSelect = { onLongSelect() },
             ),
     )
