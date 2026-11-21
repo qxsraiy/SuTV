@@ -222,7 +222,7 @@ private fun VodSourceItem(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                source.api,
+                top.yogiczy.mytv.tv.utlis.BuiltinRelayProbe.displayApi(source),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(0.5f),
             )

@@ -520,7 +520,10 @@ object HttpServer : Loggable("HttpServer") {
     }
 
     private fun handleVodSourceList(response: AsyncHttpServerResponse) {
-        val allSources = Constants.VOD_SOURCE_LIST + Configs.vodSourceList
+        // 内置中转源不暴露真实链接（主备地址对推送页隐藏）
+        val allSources = (Constants.VOD_SOURCE_LIST + Configs.vodSourceList).map {
+            if (it.key == BuiltinRelayProbe.KEY) it.copy(api = "", altApi = "") else it
+        }
         val json = Globals.json.encodeToString(allSources)
         wrapResponse(response).apply { send(json) }
     }
@@ -950,7 +953,10 @@ object HttpServer : Loggable("HttpServer") {
     private fun handleVodSources(response: AsyncHttpServerResponse) {
         try {
             wrapResponse(response)
-            val sources = Constants.VOD_SOURCE_LIST + Configs.vodSourceList
+            // 内置中转源不暴露真实链接（主备地址对 UI 隐藏）
+            val sources = (Constants.VOD_SOURCE_LIST + Configs.vodSourceList).map {
+                if (it.key == BuiltinRelayProbe.KEY) it.copy(api = "", altApi = "") else it
+            }
             val json = Globals.json.encodeToString(sources)
             response.send(json)
         } catch (e: Exception) {
@@ -965,7 +971,7 @@ object HttpServer : Loggable("HttpServer") {
             val sourceKey = request.query.getString("source") ?: ""
             val source = (Constants.VOD_SOURCE_LIST + Configs.vodSourceList).find { it.key == sourceKey }
                 ?: throw Exception("采集源不存在: $sourceKey")
-            val url = "${source.api}?ac=list"
+            val url = "${BuiltinRelayProbe.apiOf(source)}?ac=list"
             val body = fetchUrl(url)
             val cmsResp = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
             val cats = cmsResp.`class`.map {
@@ -994,7 +1000,7 @@ object HttpServer : Loggable("HttpServer") {
             val source = (Constants.VOD_SOURCE_LIST + Configs.vodSourceList).find { it.key == sourceKey }
                 ?: throw Exception("采集源不存在: $sourceKey")
             val url = buildString {
-                append(source.api).append("?ac=videolist&pg=").append(page)
+                append(BuiltinRelayProbe.apiOf(source)).append("?ac=videolist&pg=").append(page)
                 if (typeId.isNotEmpty()) append("&t=").append(typeId)
             }
             val body = fetchUrl(url)
@@ -1021,7 +1027,7 @@ object HttpServer : Loggable("HttpServer") {
             val page = request.query.getString("page") ?: "1"
             val source = (Constants.VOD_SOURCE_LIST + Configs.vodSourceList).find { it.key == sourceKey }
                 ?: throw Exception("采集源不存在: $sourceKey")
-            val url = "${source.api}?wd=${java.net.URLEncoder.encode(wd, "UTF-8")}&pg=$page"
+            val url = "${BuiltinRelayProbe.apiOf(source)}?wd=${java.net.URLEncoder.encode(wd, "UTF-8")}&pg=$page"
             val body = fetchUrl(url)
             val cmsResp = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
             val items = cmsResp.list.map { it.toVodItem() }
@@ -1059,7 +1065,7 @@ object HttpServer : Loggable("HttpServer") {
                 val size = all.size
                 val batch = (0 until 5).map { i ->
                     val s = all[(offset + i) % size]
-                    Triple(s.key, s.name, s.api)
+                    Triple(s.key, s.name, BuiltinRelayProbe.apiOf(s))
                 }
 
                 // 搜索单个源, 返回结果列表
@@ -1142,7 +1148,7 @@ object HttpServer : Loggable("HttpServer") {
             val id = request.query.getString("id") ?: ""
             val source = (Constants.VOD_SOURCE_LIST + Configs.vodSourceList).find { it.key == sourceKey }
                 ?: throw Exception("采集源不存在: $sourceKey")
-            val url = "${source.api}?ac=detail&ids=$id"
+            val url = "${BuiltinRelayProbe.apiOf(source)}?ac=detail&ids=$id"
             val body = fetchUrl(url)
             val cmsResp = Globals.json.decodeFromString(VodCmsListResponse.serializer(), body)
             val item = cmsResp.list.firstOrNull() ?: throw Exception("未找到影片")

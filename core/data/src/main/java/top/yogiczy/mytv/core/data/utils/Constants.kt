@@ -166,7 +166,7 @@ object Constants {
      */
     val VOD_SOURCE_LIST = VodSourceList(
         listOf(
-            VodSource("cmszz", "cms中转", "https://tv.xtay.cn:9999/api.php/provide/vod", "clean", true),
+            VodSource("cmszz", "内置中转", "https://tv.xtay.cn:9999/api.php/provide/vod", "clean", true, "https://tvs.xtay.cn/api.php/provide/vod"),
             VodSource("bfzy", "暴风资源", "https://bfzyapi.com/api.php/provide/vod", "clean"),
             VodSource("360zy", "360资源", "https://360zy.com/api.php/provide/vod", "clean"),
             VodSource("guangsu", "光速资源", "https://api.guangsuapi.com/api.php/provide/vod", "clean"),

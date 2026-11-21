@@ -17,6 +17,8 @@ data class VodSource(
     val ad: String = "",
     /** 是否默认源 */
     val default: Boolean = false,
+    /** 备用 API 地址（主地址不可达时自动切换，如 v6 主地址 + v4 备用） */
+    val altApi: String = "",
 )
 
 @Serializable

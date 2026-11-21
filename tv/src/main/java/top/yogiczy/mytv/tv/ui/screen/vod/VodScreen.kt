@@ -92,6 +92,13 @@ fun VodScreen(
     // 初始加载 / 从设置页返回时同步默认源与搜索模式
     LaunchedEffect(Unit) {
         aggressive = top.yogiczy.mytv.tv.ui.utils.Configs.vodSearchAggressive
+        // 默认源为内置中转时，探测主地址(v6)连通性，不通自动切备用(v4)
+        val defKey = top.yogiczy.mytv.tv.ui.utils.Configs.vodDefaultSourceKey
+        if (defKey.isBlank() || defKey == top.yogiczy.mytv.tv.utlis.BuiltinRelayProbe.KEY) {
+            val primary = top.yogiczy.mytv.core.data.utils.Constants.VOD_SOURCE_LIST
+                .find { it.key == top.yogiczy.mytv.tv.utlis.BuiltinRelayProbe.KEY }?.api
+            if (!primary.isNullOrEmpty()) top.yogiczy.mytv.tv.utlis.BuiltinRelayProbe.probe(primary)
+        }
         if (state.sources.isEmpty()) vm.loadSources()
         else vm.applyConfiguredDefaultSourceIfChanged()
     }
