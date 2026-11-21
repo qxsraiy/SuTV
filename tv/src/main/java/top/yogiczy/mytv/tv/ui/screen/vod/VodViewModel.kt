@@ -296,7 +296,6 @@ class VodViewModel : ViewModel() {
     private var searchJob: Job? = null
 
     // 当前搜索批次偏移 (每次刷新+5, 循环)
-    private var searchBatchOffset = 0
     // 上次搜索关键词（用于返回点播页时恢复搜索框文字）
     private var lastSearchWd = ""
     val lastSearchWdText get() = lastSearchWd
@@ -315,13 +314,13 @@ class VodViewModel : ViewModel() {
                 return@launch
             }
 
-            val size = all.size
-            // 激进模式: 全部源并发探测(分块限流, 每块8个); 保守模式: 每批5个源轮换
+            // 激进模式: 全部源并发探测(分块限流, 每块8个); 保守模式: 只搜当前源(快)
             val aggressive = top.yogiczy.mytv.tv.ui.utils.Configs.vodSearchAggressive
             val batch = if (aggressive) all
-            else (0 until 5).map { i -> all[(searchBatchOffset + i) % size] }
+            else listOf(_state.value.currentSource).filter { it.key.isNotEmpty() }
+                .ifEmpty { listOf(all.first()) }
             val encoded = java.net.URLEncoder.encode(wd, "UTF-8")
-            val perSourceTimeout = if (aggressive) 8000L else 5000L
+            val perSourceTimeout = if (aggressive) 8000L else 6000L
 
             // Channel 收集结果: 谁先回来谁先显示
             val resultChannel = Channel<List<top.yogiczy.mytv.core.data.entities.vod.VodItem>>(batch.size)
@@ -383,10 +382,9 @@ class VodViewModel : ViewModel() {
         }
     }
 
-    // 刷新搜索: 保守模式换5个源重新搜; 激进模式已覆盖全部源, 直接重搜
+    // 刷新搜索: 重新搜一次（保守=当前源重搜; 激进=全源重搜）
     fun refreshSearch() {
         if (lastSearchWd.isBlank()) return
-        if (!top.yogiczy.mytv.tv.ui.utils.Configs.vodSearchAggressive) searchBatchOffset += 5
         searchMulti(lastSearchWd)
     }
 

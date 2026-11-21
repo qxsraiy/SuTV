@@ -26,7 +26,7 @@ fun SettingsVodScreen(
         header = { Text("设置 / 点播源") },
         onBackPressed = onBackPressed,
     ) { firstItemFocusRequester ->
-        // 搜索模式: 保守=每次5个源轮换(快); 激进=全部源并发探测(全)
+        // 搜索模式: 保守=只搜当前源(快); 激进=全部源并发探测(全)
         item {
             var aggressive by remember { mutableStateOf(Configs.vodSearchAggressive) }
 
@@ -34,7 +34,7 @@ fun SettingsVodScreen(
                 modifier = Modifier.focusRequester(firstItemFocusRequester),
                 headlineContent = "搜索模式",
                 supportingContent = if (aggressive) "激进：同时探测全部点播源（结果最全，略慢）"
-                else "保守：每次轮换 5 个源（快，可点刷新换下一批）",
+                else "保守：只搜索当前使用的点播源（快，换源请在点播页左上角选择）",
                 trailingContent = if (aggressive) "激进" else "保守",
                 onSelect = {
                     aggressive = !aggressive
